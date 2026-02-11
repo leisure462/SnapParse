@@ -129,7 +129,7 @@ export default function TranslateWindow(): JSX.Element {
             </label>
 
             <span className="md2-inline-arrow" aria-hidden="true">
-              ->
+              {"->"}
             </span>
 
             <label className="md2-input-group">

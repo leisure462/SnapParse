@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsWindow from "./SettingsWindow";
 import { defaultSettings } from "../../shared/settings";
@@ -15,13 +15,20 @@ describe("SettingsWindow", () => {
     invokeMock.mockResolvedValue(defaultSettings());
   });
 
-  it("opens API settings as default first section", () => {
-    render(<SettingsWindow />);
+  async function renderWindow(): Promise<void> {
+    await act(async () => {
+      render(<SettingsWindow />);
+      await Promise.resolve();
+    });
+  }
+
+  it("opens API settings as default first section", async () => {
+    await renderWindow();
     expect(screen.getByRole("tab", { name: "API配置" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("shows theme controls inside 工具栏 section", () => {
-    render(<SettingsWindow />);
+  it("shows theme controls inside 工具栏 section", async () => {
+    await renderWindow();
 
     fireEvent.click(screen.getByRole("tab", { name: "工具栏" }));
 

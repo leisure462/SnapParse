@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ActionBarWindow from "./ActionBarWindow";
+import { defaultSettings } from "../../shared/settings";
 
-const invokeMock = vi.fn(async () => undefined);
+const invokeMock = vi.fn(async () => defaultSettings());
 const emitMock = vi.fn(async () => undefined);
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -16,14 +17,22 @@ vi.mock("@tauri-apps/api/event", () => ({
 
 describe("ActionBarWindow", () => {
   beforeEach(() => {
-    invokeMock.mockClear();
+    invokeMock.mockReset();
+    invokeMock.mockResolvedValue(defaultSettings());
     emitMock.mockClear();
     document.documentElement.removeAttribute("data-theme");
     window.localStorage.clear();
   });
 
-  it("renders default five actions", () => {
-    render(<ActionBarWindow />);
+  async function renderWindow(): Promise<void> {
+    await act(async () => {
+      render(<ActionBarWindow />);
+      await Promise.resolve();
+    });
+  }
+
+  it("renders default five actions", async () => {
+    await renderWindow();
     expect(screen.getByText("翻译")).toBeInTheDocument();
     expect(screen.getByText("解释")).toBeInTheDocument();
     expect(screen.getByText("总结")).toBeInTheDocument();
@@ -31,8 +40,8 @@ describe("ActionBarWindow", () => {
     expect(screen.getByText("复制")).toBeInTheDocument();
   });
 
-  it("renders toolbar theme toggle and flips mode", () => {
-    render(<ActionBarWindow />);
+  it("renders toolbar theme toggle and flips mode", async () => {
+    await renderWindow();
     const toggle = screen.getByRole("switch", { name: "明暗切换" });
     expect(toggle).toBeInTheDocument();
 
