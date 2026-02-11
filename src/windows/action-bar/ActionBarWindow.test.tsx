@@ -3,23 +3,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import ActionBarWindow from "./ActionBarWindow";
 import { defaultSettings } from "../../shared/settings";
 
-const invokeMock = vi.fn(async () => defaultSettings());
-const emitMock = vi.fn(async () => undefined);
+const mocks = vi.hoisted(() => ({
+  invokeMock: vi.fn(),
+  emitMock: vi.fn()
+}));
 
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: invokeMock
+  invoke: mocks.invokeMock
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
-  emit: emitMock,
+  emit: mocks.emitMock,
   listen: vi.fn(async () => () => undefined)
 }));
 
 describe("ActionBarWindow", () => {
   beforeEach(() => {
-    invokeMock.mockReset();
-    invokeMock.mockResolvedValue(defaultSettings());
-    emitMock.mockClear();
+    mocks.invokeMock.mockReset();
+    mocks.invokeMock.mockResolvedValue(defaultSettings());
+    mocks.emitMock.mockReset();
+    mocks.emitMock.mockResolvedValue(undefined);
     document.documentElement.removeAttribute("data-theme");
     window.localStorage.clear();
   });

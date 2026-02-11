@@ -4,11 +4,15 @@ import SummaryWindow from "./SummaryWindow";
 
 type EventHandler = (event: { payload: { text: string } }) => void;
 
-const listeners = new Map<string, EventHandler>();
-const invokeMock = vi.fn();
+const mocks = vi.hoisted(() => ({
+  listeners: new Map<string, EventHandler>(),
+  invokeMock: vi.fn()
+}));
+
+const listeners = mocks.listeners;
 
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: invokeMock
+  invoke: mocks.invokeMock
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
@@ -28,11 +32,11 @@ vi.mock("@tauri-apps/api/window", () => ({
 describe("SummaryWindow", () => {
   beforeEach(() => {
     listeners.clear();
-    invokeMock.mockReset();
+    mocks.invokeMock.mockReset();
   });
 
   it("shows original text after change-text event", async () => {
-    invokeMock.mockResolvedValue({
+    mocks.invokeMock.mockResolvedValue({
       taskKind: "summarize",
       sourceText: "origin text",
       resultText: "summary text",
@@ -51,7 +55,7 @@ describe("SummaryWindow", () => {
 
   it("shows loading then result for summarize request", async () => {
     let resolver: ((value: unknown) => void) | undefined;
-    invokeMock.mockImplementation(
+    mocks.invokeMock.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolver = resolve;

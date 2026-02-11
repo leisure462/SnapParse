@@ -3,16 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsWindow from "./SettingsWindow";
 import { defaultSettings } from "../../shared/settings";
 
-const invokeMock = vi.fn();
+const mocks = vi.hoisted(() => ({
+  invokeMock: vi.fn()
+}));
 
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: invokeMock
+  invoke: mocks.invokeMock
 }));
 
 describe("SettingsWindow", () => {
   beforeEach(() => {
-    invokeMock.mockReset();
-    invokeMock.mockResolvedValue(defaultSettings());
+    mocks.invokeMock.mockReset();
+    mocks.invokeMock.mockResolvedValue(defaultSettings());
   });
 
   async function renderWindow(): Promise<void> {
