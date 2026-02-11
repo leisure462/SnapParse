@@ -20,7 +20,6 @@ pub struct SelectionRuntimeState {
     previous_release_time_ms: Option<u128>,
     previous_release_position: Option<SelectionPoint>,
     last_cursor_position: Option<SelectionPoint>,
-    selected_text: String,
     release_thread_id: u64,
 }
 
@@ -31,7 +30,6 @@ impl Default for SelectionRuntimeState {
             previous_release_time_ms: None,
             previous_release_position: None,
             last_cursor_position: None,
-            selected_text: String::new(),
             release_thread_id: 0,
         }
     }
@@ -73,13 +71,6 @@ impl SelectionRuntimeState {
         }
     }
 
-    pub fn set_selected_text(&mut self, text: String) {
-        self.selected_text = text;
-    }
-
-    pub fn selected_text(&self) -> String {
-        self.selected_text.clone()
-    }
 }
 
 pub fn selection_state() -> &'static Mutex<SelectionRuntimeState> {

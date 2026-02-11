@@ -18,7 +18,6 @@ const ACTION_BAR_OFFSET_Y: f64 = 7.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ReleaseJudgement {
-    pub mouse_distance: f64,
     pub is_drag_selection: bool,
     pub is_double_click_selection: bool,
     pub is_selection_candidate: bool,
@@ -62,7 +61,6 @@ pub fn judge_release(
         release_interval < DOUBLE_CLICK_TIME_THRESHOLD_MS && mouse_distance < DOUBLE_CLICK_DISTANCE_THRESHOLD;
 
     ReleaseJudgement {
-        mouse_distance,
         is_drag_selection,
         is_double_click_selection,
         is_selection_candidate: is_drag_selection || is_double_click_selection,
@@ -173,10 +171,6 @@ fn handle_left_release(app: &AppHandle) {
             return;
         }
     };
-
-    if let Ok(mut state) = selection_state().lock() {
-        state.set_selected_text(selected_text.clone());
-    }
 
     let payload = SelectedTextPayload {
         text: selected_text,
