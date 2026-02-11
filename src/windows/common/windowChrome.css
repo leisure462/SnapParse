@@ -1,0 +1,218 @@
+.md2-window-shell {
+  min-height: 100vh;
+  background: radial-gradient(140% 120% at 10% 8%, color-mix(in srgb, var(--md2-primary) 18%, transparent) 0%, transparent 50%), var(--md2-backdrop);
+  color: var(--md2-on-surface);
+  padding: 14px;
+}
+
+.md2-window-card {
+  min-height: calc(100vh - 28px);
+  border-radius: var(--md2-round-xl);
+  border: 1px solid var(--md2-outline);
+  background: var(--md2-surface);
+  box-shadow: var(--md2-elevation-4);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.md2-window-header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--md2-outline);
+  background: color-mix(in srgb, var(--md2-surface) 82%, var(--md2-primary) 18%);
+}
+
+.md2-window-title-block {
+  min-width: 0;
+}
+
+.md2-window-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.md2-window-subtitle {
+  margin: 8px 0 0;
+  color: var(--md2-on-surface-soft);
+  font-size: 13px;
+}
+
+.md2-window-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.md2-window-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--md2-on-surface);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background-color var(--md2-motion-fast), color var(--md2-motion-fast);
+}
+
+.md2-window-icon-btn:hover {
+  background: var(--md2-surface-soft);
+}
+
+.md2-window-icon-btn.danger:hover {
+  background: color-mix(in srgb, #ef5350 20%, var(--md2-surface-soft) 80%);
+  color: #ef5350;
+}
+
+.md2-window-body {
+  flex: 1;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.md2-input-group {
+  display: grid;
+  gap: 8px;
+}
+
+.md2-input-label {
+  font-size: 13px;
+  color: var(--md2-on-surface-soft);
+}
+
+.md2-textarea,
+.md2-select {
+  width: 100%;
+  border: 1px solid var(--md2-outline);
+  border-radius: 12px;
+  background: var(--md2-surface-soft);
+  color: var(--md2-on-surface);
+  font: inherit;
+}
+
+.md2-textarea {
+  min-height: 108px;
+  resize: vertical;
+  padding: 12px;
+  line-height: 1.55;
+}
+
+.md2-select {
+  height: 40px;
+  padding: 0 12px;
+}
+
+.md2-result-panel {
+  min-height: 0;
+  flex: 1;
+  border-radius: 14px;
+  border: 1px solid var(--md2-outline);
+  background: color-mix(in srgb, var(--md2-surface-soft) 86%, transparent 14%);
+  display: flex;
+  flex-direction: column;
+}
+
+.md2-result-toolbar {
+  padding: 10px 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.md2-ghost-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--md2-on-surface);
+  background: transparent;
+  cursor: pointer;
+}
+
+.md2-ghost-btn:hover {
+  background: var(--md2-surface-press);
+}
+
+.md2-original-text {
+  margin: 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--md2-surface);
+  border: 1px solid var(--md2-outline);
+  color: var(--md2-on-surface-soft);
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.md2-status-text,
+.md2-result-text {
+  margin: 0;
+  padding: 12px 14px 16px;
+  overflow: auto;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.md2-status-text {
+  color: var(--md2-on-surface-soft);
+}
+
+.md2-status-text.error {
+  color: #ef5350;
+}
+
+.md2-result-text p {
+  margin: 0;
+}
+
+.md2-result-text p + p {
+  margin-top: 14px;
+}
+
+.md2-inline-controls {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.md2-inline-arrow {
+  text-align: center;
+  color: var(--md2-on-surface-soft);
+}
+
+@media (max-width: 720px) {
+  .md2-window-shell {
+    padding: 10px;
+  }
+
+  .md2-window-card {
+    min-height: calc(100vh - 20px);
+  }
+
+  .md2-window-title {
+    font-size: 22px;
+  }
+
+  .md2-window-body {
+    padding: 14px;
+  }
+
+  .md2-inline-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .md2-inline-arrow {
+    display: none;
+  }
+}

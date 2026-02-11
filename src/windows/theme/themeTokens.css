@@ -1,0 +1,40 @@
+:root {
+  --md2-font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  --md2-round-md: 12px;
+  --md2-round-xl: 18px;
+  --md2-elevation-2: 0 6px 18px rgba(31, 41, 55, 0.18), 0 2px 6px rgba(31, 41, 55, 0.12);
+  --md2-elevation-4: 0 12px 28px rgba(31, 41, 55, 0.24), 0 4px 12px rgba(31, 41, 55, 0.16);
+  --md2-motion-fast: 180ms;
+  --md2-motion-mid: 260ms;
+}
+
+:root,
+:root[data-theme="light"] {
+  --md2-primary: #1565c0;
+  --md2-primary-variant: #003c8f;
+  --md2-on-primary: #f8fbff;
+  --md2-surface: #ffffff;
+  --md2-surface-soft: #eef3fb;
+  --md2-surface-press: #e2ebfa;
+  --md2-outline: #d0dae9;
+  --md2-on-surface: #1b2430;
+  --md2-on-surface-soft: #5a6679;
+  --md2-backdrop: rgba(12, 20, 35, 0.12);
+}
+
+:root[data-theme="dark"] {
+  --md2-primary: #64b5f6;
+  --md2-primary-variant: #90caf9;
+  --md2-on-primary: #082033;
+  --md2-surface: #1f2531;
+  --md2-surface-soft: #262e3d;
+  --md2-surface-press: #313a4d;
+  --md2-outline: #3d475c;
+  --md2-on-surface: #edf2fa;
+  --md2-on-surface-soft: #b0bccd;
+  --md2-backdrop: rgba(2, 6, 17, 0.48);
+}
+
+body {
+  font-family: var(--md2-font-family);
+}

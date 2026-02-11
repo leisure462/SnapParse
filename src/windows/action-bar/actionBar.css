@@ -1,0 +1,109 @@
+.md2-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  min-height: 48px;
+  border: 1px solid var(--md2-outline);
+  border-radius: var(--md2-round-xl);
+  background: color-mix(in srgb, var(--md2-surface) 94%, transparent 6%);
+  box-shadow: var(--md2-elevation-4);
+  padding: 6px;
+  backdrop-filter: blur(8px);
+}
+
+.md2-action-list {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.md2-action-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 12px;
+  padding: 8px 10px;
+  color: var(--md2-on-surface);
+  background: transparent;
+  font-family: var(--md2-font-family);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--md2-motion-fast), color var(--md2-motion-fast), transform var(--md2-motion-fast);
+}
+
+.md2-action-btn:hover {
+  background: var(--md2-surface-soft);
+}
+
+.md2-action-btn:active {
+  background: var(--md2-surface-press);
+  transform: translateY(1px);
+}
+
+.md2-action-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--md2-primary) 70%, white 30%);
+  outline-offset: 1px;
+}
+
+.md2-action-btn:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.md2-action-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.md2-action-label {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.md2-theme-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 64px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--md2-outline);
+  background: var(--md2-surface-soft);
+  color: var(--md2-on-surface);
+  padding: 4px;
+  cursor: pointer;
+  transition: background-color var(--md2-motion-fast), border-color var(--md2-motion-fast);
+}
+
+.md2-theme-switch[aria-checked="true"] {
+  background: color-mix(in srgb, var(--md2-primary) 36%, var(--md2-surface-soft) 64%);
+  border-color: color-mix(in srgb, var(--md2-primary) 62%, var(--md2-outline) 38%);
+}
+
+.md2-theme-thumb {
+  position: absolute;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--md2-surface);
+  box-shadow: var(--md2-elevation-2);
+  transition: transform var(--md2-motion-mid);
+}
+
+.md2-theme-switch[aria-checked="true"] .md2-theme-thumb {
+  transform: translateX(30px);
+}
+
+.md2-theme-text {
+  margin-left: auto;
+  margin-right: 8px;
+  font-weight: 600;
+  font-size: 12px;
+}

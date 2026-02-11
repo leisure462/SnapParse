@@ -1,0 +1,8 @@
+.summary-window .md2-window-card {
+  background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--md2-primary) 8%, transparent) 0%,
+      transparent 30%
+    ),
+    var(--md2-surface);
+}

@@ -1,0 +1,56 @@
+:root {
+  --md2-primary: #1565c0;
+  --md2-primary-variant: #0d47a1;
+  --md2-surface: #ffffff;
+  --md2-background: #f4f6fa;
+  --md2-on-surface: #1f2937;
+  --md2-on-background: #111827;
+  --md2-shadow: rgba(15, 23, 42, 0.16);
+  --md2-radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  background: radial-gradient(130% 120% at 12% 8%, #dbe9ff 0%, var(--md2-background) 52%, #e8eef7 100%);
+  color: var(--md2-on-background);
+}
+
+.app-shell {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.surface-card {
+  width: min(480px, 100%);
+  border-radius: var(--md2-radius);
+  background: var(--md2-surface);
+  box-shadow: 0 16px 34px var(--md2-shadow);
+  padding: 28px;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: 0.015em;
+}
+
+.app-subtitle {
+  margin: 12px 0 0;
+  color: color-mix(in srgb, var(--md2-on-surface) 70%, white 30%);
+  font-size: 15px;
+}

@@ -1,0 +1,216 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSettings {
+    pub api: ApiSettings,
+    pub toolbar: ToolbarSettings,
+    pub window: WindowSettings,
+    pub features: FeaturesSettings,
+    pub advanced: AdvancedSettings,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            api: ApiSettings::default(),
+            toolbar: ToolbarSettings::default(),
+            window: WindowSettings::default(),
+            features: FeaturesSettings::default(),
+            advanced: AdvancedSettings::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiSettings {
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+    pub timeout_ms: u64,
+    pub temperature: f32,
+    pub feature_models: FeatureModels,
+}
+
+impl Default for ApiSettings {
+    fn default() -> Self {
+        let model = String::from("gpt-4o-mini");
+
+        Self {
+            base_url: String::from("https://api.openai.com/v1"),
+            api_key: String::new(),
+            model: model.clone(),
+            timeout_ms: 30_000,
+            temperature: 0.3,
+            feature_models: FeatureModels {
+                translate: model.clone(),
+                summarize: model.clone(),
+                explain: model,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FeatureModels {
+    pub translate: String,
+    pub summarize: String,
+    pub explain: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolbarSettings {
+    pub trigger_mode: TriggerMode,
+    pub compact_mode: bool,
+    pub show_label: bool,
+    pub theme_mode: ThemeMode,
+    pub show_theme_toggle_in_toolbar: bool,
+    pub actions: Vec<ToolbarAction>,
+}
+
+impl Default for ToolbarSettings {
+    fn default() -> Self {
+        Self {
+            trigger_mode: TriggerMode::Selection,
+            compact_mode: false,
+            show_label: true,
+            theme_mode: ThemeMode::Dark,
+            show_theme_toggle_in_toolbar: true,
+            actions: vec![
+                ToolbarAction::new(ActionId::Translate, "翻译", 0),
+                ToolbarAction::new(ActionId::Explain, "解释", 1),
+                ToolbarAction::new(ActionId::Summarize, "总结", 2),
+                ToolbarAction::new(ActionId::Search, "搜索", 3),
+                ToolbarAction::new(ActionId::Copy, "复制", 4),
+            ],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolbarAction {
+    pub id: ActionId,
+    pub label: String,
+    pub enabled: bool,
+    pub order: u8,
+}
+
+impl ToolbarAction {
+    fn new(id: ActionId, label: &str, order: u8) -> Self {
+        Self {
+            id,
+            label: String::from(label),
+            enabled: true,
+            order,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ThemeMode {
+    Light,
+    Dark,
+    System,
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum TriggerMode {
+    Selection,
+    Ctrl,
+    Hotkey,
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ActionId {
+    Translate,
+    Explain,
+    Summarize,
+    Search,
+    Copy,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowSettings {
+    pub follow_toolbar: bool,
+    pub remember_size: bool,
+    pub auto_close: bool,
+    pub auto_pin: bool,
+    pub opacity: f32,
+}
+
+impl Default for WindowSettings {
+    fn default() -> Self {
+        Self {
+            follow_toolbar: true,
+            remember_size: true,
+            auto_close: false,
+            auto_pin: false,
+            opacity: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FeaturesSettings {
+    pub custom_actions_enabled: bool,
+    pub enabled_actions: Vec<ActionId>,
+}
+
+impl Default for FeaturesSettings {
+    fn default() -> Self {
+        Self {
+            custom_actions_enabled: false,
+            enabled_actions: vec![
+                ActionId::Translate,
+                ActionId::Explain,
+                ActionId::Summarize,
+                ActionId::Search,
+                ActionId::Copy,
+            ],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AdvancedSettings {
+    pub app_filter_mode: AppFilterMode,
+    pub app_list: Vec<String>,
+    pub log_level: LogLevel,
+}
+
+impl Default for AdvancedSettings {
+    fn default() -> Self {
+        Self {
+            app_filter_mode: AppFilterMode::Off,
+            app_list: Vec::new(),
+            log_level: LogLevel::Info,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum AppFilterMode {
+    Off,
+    Whitelist,
+    Blacklist,
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    Error,
+    Warn,
+    Info,
+    Debug,
+}
