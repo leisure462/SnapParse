@@ -8,7 +8,7 @@ const listeners = new Map<string, EventHandler>();
 const invokeMock = vi.fn();
 
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: (...args: unknown[]) => invokeMock(...args)
+  invoke: invokeMock
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({

@@ -6,7 +6,7 @@ import { defaultSettings } from "../../shared/settings";
 const invokeMock = vi.fn();
 
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: (...args: unknown[]) => invokeMock(...args)
+  invoke: invokeMock
 }));
 
 describe("SettingsWindow", () => {

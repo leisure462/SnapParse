@@ -7,11 +7,11 @@ const invokeMock = vi.fn(async () => defaultSettings());
 const emitMock = vi.fn(async () => undefined);
 
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: (...args: unknown[]) => invokeMock(...args)
+  invoke: invokeMock
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
-  emit: (...args: unknown[]) => emitMock(...args),
+  emit: emitMock,
   listen: vi.fn(async () => () => undefined)
 }));
 
