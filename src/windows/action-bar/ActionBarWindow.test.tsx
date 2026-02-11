@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ActionBarWindow from "./ActionBarWindow";
 import { defaultSettings } from "../../shared/settings";
@@ -43,15 +43,8 @@ describe("ActionBarWindow", () => {
     expect(screen.getByText("复制")).toBeInTheDocument();
   });
 
-  it("renders toolbar theme toggle and flips mode", async () => {
+  it("does not render toolbar theme toggle in action bar", async () => {
     await renderWindow();
-    const toggle = screen.getByRole("switch", { name: "明暗切换" });
-    expect(toggle).toBeInTheDocument();
-
-    const before = toggle.getAttribute("aria-checked");
-    fireEvent.click(toggle);
-    const after = toggle.getAttribute("aria-checked");
-
-    expect(before).not.toBe(after);
+    expect(screen.queryByRole("switch", { name: "明暗切换" })).not.toBeInTheDocument();
   });
 });

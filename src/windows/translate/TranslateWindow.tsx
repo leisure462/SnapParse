@@ -19,6 +19,8 @@ interface ProcessTextResponse {
   elapsedMs: number;
 }
 
+const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
+
 const LANGUAGES: Array<{ code: string; label: string }> = [
   { code: "auto", label: "自动检测" },
   { code: "zh-CN", label: "简体中文" },
@@ -45,6 +47,11 @@ export default function TranslateWindow(): JSX.Element {
   }, [fromLanguage, toLanguage]);
 
   useEffect(() => {
+    const cached = window.localStorage.getItem(LAST_SELECTED_TEXT_KEY);
+    if (cached?.trim()) {
+      setSourceText(cached);
+    }
+
     let unlisten: (() => void) | undefined;
 
     listen<ChangeTextPayload>("change-text", (event) => {

@@ -29,7 +29,6 @@ export interface ToolbarSettings {
   compactMode: boolean;
   showLabel: boolean;
   themeMode: ThemeMode;
-  showThemeToggleInToolbar: boolean;
   actions: ToolbarAction[];
 }
 
@@ -107,7 +106,6 @@ export function defaultSettings(): AppSettings {
       compactMode: false,
       showLabel: true,
       themeMode: "dark",
-      showThemeToggleInToolbar: true,
       actions: defaultToolbarActions()
     },
     window: {

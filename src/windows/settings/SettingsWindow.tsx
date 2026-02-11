@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useMemo, useState } from "react";
 import {
   defaultSettings,
+  mergeSettings,
   validateSettings,
   type AppSettings,
   type ThemeMode
@@ -44,7 +45,7 @@ export default function SettingsWindow(): JSX.Element {
           return;
         }
 
-        const normalized = validateSettings(value as Partial<AppSettings>);
+        const normalized = mergeSettings(value as Partial<AppSettings>);
         setSettings(normalized);
         persistThemeFromSettings(normalized);
       } catch {
@@ -64,7 +65,7 @@ export default function SettingsWindow(): JSX.Element {
   }, []);
 
   const onSettingsChange = (next: AppSettings): void => {
-    const normalized = validateSettings(next);
+    const normalized = mergeSettings(next);
     setSettings(normalized);
 
     if (normalized.toolbar.themeMode !== settings.toolbar.themeMode) {
@@ -80,7 +81,9 @@ export default function SettingsWindow(): JSX.Element {
     setStatusText("保存中...");
 
     try {
-      await invoke("save_settings", { settings });
+      const validated = validateSettings(settings);
+      await invoke("save_settings", { settings: validated });
+      setSettings(validated);
       setStatus("saved");
       setStatusText("配置已保存");
     } catch (error) {

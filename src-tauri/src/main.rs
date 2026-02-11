@@ -63,6 +63,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
             }
             "quit" => {
                 app_handle.exit(0);
+                std::process::exit(0);
             }
             _ => {}
         })

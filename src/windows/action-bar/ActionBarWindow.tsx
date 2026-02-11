@@ -3,8 +3,10 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { DEFAULT_ACTIONS, type ActionBarAction, type ActionBarActionId } from "./actions";
 import "./actionBar.css";
-import { toggleThemeMode, useThemeMode, type ThemeMode } from "../theme/themeStore";
+import { useThemeMode, type ThemeMode } from "../theme/themeStore";
 import { defaultSettings, validateSettings, type AppSettings } from "../../shared/settings";
+
+const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 
 interface SelectionTextPayload {
   text: string;
@@ -89,7 +91,6 @@ async function closeActionBarWindow(): Promise<void> {
 export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
-  const [showThemeToggle, setShowThemeToggle] = useState(true);
   const theme = useThemeMode();
 
   useEffect(() => {
@@ -119,7 +120,6 @@ export default function ActionBarWindow(): JSX.Element {
         }
 
         const normalized = validateSettings(loaded as Partial<AppSettings>);
-        setShowThemeToggle(normalized.toolbar.showThemeToggleInToolbar);
         theme.setMode(normalized.toolbar.themeMode as ThemeMode);
       } catch {
         if (cancelled) {
@@ -127,7 +127,7 @@ export default function ActionBarWindow(): JSX.Element {
         }
 
         const defaults = defaultSettings();
-        setShowThemeToggle(defaults.toolbar.showThemeToggleInToolbar);
+        theme.setMode(defaults.toolbar.themeMode as ThemeMode);
       }
     };
 
@@ -138,24 +138,6 @@ export default function ActionBarWindow(): JSX.Element {
     };
   }, []);
 
-  const persistThemeModeToSettings = async (mode: ThemeMode): Promise<void> => {
-    try {
-      const loaded = await invoke<AppSettings>("get_settings");
-      const normalized = validateSettings(loaded as Partial<AppSettings>);
-      await invoke("save_settings", {
-        settings: {
-          ...normalized,
-          toolbar: {
-            ...normalized.toolbar,
-            themeMode: mode
-          }
-        }
-      });
-    } catch {
-      // keep local fallback when settings command is unavailable
-    }
-  };
-
   const runAction = async (action: ActionBarAction): Promise<void> => {
     if (isBusy) {
       return;
@@ -165,6 +147,10 @@ export default function ActionBarWindow(): JSX.Element {
 
     try {
       if (action.commandWindow) {
+        if (selectedText.trim()) {
+          window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, selectedText);
+        }
+
         await invoke("open_window", { kind: action.commandWindow });
         await emit("change-text", { text: selectedText, source: "action-bar" });
         await closeActionBarWindow();
@@ -189,8 +175,6 @@ export default function ActionBarWindow(): JSX.Element {
     }
   };
 
-  const isDark = theme.effective === "dark";
-
   return (
     <section className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
       <div className="md2-action-list">
@@ -211,24 +195,6 @@ export default function ActionBarWindow(): JSX.Element {
           </button>
         ))}
       </div>
-
-      {showThemeToggle ? (
-        <button
-          type="button"
-          role="switch"
-          aria-checked={isDark}
-          aria-label="明暗切换"
-          className="md2-theme-switch"
-          onClick={() => {
-            const next = toggleThemeMode(theme.mode);
-            theme.setMode(next);
-            void persistThemeModeToSettings(next);
-          }}
-        >
-          <span className="md2-theme-thumb" />
-          <span className="md2-theme-text">{isDark ? "暗" : "明"}</span>
-        </button>
-      ) : null}
     </section>
   );
 }

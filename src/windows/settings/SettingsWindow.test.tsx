@@ -29,11 +29,25 @@ describe("SettingsWindow", () => {
     expect(screen.getByRole("tab", { name: "API配置" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("shows theme controls inside 工具栏 section", async () => {
+  it("shows theme mode selector inside 工具栏 section", async () => {
     await renderWindow();
 
     fireEvent.click(screen.getByRole("tab", { name: "工具栏" }));
 
-    expect(screen.getByLabelText("工具栏明暗切换")).toBeInTheDocument();
+    expect(screen.getByLabelText("默认主题模式")).toBeInTheDocument();
+    expect(screen.queryByLabelText("工具栏明暗切换")).not.toBeInTheDocument();
+  });
+
+  it("allows temporarily invalid api fields while editing", async () => {
+    await renderWindow();
+
+    const baseUrlInput = screen.getByLabelText("Base URL");
+    const modelInput = screen.getByLabelText("默认模型");
+
+    fireEvent.change(baseUrlInput, { target: { value: "" } });
+    fireEvent.change(modelInput, { target: { value: "" } });
+
+    expect(baseUrlInput).toHaveValue("");
+    expect(modelInput).toHaveValue("");
   });
 });

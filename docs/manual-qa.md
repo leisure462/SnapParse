@@ -31,11 +31,11 @@
   - 功能窗口
   - 功能
   - 高级设置
-- In `工具栏`, verify `工具栏明暗切换` control exists.
+- In `工具栏`, verify `默认主题模式` selector exists.
 
 ## 5. Theme Persistence
 
-- Toggle light/dark in toolbar.
+- Change `默认主题模式` in settings.
 - Verify visible window theme changes immediately.
 - Open settings window and verify selected theme mode matches.
 - Restart app and verify theme mode persists.

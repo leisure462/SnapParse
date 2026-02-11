@@ -13,6 +13,8 @@ interface ProcessTextResponse {
   resultText: string;
 }
 
+const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
+
 export default function ExplainWindow(): JSX.Element {
   const [sourceText, setSourceText] = useState("");
   const [resultText, setResultText] = useState("");
@@ -21,6 +23,11 @@ export default function ExplainWindow(): JSX.Element {
   const requestId = useRef(0);
 
   useEffect(() => {
+    const cached = window.localStorage.getItem(LAST_SELECTED_TEXT_KEY);
+    if (cached?.trim()) {
+      setSourceText(cached);
+    }
+
     let unlisten: (() => void) | undefined;
 
     listen<ChangeTextPayload>("change-text", (event) => {
