@@ -36,7 +36,11 @@ pub fn ensure_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<Webview
 pub fn show_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<()> {
     let window = ensure_window(app, kind)?;
     window.show()?;
-    window.set_focus()?;
+
+    if !matches!(kind, WindowKind::ActionBar) {
+        window.set_focus()?;
+    }
+
     Ok(())
 }
 

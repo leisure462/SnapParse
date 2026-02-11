@@ -2,6 +2,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(windows)]
+use std::time::Duration;
+
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -115,20 +118,34 @@ fn handle_mouse_event(app: &AppHandle, event: mouce::common::MouseEvent) {
                 state.record_cursor_position(SelectionPoint { x, y });
             }
         }
+        MouseEvent::RelativeMove(dx, dy) => {
+            if let Ok(mut state) = selection_state().lock() {
+                let previous = state
+                    .last_cursor_position()
+                    .unwrap_or(SelectionPoint { x: 0, y: 0 });
+                state.record_cursor_position(SelectionPoint {
+                    x: previous.x.saturating_add(dx),
+                    y: previous.y.saturating_add(dy),
+                });
+            }
+        }
         MouseEvent::Press(MouseButton::Left) => {
             if let Ok(mut state) = selection_state().lock() {
                 state.record_press();
             }
         }
         MouseEvent::Release(MouseButton::Left) => {
-            handle_left_release(app);
+            let app_handle = app.clone();
+            std::thread::spawn(move || {
+                handle_left_release(app_handle);
+            });
         }
         _ => {}
     }
 }
 
 #[cfg(windows)]
-fn handle_left_release(app: &AppHandle) {
+fn handle_left_release(app: AppHandle) {
     let now_ms = now_epoch_ms();
     let (point, release_snapshot) = {
         let mut state = match selection_state().lock() {
@@ -143,6 +160,10 @@ fn handle_left_release(app: &AppHandle) {
         (point, snapshot)
     };
 
+    if !is_latest_release_id(release_snapshot.release_id) {
+        return;
+    }
+
     let judgement = judge_release(
         release_snapshot.previous_release_position.x,
         release_snapshot.previous_release_position.y,
@@ -153,10 +174,10 @@ fn handle_left_release(app: &AppHandle) {
         now_ms,
     );
 
-    let hit_action_bar = point_hits_action_bar(app, point);
+    let hit_action_bar = point_hits_action_bar(&app, point);
 
     if !judgement.is_selection_candidate && !hit_action_bar {
-        let _ = manager::hide_window(app, WindowKind::ActionBar);
+        let _ = manager::hide_window(&app, WindowKind::ActionBar);
         return;
     }
 
@@ -164,13 +185,21 @@ fn handle_left_release(app: &AppHandle) {
         return;
     }
 
-    let selected_text = match capture_selected_text() {
+    if !is_latest_release_id(release_snapshot.release_id) {
+        return;
+    }
+
+    let selected_text = match capture_selected_text_with_retry() {
         Some(value) => value,
         None => {
-            let _ = manager::hide_window(app, WindowKind::ActionBar);
+            let _ = manager::hide_window(&app, WindowKind::ActionBar);
             return;
         }
     };
+
+    if !is_latest_release_id(release_snapshot.release_id) {
+        return;
+    }
 
     let payload = SelectedTextPayload {
         text: selected_text,
@@ -178,13 +207,21 @@ fn handle_left_release(app: &AppHandle) {
     };
 
     let _ = manager::position_window(
-        app,
+        &app,
         WindowKind::ActionBar,
         f64::from(point.x) + ACTION_BAR_OFFSET_X,
         f64::from(point.y) + ACTION_BAR_OFFSET_Y,
     );
-    let _ = manager::show_window(app, WindowKind::ActionBar);
+    let _ = manager::show_window(&app, WindowKind::ActionBar);
     let _ = app.emit("selection-text-changed", payload);
+}
+
+#[cfg(windows)]
+fn is_latest_release_id(release_id: u64) -> bool {
+    selection_state()
+        .lock()
+        .map(|state| state.is_latest_release(release_id))
+        .unwrap_or(false)
 }
 
 #[cfg(windows)]
@@ -227,6 +264,23 @@ fn capture_selected_text() -> Option<String> {
     } else {
         Some(trimmed.to_owned())
     }
+}
+
+#[cfg(windows)]
+fn capture_selected_text_with_retry() -> Option<String> {
+    const RETRY_DELAYS_MS: [u64; 3] = [0, 40, 80];
+
+    for delay in RETRY_DELAYS_MS {
+        if delay > 0 {
+            std::thread::sleep(Duration::from_millis(delay));
+        }
+
+        if let Some(text) = capture_selected_text() {
+            return Some(text);
+        }
+    }
+
+    None
 }
 
 fn now_epoch_ms() -> u128 {
