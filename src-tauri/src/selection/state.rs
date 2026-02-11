@@ -9,6 +9,7 @@ pub struct SelectionPoint {
 
 #[derive(Debug, Clone)]
 pub struct ReleaseSnapshot {
+    pub release_id: u64,
     pub previous_release_time_ms: u128,
     pub previous_release_position: SelectionPoint,
     pub pressed_duration_ms: u128,
@@ -65,10 +66,15 @@ impl SelectionRuntimeState {
         self.previous_release_time_ms = Some(now_ms);
 
         ReleaseSnapshot {
+            release_id: self.release_thread_id,
             previous_release_time_ms,
             previous_release_position,
             pressed_duration_ms,
         }
+    }
+
+    pub fn is_latest_release(&self, release_id: u64) -> bool {
+        self.release_thread_id == release_id
     }
 
 }
