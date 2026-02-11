@@ -54,3 +54,38 @@ body {
   color: color-mix(in srgb, var(--md2-on-surface) 70%, white 30%);
   font-size: 15px;
 }
+
+.app-hint {
+  margin: 14px 0 0;
+  color: color-mix(in srgb, var(--md2-on-surface) 78%, white 22%);
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.app-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 10px;
+}
+
+.app-btn {
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 0 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.app-btn-primary {
+  background: var(--md2-primary);
+  color: #f5f9ff;
+  border-color: color-mix(in srgb, var(--md2-primary) 70%, #ffffff 30%);
+}
+
+.app-btn-primary:hover {
+  background: var(--md2-primary-variant);
+}

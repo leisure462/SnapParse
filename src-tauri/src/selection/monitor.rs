@@ -16,8 +16,11 @@ const DRAG_TIME_THRESHOLD_MS: u128 = 300;
 const DRAG_DISTANCE_THRESHOLD: f64 = 20.0;
 const DOUBLE_CLICK_TIME_THRESHOLD_MS: u128 = 700;
 const DOUBLE_CLICK_DISTANCE_THRESHOLD: f64 = 10.0;
-const ACTION_BAR_OFFSET_X: f64 = 7.0;
-const ACTION_BAR_OFFSET_Y: f64 = 7.0;
+const ACTION_BAR_WIDTH: f64 = 460.0;
+const ACTION_BAR_HEIGHT: f64 = 52.0;
+const ACTION_BAR_ABOVE_GAP: f64 = 14.0;
+const ACTION_BAR_BELOW_GAP: f64 = 18.0;
+const ACTION_BAR_MIN_PADDING: f64 = 10.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ReleaseJudgement {
@@ -206,14 +209,31 @@ fn handle_left_release(app: AppHandle) {
         source: "selection-monitor",
     };
 
+    let (target_x, target_y) = compute_action_bar_position(point);
+
     let _ = manager::position_window(
         &app,
         WindowKind::ActionBar,
-        f64::from(point.x) + ACTION_BAR_OFFSET_X,
-        f64::from(point.y) + ACTION_BAR_OFFSET_Y,
+        target_x,
+        target_y,
     );
     let _ = manager::show_window(&app, WindowKind::ActionBar);
     let _ = app.emit("selection-text-changed", payload);
+}
+
+fn compute_action_bar_position(point: SelectionPoint) -> (f64, f64) {
+    let mut x = f64::from(point.x) - ACTION_BAR_WIDTH / 2.0;
+    let mut y = f64::from(point.y) - ACTION_BAR_HEIGHT - ACTION_BAR_ABOVE_GAP;
+
+    if x < ACTION_BAR_MIN_PADDING {
+        x = ACTION_BAR_MIN_PADDING;
+    }
+
+    if y < ACTION_BAR_MIN_PADDING {
+        y = f64::from(point.y) + ACTION_BAR_BELOW_GAP;
+    }
+
+    (x, y)
 }
 
 #[cfg(windows)]
