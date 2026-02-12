@@ -1,35 +1,45 @@
 .md2-action-bar {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
   width: auto;
-  min-height: 48px;
+  min-height: 36px;
   border: 1px solid var(--md2-outline);
   border-radius: var(--md2-round-xl);
   background: color-mix(in srgb, var(--md2-surface) 94%, transparent 6%);
   box-shadow: var(--md2-elevation-4);
-  padding: 6px;
+  padding: 3px 5px;
   backdrop-filter: blur(8px);
+}
+
+.md2-action-bar-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-left: 4px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
 }
 
 .md2-action-list {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .md2-action-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   border: 0;
-  border-radius: 12px;
-  padding: 8px 10px;
+  border-radius: 10px;
+  padding: 5px 8px;
   color: var(--md2-on-surface);
   background: transparent;
   font-family: var(--md2-font-family);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   transition: background-color var(--md2-motion-fast), color var(--md2-motion-fast), transform var(--md2-motion-fast);
@@ -55,10 +65,15 @@
 }
 
 .md2-action-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   display: inline-grid;
   place-items: center;
+}
+
+.md2-action-icon svg {
+  width: 14px;
+  height: 14px;
 }
 
 .md2-action-label {

@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { defaultSettings, type AppSettings } from "../../shared/settings";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
+import { useFeatureWindow } from "../common/useFeatureWindow";
 import "../common/windowChrome.css";
 
 interface ChangeTextPayload {
@@ -40,8 +40,8 @@ export default function TranslateWindow(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [fromLanguage, setFromLanguage] = useState("auto");
   const [toLanguage, setToLanguage] = useState("en");
-  const [fontSize, setFontSize] = useState(14);
   const requestId = useRef(0);
+  const fw = useFeatureWindow();
 
   const subtitle = useMemo(() => {
     return `${findLanguageLabel(fromLanguage)} -> ${findLanguageLabel(toLanguage)}`;
@@ -66,12 +66,6 @@ export default function TranslateWindow(): JSX.Element {
     return () => {
       unlisten?.();
     };
-  }, []);
-
-  useEffect(() => {
-    invoke<AppSettings>("get_settings")
-      .then((s) => { setFontSize(s.window?.fontSize ?? defaultSettings().window.fontSize); })
-      .catch(() => { /* use default */ });
   }, []);
 
   useEffect(() => {
@@ -119,9 +113,15 @@ export default function TranslateWindow(): JSX.Element {
   }, [sourceText, fromLanguage, toLanguage]);
 
   return (
-    <main className="md2-window-shell" style={{ "--snapparse-font-size": `${fontSize}px` } as React.CSSProperties}>
+    <main className="md2-window-shell" style={fw.shellStyle}>
       <section className="md2-window-card">
-        <WindowHeader title="翻译" subtitle={subtitle} />
+        <WindowHeader
+          title="翻译"
+          subtitle={subtitle}
+          pinned={fw.pinned}
+          onPinToggle={fw.onPinToggle}
+          onOpacityCycle={fw.onOpacityCycle}
+        />
 
         <div className="md2-window-body">
           <section className="md2-inline-controls">

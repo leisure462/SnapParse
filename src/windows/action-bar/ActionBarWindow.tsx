@@ -4,11 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { DEFAULT_ACTIONS, type ActionBarAction, type ActionBarActionId } from "./actions";
 import "./actionBar.css";
 import { useThemeMode, type ThemeMode } from "../theme/themeStore";
-import { defaultSettings, validateSettings, type AppSettings } from "../../shared/settings";
+import { defaultSettings, resolveWindowSize, validateSettings, type AppSettings } from "../../shared/settings";
+// The icon_transparent.png is copied to public/ for Vite to serve at runtime.
+const APP_ICON_URL = "/icon_transparent.png";
 
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
-const DEFAULT_FEATURE_WINDOW_WIDTH = 520;
-const DEFAULT_FEATURE_WINDOW_HEIGHT = 420;
 const FEATURE_WINDOW_GAP = 12;
 const FEATURE_WINDOW_PADDING = 8;
 
@@ -107,7 +107,7 @@ function computeFeatureWindowAnchor(
 
   const actionBarRect = actionBarElement?.getBoundingClientRect();
   const actionBarWidth = actionBarRect?.width ?? 402;
-  const actionBarHeight = actionBarRect?.height ?? 62;
+  const actionBarHeight = actionBarRect?.height ?? 48;
 
   const rawX = Math.round(window.screenX + actionBarWidth / 2 - featureWidth / 2);
   const rawY = Math.round(window.screenY + actionBarHeight + FEATURE_WINDOW_GAP);
@@ -142,7 +142,7 @@ export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
   const actionBarRef = useRef<HTMLElement | null>(null);
-  const featureWindowSize = useRef({ width: DEFAULT_FEATURE_WINDOW_WIDTH, height: DEFAULT_FEATURE_WINDOW_HEIGHT });
+  const featureWindowSize = useRef({ width: 680, height: 520 });
   const theme = useThemeMode();
 
   useEffect(() => {
@@ -213,10 +213,8 @@ export default function ActionBarWindow(): JSX.Element {
 
         const normalized = validateSettings(loaded as Partial<AppSettings>);
         theme.setMode(normalized.toolbar.themeMode as ThemeMode);
-        featureWindowSize.current = {
-          width: normalized.window.windowWidth,
-          height: normalized.window.windowHeight
-        };
+        const size = resolveWindowSize(normalized.window.windowSize);
+        featureWindowSize.current = size;
       } catch {
         if (cancelled) {
           return;
@@ -224,10 +222,7 @@ export default function ActionBarWindow(): JSX.Element {
 
         const defaults = defaultSettings();
         theme.setMode(defaults.toolbar.themeMode as ThemeMode);
-        featureWindowSize.current = {
-          width: defaults.window.windowWidth,
-          height: defaults.window.windowHeight
-        };
+        featureWindowSize.current = resolveWindowSize(defaults.window.windowSize);
       }
     };
 
@@ -300,6 +295,7 @@ export default function ActionBarWindow(): JSX.Element {
 
   return (
     <section ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
+      <img src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
       <div className="md2-action-list">
         {DEFAULT_ACTIONS.map((action) => (
           <button

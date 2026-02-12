@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
-import { defaultSettings, type AppSettings } from "../../shared/settings";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
+import { useFeatureWindow } from "../common/useFeatureWindow";
 import "../common/windowChrome.css";
 
 interface ChangeTextPayload {
@@ -21,8 +21,8 @@ export default function ExplainWindow(): JSX.Element {
   const [resultText, setResultText] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | undefined>();
-  const [fontSize, setFontSize] = useState(14);
   const requestId = useRef(0);
+  const fw = useFeatureWindow();
 
   useEffect(() => {
     const cached = window.localStorage.getItem(LAST_SELECTED_TEXT_KEY);
@@ -43,12 +43,6 @@ export default function ExplainWindow(): JSX.Element {
     return () => {
       unlisten?.();
     };
-  }, []);
-
-  useEffect(() => {
-    invoke<AppSettings>("get_settings")
-      .then((s) => { setFontSize(s.window?.fontSize ?? defaultSettings().window.fontSize); })
-      .catch(() => { /* use default */ });
   }, []);
 
   useEffect(() => {
@@ -89,9 +83,14 @@ export default function ExplainWindow(): JSX.Element {
   }, [sourceText]);
 
   return (
-    <main className="md2-window-shell" style={{ "--snapparse-font-size": `${fontSize}px` } as React.CSSProperties}>
+    <main className="md2-window-shell" style={fw.shellStyle}>
       <section className="md2-window-card">
-        <WindowHeader title="解释" />
+        <WindowHeader
+          title="解释"
+          pinned={fw.pinned}
+          onPinToggle={fw.onPinToggle}
+          onOpacityCycle={fw.onOpacityCycle}
+        />
 
         <div className="md2-window-body">
           <ResultPanel

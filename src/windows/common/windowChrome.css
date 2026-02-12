@@ -92,6 +92,15 @@
   color: #ef5350;
 }
 
+.md2-window-icon-btn.active {
+  background: color-mix(in srgb, var(--md2-primary, #1565c0) 18%, transparent);
+  color: var(--md2-primary, #1565c0);
+}
+
+.md2-window-icon-btn.active:hover {
+  background: color-mix(in srgb, var(--md2-primary, #1565c0) 26%, transparent);
+}
+
 /* ── Body ───────────────────────────────────────────────────── */
 
 .md2-window-body {
