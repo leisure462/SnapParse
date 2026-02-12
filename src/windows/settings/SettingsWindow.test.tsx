@@ -14,7 +14,21 @@ vi.mock("@tauri-apps/api/core", () => ({
 describe("SettingsWindow", () => {
   beforeEach(() => {
     mocks.invokeMock.mockReset();
-    mocks.invokeMock.mockResolvedValue(defaultSettings());
+    mocks.invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_settings") {
+        return defaultSettings();
+      }
+
+      if (command === "test_api_connection") {
+        return {
+          model: "gpt-4o-mini",
+          message: "ok",
+          elapsedMs: 42
+        };
+      }
+
+      return defaultSettings();
+    });
   });
 
   async function renderWindow(): Promise<void> {
@@ -49,5 +63,22 @@ describe("SettingsWindow", () => {
 
     expect(baseUrlInput).toHaveValue("");
     expect(modelInput).toHaveValue("");
+  });
+
+  it("supports testing api connectivity from api section", async () => {
+    await renderWindow();
+
+    fireEvent.click(screen.getByRole("button", { name: "测试 API" }));
+
+    expect(mocks.invokeMock).toHaveBeenCalledWith(
+      "test_api_connection",
+      expect.objectContaining({
+        api: expect.objectContaining({
+          baseUrl: "https://api.openai.com/v1"
+        })
+      })
+    );
+
+    expect(await screen.findByText(/测试通过/i)).toBeInTheDocument();
   });
 });

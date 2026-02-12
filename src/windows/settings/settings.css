@@ -117,6 +117,42 @@
   color: var(--md2-on-primary);
 }
 
+.settings-inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-api-test-btn {
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--md2-primary) 60%, var(--md2-outline) 40%);
+  background: color-mix(in srgb, var(--md2-primary) 84%, white 16%);
+  color: var(--md2-on-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 14px;
+}
+
+.settings-api-test-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.settings-api-test-status {
+  font-size: 13px;
+  color: var(--md2-on-surface-soft);
+}
+
+.settings-api-test-status.success {
+  color: #2e7d32;
+}
+
+.settings-api-test-status.error {
+  color: #ef5350;
+}
+
 .settings-section {
   display: grid;
   gap: 14px;
@@ -234,5 +270,10 @@
   .settings-grid-2,
   .settings-grid-3 {
     grid-template-columns: 1fr;
+  }
+
+  .settings-inline-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

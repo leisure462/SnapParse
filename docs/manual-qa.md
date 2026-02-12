@@ -9,9 +9,9 @@
 
 ## 2. Action Behavior
 
-- Click `翻译`: translate window opens and receives selected text.
-- Click `总结`: summary window opens and receives selected text.
-- Click `解释`: explain window opens and receives selected text.
+- Click `翻译`: action bar hides first, translate popup opens near selection and receives selected text.
+- Click `总结`: action bar hides first, summary popup opens near selection and receives selected text.
+- Click `解释`: action bar hides first, explain popup opens near selection and receives selected text.
 - Click `搜索`: browser search opens with selected text query.
 - Click `复制`: selected text is copied to clipboard.
 
@@ -43,6 +43,7 @@
 ## 6. API Integration
 
 - Fill API config with valid OpenAI-compatible endpoint.
+- Click `测试 API` and verify the status shows success with latency/model info.
 - Save settings and run translate/summarize/explain.
 - Verify responses are returned from model.
 

@@ -38,6 +38,7 @@ fn main() {
             commands::settings::save_settings,
             commands::settings::reset_settings,
             commands::ai::process_selected_text,
+            commands::ai::test_api_connection,
             commands::windows::open_window,
             commands::windows::close_window,
             commands::windows::move_window

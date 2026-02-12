@@ -88,6 +88,12 @@ async function closeActionBarWindow(): Promise<void> {
   await invoke("close_window", { kind: "action-bar" });
 }
 
+function computeFeatureWindowAnchor(): { x: number; y: number } {
+  const x = Math.max(8, Math.round(window.screenX - 60));
+  const y = Math.max(8, Math.round(window.screenY + 76));
+  return { x, y };
+}
+
 export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
@@ -147,13 +153,20 @@ export default function ActionBarWindow(): JSX.Element {
 
     try {
       if (action.commandWindow) {
+        const anchor = computeFeatureWindowAnchor();
+
         if (selectedText.trim()) {
           window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, selectedText);
         }
 
-        await invoke("open_window", { kind: action.commandWindow });
-        await emit("change-text", { text: selectedText, source: "action-bar" });
         await closeActionBarWindow();
+        await invoke("open_window", { kind: action.commandWindow });
+        await invoke("move_window", {
+          kind: action.commandWindow,
+          x: anchor.x,
+          y: anchor.y
+        });
+        await emit("change-text", { text: selectedText, source: "action-bar" });
         return;
       }
 
