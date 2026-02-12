@@ -233,6 +233,23 @@ export default function ActionBarWindow(): JSX.Element {
     };
   }, []);
 
+  // Re-sync theme (and window-size preset) whenever the user saves settings.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    listen<AppSettings>("settings-changed", (event) => {
+      const normalized = validateSettings(event.payload as Partial<AppSettings>);
+      theme.setMode(normalized.toolbar.themeMode as ThemeMode);
+      featureWindowSize.current = resolveWindowSize(normalized.window.windowSize);
+    }).then((cleanup) => {
+      unlisten = cleanup;
+    });
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
+
   const runAction = async (action: ActionBarAction): Promise<void> => {
     if (isBusy) {
       return;

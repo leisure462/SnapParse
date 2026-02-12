@@ -1,20 +1,49 @@
-/* ── Action Bar (opaque rectangular toolbar) ─────────────────── */
+/* ── Action Bar (compact toolbar with glass-like finish) ─────── */
 
-/* The action bar fills its entire window — no transparency,
-   no capsule shape, no backdrop-filter.  The window is frameless
-   and always-on-top; the bar *is* the window.                     */
+/* The window is opaque (WebView2 can't do real transparency)
+   so we simulate a frosted-glass look with gradients, inner
+   glow, and a subtle top-highlight border.  The bar sizes to
+   its content; resizeActionBarWindow() shrinks the window to
+   match via getBoundingClientRect().                              */
 
 .md2-action-bar {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 2px;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  min-height: 36px;
   box-sizing: border-box;
-  border: 1px solid var(--sp-border);
-  border-radius: 0;
-  background: var(--sp-surface);
+  border: 1px solid var(--sp-actionbar-border, var(--sp-border-strong));
+  border-top-color: var(--sp-actionbar-highlight, rgba(255,255,255,0.18));
+  border-radius: var(--sp-radius-sm);
+  background: var(--sp-actionbar-bg);
+  box-shadow: var(--sp-shadow-lg),
+              inset 0 1px 0 0 var(--sp-actionbar-inner-glow);
   padding: 3px 6px;
+}
+
+/* ── Light / dark actionbar tokens ──────────────────────────── */
+:root,
+:root[data-theme="light"] {
+  --sp-actionbar-bg: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(241, 245, 249, 0.92) 100%
+  );
+  --sp-actionbar-border: #cbd5e1;
+  --sp-actionbar-highlight: rgba(255, 255, 255, 0.60);
+  --sp-actionbar-inner-glow: rgba(255, 255, 255, 0.70);
+}
+
+:root[data-theme="dark"] {
+  --sp-actionbar-bg: linear-gradient(
+    180deg,
+    rgba(30, 41, 59, 0.98) 0%,
+    rgba(15, 23, 42, 0.95) 100%
+  );
+  --sp-actionbar-border: #334155;
+  --sp-actionbar-highlight: rgba(255, 255, 255, 0.08);
+  --sp-actionbar-inner-glow: rgba(255, 255, 255, 0.06);
 }
 
 .md2-action-bar-icon {

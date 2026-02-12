@@ -95,7 +95,7 @@ export function useFeatureWindow(): FeatureWindowState {
 
   const shellStyle: React.CSSProperties = {
     "--snapparse-font-size": `${fontSize}px`,
-    "--sp-window-opacity": opacity,
+    "--sp-window-opacity": String(opacity),
   } as React.CSSProperties;
 
   return {

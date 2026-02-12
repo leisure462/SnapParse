@@ -1,6 +1,12 @@
 /* ── Feature Window Chrome ───────────────────────────────────── */
 /* Shared styles for Translate, Summary, Explain windows.       */
 
+/* Override global body background for feature windows so the
+   opacity pseudo-element is not hidden behind an opaque body.   */
+body:has(.md2-window-shell) {
+  background: transparent !important;
+}
+
 .md2-window-shell {
   position: relative;
   height: 100vh;
@@ -21,10 +27,12 @@
   background: var(--sp-surface);
   opacity: var(--sp-window-opacity, 1);
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
 }
 
 .md2-window-card {
+  position: relative;
+  z-index: 1;
   height: 100vh;
   border-radius: 0;
   border: none;
