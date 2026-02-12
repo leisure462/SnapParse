@@ -1,15 +1,7 @@
 /* ── Feature Window Chrome ───────────────────────────────────── */
 /* Shared styles for Translate, Summary, Explain windows.       */
 
-/* Override global backgrounds for feature windows. */
-body:has(.md2-window-shell) {
-  background: transparent !important;
-}
-
 .md2-window-shell {
-  --sp-window-opacity-pct: 100%;
-  --sp-window-raised-opacity-pct: 100%;
-  --sp-window-border-opacity-pct: 100%;
   position: relative;
   height: 100vh;
   color: var(--sp-text);
@@ -17,8 +9,7 @@ body:has(.md2-window-shell) {
   font-size: var(--snapparse-font-size, 14px);
   display: flex;
   flex-direction: column;
-  /* The actual background is rendered by ::before so that opacity
-     only affects the background layer, not text or icons. */
+  /* The actual background is rendered by ::before. */
   background: transparent;
 }
 
@@ -27,11 +18,6 @@ body:has(.md2-window-shell) {
   position: absolute;
   inset: 0;
   background: var(--sp-surface);
-  background: color-mix(
-    in srgb,
-    var(--sp-surface) var(--sp-window-opacity-pct, 100%),
-    transparent
-  );
   pointer-events: none;
   z-index: 0;
 }
@@ -58,11 +44,6 @@ body:has(.md2-window-shell) {
   justify-content: space-between;
   padding: 0 6px 0 12px;
   border-bottom: 1px solid var(--sp-border);
-  border-bottom-color: color-mix(
-    in srgb,
-    var(--sp-border) var(--sp-window-border-opacity-pct, 100%),
-    transparent
-  );
   background: transparent;
   -webkit-app-region: drag;
   app-region: drag;
@@ -189,18 +170,8 @@ body:has(.md2-window-shell) {
   min-width: 0;
   height: 28px;
   border: 1px solid var(--sp-border);
-  border-color: color-mix(
-    in srgb,
-    var(--sp-border) var(--sp-window-border-opacity-pct, 100%),
-    transparent
-  );
   border-radius: var(--sp-radius-sm);
   background: var(--sp-surface-raised);
-  background: color-mix(
-    in srgb,
-    var(--sp-surface-raised) var(--sp-window-raised-opacity-pct, 100%),
-    transparent
-  );
   color: var(--sp-text);
   font: inherit;
   font-size: 12px;
@@ -231,18 +202,8 @@ body:has(.md2-window-shell) {
 .md2-select {
   width: 100%;
   border: 1px solid var(--sp-border);
-  border-color: color-mix(
-    in srgb,
-    var(--sp-border) var(--sp-window-border-opacity-pct, 100%),
-    transparent
-  );
   border-radius: var(--sp-radius-sm);
   background: var(--sp-surface-raised);
-  background: color-mix(
-    in srgb,
-    var(--sp-surface-raised) var(--sp-window-raised-opacity-pct, 100%),
-    transparent
-  );
   color: var(--sp-text);
   font: inherit;
   font-size: inherit;
@@ -283,17 +244,7 @@ body:has(.md2-window-shell) {
   flex: 1;
   border-radius: var(--sp-radius-sm);
   background: var(--sp-surface-raised);
-  background: color-mix(
-    in srgb,
-    var(--sp-surface-raised) var(--sp-window-raised-opacity-pct, 100%),
-    transparent
-  );
   border: 1px solid var(--sp-border);
-  border-color: color-mix(
-    in srgb,
-    var(--sp-border) var(--sp-window-border-opacity-pct, 100%),
-    transparent
-  );
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -397,11 +348,6 @@ body:has(.md2-window-shell) {
 .md2-original-section {
   flex-shrink: 0;
   border-top: 1px solid var(--sp-border);
-  border-top-color: color-mix(
-    in srgb,
-    var(--sp-border) var(--sp-window-border-opacity-pct, 100%),
-    transparent
-  );
 }
 
 .md2-original-toggle {

@@ -133,24 +133,6 @@ export default function WindowSettingsSection(props: SettingsSectionProps): JSX.
         </label>
       </div>
 
-      <label className="settings-field">
-        <span>默认透明度: {Math.round(settings.window.opacity * 100)}%</span>
-        <input
-          type="range"
-          min={0.2}
-          max={1}
-          step={0.05}
-          value={settings.window.opacity}
-          onChange={(event) => {
-            onChange(
-              patchWindow(settings, (windowSettings) => ({
-                ...windowSettings,
-                opacity: Number(event.target.value)
-              }))
-            );
-          }}
-        />
-      </label>
     </section>
   );
 }

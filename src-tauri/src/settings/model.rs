@@ -155,7 +155,6 @@ pub struct WindowSettings {
     pub remember_size: bool,
     pub auto_close: bool,
     pub auto_pin: bool,
-    pub opacity: f32,
     #[serde(default)]
     pub window_size: WindowSizePreset,
     #[serde(default = "default_font_size")]
@@ -173,7 +172,6 @@ impl Default for WindowSettings {
             remember_size: true,
             auto_close: false,
             auto_pin: false,
-            opacity: 1.0,
             window_size: WindowSizePreset::default(),
             font_size: default_font_size(),
         }

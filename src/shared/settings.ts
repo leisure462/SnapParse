@@ -38,7 +38,6 @@ export interface WindowSettings {
   rememberSize: boolean;
   autoClose: boolean;
   autoPin: boolean;
-  opacity: number;
   windowSize: WindowSizePreset;
   fontSize: number;
 }
@@ -130,7 +129,6 @@ export function defaultSettings(): AppSettings {
       rememberSize: true,
       autoClose: false,
       autoPin: false,
-      opacity: 1,
       windowSize: "large",
       fontSize: 14
     },
@@ -291,7 +289,6 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
 
   assertNumberRange("api.timeoutMs", merged.api.timeoutMs, 1000, 120000);
   assertNumberRange("api.temperature", merged.api.temperature, 0, 2);
-  assertNumberRange("window.opacity", merged.window.opacity, 0.2, 1);
   assertNumberRange("window.fontSize", merged.window.fontSize, 10, 24);
 
   if (!["large", "medium", "small"].includes(merged.window.windowSize)) {

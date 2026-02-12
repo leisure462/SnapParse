@@ -23,7 +23,7 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<App
     store::save_settings(&config_root, &settings).map_err(|error| error.to_string())?;
 
     // Notify all windows that settings have changed so they can re-apply
-    // font size, opacity, and other runtime-configurable values.
+    // font size, theme, and other runtime-configurable values.
     let _ = app.emit("settings-changed", &settings);
 
     Ok(settings)
