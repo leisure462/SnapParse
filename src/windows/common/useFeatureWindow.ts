@@ -30,7 +30,8 @@ export function useFeatureWindow(): FeatureWindowState {
   const applySettings = (s: AppSettings): void => {
     const defaults = defaultSettings();
     const fs = s.window?.fontSize ?? defaults.window.fontSize;
-    const op = s.window?.opacity ?? defaults.window.opacity;
+    const rawOpacity = s.window?.opacity ?? defaults.window.opacity;
+    const op = Math.min(1, Math.max(0.2, rawOpacity));
     const tm = (s.toolbar?.themeMode ?? defaults.toolbar.themeMode) as ThemeMode;
     setFontSize(fs);
     setOpacity(op);
@@ -39,15 +40,15 @@ export function useFeatureWindow(): FeatureWindowState {
 
   // Load settings on mount
   useEffect(() => {
-    // Make body transparent so the ::before opacity layer is visible
-    // (global.css sets body background to opaque --sp-bg by default)
+    // Make document transparent so window-level alpha styles are visible.
+    document.documentElement.style.background = "transparent";
     document.body.style.background = "transparent";
 
     invoke<AppSettings>("get_settings")
       .then(applySettings)
       .catch(() => {
-        // Apply default theme even on error
-        applyThemeMode(defaultSettings().toolbar.themeMode as ThemeMode);
+        // Keep behavior deterministic even if settings load fails.
+        applySettings(defaultSettings());
       });
   }, []);
 
@@ -103,9 +104,17 @@ export function useFeatureWindow(): FeatureWindowState {
     getCurrentWindow().setAlwaysOnTop(next).catch(() => {});
   };
 
+  const opacityValue = Math.min(1, Math.max(0.2, opacity));
+  const opacityPct = `${Math.round(opacityValue * 100)}%`;
+  const raisedOpacityPct = `${Math.round((0.35 + opacityValue * 0.65) * 100)}%`;
+  const borderOpacityPct = `${Math.round((0.45 + opacityValue * 0.55) * 100)}%`;
+
   const shellStyle: React.CSSProperties = {
     "--snapparse-font-size": `${fontSize}px`,
-    "--sp-window-opacity": String(opacity),
+    "--sp-window-opacity": String(opacityValue),
+    "--sp-window-opacity-pct": opacityPct,
+    "--sp-window-raised-opacity-pct": raisedOpacityPct,
+    "--sp-window-border-opacity-pct": borderOpacityPct,
   } as React.CSSProperties;
 
   return {

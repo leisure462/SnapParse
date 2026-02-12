@@ -1,5 +1,6 @@
 use tauri::{
-    AppHandle, LogicalPosition, LogicalSize, Manager, PhysicalPosition, Position, Size,
+    window::Color, AppHandle, LogicalPosition, LogicalSize, Manager, PhysicalPosition, Position,
+    Size,
     WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
@@ -64,6 +65,10 @@ pub fn ensure_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<Webview
         .always_on_top(kind.always_on_top())
         .skip_taskbar(kind.skip_taskbar())
         .visible(false);
+
+    if kind.transparent() {
+        builder = builder.background_color(Color(0, 0, 0, 0));
+    }
 
     let window = builder.build()?;
 

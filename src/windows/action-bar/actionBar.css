@@ -1,39 +1,46 @@
 /* ── Action Bar (compact toolbar with liquid-glass finish) ──── */
 
-/* The window is opaque (WebView2 can't do real transparency),
-   so we simulate a frosted liquid-glass look with layered
-   gradients, inner glow, noise texture, and specular highlight.
-   The bar sizes to its content; resizeActionBarWindow() shrinks
-   the window to match via getBoundingClientRect().               */
+/* Keep the action-bar document transparent so only the capsule renders. */
+html:has(.md2-action-bar),
+body:has(.md2-action-bar),
+#root:has(.md2-action-bar) {
+  background: transparent !important;
+}
 
-/* Match window body bg to bar bg so no gaps are visible behind
-   the rounded corners.                                           */
-body:has(.md2-action-bar) {
-  background: var(--sp-actionbar-bg-base) !important;
+.md2-action-shell {
+  display: inline-flex;
+  padding: 8px;
+  background: transparent;
 }
 
 /* ── Light / dark actionbar tokens ──────────────────────────── */
 :root,
 :root[data-theme="light"] {
-  --sp-actionbar-bg-base: rgba(255, 255, 255, 0.82);
-  --sp-actionbar-bg-sheen: rgba(255, 255, 255, 0.35);
-  --sp-actionbar-border: rgba(200, 210, 225, 0.60);
-  --sp-actionbar-highlight: rgba(255, 255, 255, 0.80);
-  --sp-actionbar-inner-glow: rgba(255, 255, 255, 0.65);
+  --sp-actionbar-bg-a: rgba(255, 255, 255, 0.44);
+  --sp-actionbar-bg-b: rgba(241, 248, 255, 0.30);
+  --sp-actionbar-border: rgba(191, 206, 226, 0.72);
+  --sp-actionbar-inner-border: rgba(255, 255, 255, 0.78);
+  --sp-actionbar-specular: rgba(255, 255, 255, 0.90);
+  --sp-actionbar-noise: rgba(255, 255, 255, 0.08);
   --sp-actionbar-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.10),
-    0 8px 24px rgba(0, 0, 0, 0.08);
+    0 8px 18px rgba(15, 23, 42, 0.18),
+    0 2px 6px rgba(15, 23, 42, 0.14);
+  --sp-actionbar-btn-hover: rgba(37, 99, 235, 0.14);
+  --sp-actionbar-btn-active: rgba(15, 23, 42, 0.10);
 }
 
 :root[data-theme="dark"] {
-  --sp-actionbar-bg-base: rgba(21, 30, 46, 0.88);
-  --sp-actionbar-bg-sheen: rgba(255, 255, 255, 0.04);
-  --sp-actionbar-border: rgba(55, 70, 95, 0.55);
-  --sp-actionbar-highlight: rgba(255, 255, 255, 0.10);
-  --sp-actionbar-inner-glow: rgba(255, 255, 255, 0.05);
+  --sp-actionbar-bg-a: rgba(20, 31, 48, 0.50);
+  --sp-actionbar-bg-b: rgba(12, 20, 35, 0.36);
+  --sp-actionbar-border: rgba(88, 107, 136, 0.58);
+  --sp-actionbar-inner-border: rgba(255, 255, 255, 0.18);
+  --sp-actionbar-specular: rgba(255, 255, 255, 0.26);
+  --sp-actionbar-noise: rgba(255, 255, 255, 0.05);
   --sp-actionbar-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.30),
-    0 8px 24px rgba(0, 0, 0, 0.25);
+    0 10px 22px rgba(0, 0, 0, 0.42),
+    0 2px 6px rgba(0, 0, 0, 0.32);
+  --sp-actionbar-btn-hover: rgba(96, 165, 250, 0.20);
+  --sp-actionbar-btn-active: rgba(255, 255, 255, 0.10);
 }
 
 .md2-action-bar {
@@ -44,48 +51,36 @@ body:has(.md2-action-bar) {
   width: auto;
   min-height: 34px;
   box-sizing: border-box;
-  /* Uniform 1px border — no separate top color needed */
   border: 1px solid var(--sp-actionbar-border);
   border-radius: var(--sp-radius-md);
-  /* Solid base color (gradient is layered via ::before) */
-  background: var(--sp-actionbar-bg-base);
-  box-shadow: var(--sp-actionbar-shadow),
-              inset 0 1px 0 0 var(--sp-actionbar-inner-glow);
+  background: linear-gradient(150deg, var(--sp-actionbar-bg-a) 0%, var(--sp-actionbar-bg-b) 100%);
+  box-shadow: var(--sp-actionbar-shadow), inset 0 1px 0 0 var(--sp-actionbar-inner-border);
+  backdrop-filter: blur(16px) saturate(155%);
+  -webkit-backdrop-filter: blur(16px) saturate(155%);
   padding: 2px 4px;
   overflow: hidden;
+  isolation: isolate;
 }
 
-/* Specular sheen overlay — simulates the liquid-glass light refraction */
 .md2-action-bar::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background:
-    /* Top specular highlight */
-    linear-gradient(
-      180deg,
-      var(--sp-actionbar-highlight) 0%,
-      transparent 45%
-    );
+    linear-gradient(180deg, var(--sp-actionbar-specular) 0%, transparent 52%),
+    repeating-linear-gradient(135deg, var(--sp-actionbar-noise) 0 2px, transparent 2px 6px);
+  opacity: 0.82;
   pointer-events: none;
 }
 
-/* Top edge glow line */
 .md2-action-bar::after {
   content: "";
   position: absolute;
-  top: 0;
-  left: 8px;
-  right: 8px;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--sp-actionbar-highlight) 30%,
-    var(--sp-actionbar-highlight) 70%,
-    transparent 100%
-  );
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(140% 70% at 50% -20%, var(--sp-actionbar-specular) 0%, transparent 65%);
+  opacity: 0.50;
   pointer-events: none;
 }
 
@@ -131,12 +126,12 @@ body:has(.md2-action-bar) {
 }
 
 .md2-action-btn:hover {
-  background: var(--sp-primary-soft);
+  background: var(--sp-actionbar-btn-hover);
   color: var(--sp-primary);
 }
 
 .md2-action-btn:active {
-  background: var(--sp-surface-active);
+  background: var(--sp-actionbar-btn-active);
   transform: scale(0.97);
 }
 

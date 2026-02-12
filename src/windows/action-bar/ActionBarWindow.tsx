@@ -146,6 +146,11 @@ export default function ActionBarWindow(): JSX.Element {
   const theme = useThemeMode();
 
   useEffect(() => {
+    document.documentElement.style.background = "transparent";
+    document.body.style.background = "transparent";
+  }, []);
+
+  useEffect(() => {
     const syncWindowSize = (): void => {
       const element = actionBarRef.current;
       if (!element) {
@@ -320,25 +325,27 @@ export default function ActionBarWindow(): JSX.Element {
   };
 
   return (
-    <section ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
-      <img src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
-      <div className="md2-action-list">
-        {DEFAULT_ACTIONS.map((action) => (
-          <button
-            key={action.id}
-            type="button"
-            className="md2-action-btn"
-            onClick={() => {
-              void runAction(action);
-            }}
-            disabled={isBusy}
-          >
-            <span className="md2-action-icon" aria-hidden="true">
-              {iconForAction(action.id)}
-            </span>
-            <span className="md2-action-label">{action.label}</span>
-          </button>
-        ))}
+    <section ref={actionBarRef} className="md2-action-shell">
+      <div className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
+        <img src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
+        <div className="md2-action-list">
+          {DEFAULT_ACTIONS.map((action) => (
+            <button
+              key={action.id}
+              type="button"
+              className="md2-action-btn"
+              onClick={() => {
+                void runAction(action);
+              }}
+              disabled={isBusy}
+            >
+              <span className="md2-action-icon" aria-hidden="true">
+                {iconForAction(action.id)}
+              </span>
+              <span className="md2-action-label">{action.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
