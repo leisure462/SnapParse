@@ -19,6 +19,65 @@ export default function WindowSettingsSection(props: SettingsSectionProps): JSX.
       <h2>功能窗口</h2>
 
       <div className="settings-grid-2">
+        <label className="settings-field">
+          <span>窗口宽度: {settings.window.windowWidth}px</span>
+          <input
+            type="range"
+            min={320}
+            max={1600}
+            step={10}
+            value={settings.window.windowWidth}
+            onChange={(event) => {
+              onChange(
+                patchWindow(settings, (windowSettings) => ({
+                  ...windowSettings,
+                  windowWidth: Number(event.target.value)
+                }))
+              );
+            }}
+          />
+        </label>
+
+        <label className="settings-field">
+          <span>窗口高度: {settings.window.windowHeight}px</span>
+          <input
+            type="range"
+            min={280}
+            max={1200}
+            step={10}
+            value={settings.window.windowHeight}
+            onChange={(event) => {
+              onChange(
+                patchWindow(settings, (windowSettings) => ({
+                  ...windowSettings,
+                  windowHeight: Number(event.target.value)
+                }))
+              );
+            }}
+          />
+        </label>
+      </div>
+
+      <label className="settings-field">
+        <span>字体大小: {settings.window.fontSize}px</span>
+        <input
+          type="range"
+          min={10}
+          max={24}
+          step={1}
+          value={settings.window.fontSize}
+          onChange={(event) => {
+            onChange(
+              patchWindow(settings, (windowSettings) => ({
+                ...windowSettings,
+                fontSize: Number(event.target.value)
+              }))
+            );
+          }}
+        />
+      </label>
+
+      <div className="settings-grid-2">
         <label className="settings-switch">
           <input
             type="checkbox"

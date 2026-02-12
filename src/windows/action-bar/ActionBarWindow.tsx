@@ -7,8 +7,8 @@ import { useThemeMode, type ThemeMode } from "../theme/themeStore";
 import { defaultSettings, validateSettings, type AppSettings } from "../../shared/settings";
 
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
-const FEATURE_WINDOW_WIDTH = 760;
-const FEATURE_WINDOW_HEIGHT = 560;
+const DEFAULT_FEATURE_WINDOW_WIDTH = 520;
+const DEFAULT_FEATURE_WINDOW_HEIGHT = 420;
 const FEATURE_WINDOW_GAP = 12;
 const FEATURE_WINDOW_PADDING = 8;
 
@@ -92,7 +92,11 @@ async function closeActionBarWindow(): Promise<void> {
   await invoke("close_window", { kind: "action-bar" });
 }
 
-function computeFeatureWindowAnchor(actionBarElement?: HTMLElement | null): { x: number; y: number } {
+function computeFeatureWindowAnchor(
+  actionBarElement: HTMLElement | null | undefined,
+  featureWidth: number,
+  featureHeight: number
+): { x: number; y: number } {
   const screenLike = window.screen as Screen & {
     availLeft?: number;
     availTop?: number;
@@ -105,16 +109,16 @@ function computeFeatureWindowAnchor(actionBarElement?: HTMLElement | null): { x:
   const actionBarWidth = actionBarRect?.width ?? 402;
   const actionBarHeight = actionBarRect?.height ?? 62;
 
-  const rawX = Math.round(window.screenX + actionBarWidth / 2 - FEATURE_WINDOW_WIDTH / 2);
+  const rawX = Math.round(window.screenX + actionBarWidth / 2 - featureWidth / 2);
   const rawY = Math.round(window.screenY + actionBarHeight + FEATURE_WINDOW_GAP);
 
   const minX = availLeft + FEATURE_WINDOW_PADDING;
   const maxX =
-    availLeft + window.screen.availWidth - FEATURE_WINDOW_WIDTH - FEATURE_WINDOW_PADDING;
+    availLeft + window.screen.availWidth - featureWidth - FEATURE_WINDOW_PADDING;
 
   const minY = availTop + FEATURE_WINDOW_PADDING;
   const maxY =
-    availTop + window.screen.availHeight - FEATURE_WINDOW_HEIGHT - FEATURE_WINDOW_PADDING;
+    availTop + window.screen.availHeight - featureHeight - FEATURE_WINDOW_PADDING;
 
   const x = Math.min(Math.max(rawX, minX), Math.max(minX, maxX));
   const y = Math.min(Math.max(rawY, minY), Math.max(minY, maxY));
@@ -138,6 +142,7 @@ export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
   const actionBarRef = useRef<HTMLElement | null>(null);
+  const featureWindowSize = useRef({ width: DEFAULT_FEATURE_WINDOW_WIDTH, height: DEFAULT_FEATURE_WINDOW_HEIGHT });
   const theme = useThemeMode();
 
   useEffect(() => {
@@ -208,6 +213,10 @@ export default function ActionBarWindow(): JSX.Element {
 
         const normalized = validateSettings(loaded as Partial<AppSettings>);
         theme.setMode(normalized.toolbar.themeMode as ThemeMode);
+        featureWindowSize.current = {
+          width: normalized.window.windowWidth,
+          height: normalized.window.windowHeight
+        };
       } catch {
         if (cancelled) {
           return;
@@ -215,6 +224,10 @@ export default function ActionBarWindow(): JSX.Element {
 
         const defaults = defaultSettings();
         theme.setMode(defaults.toolbar.themeMode as ThemeMode);
+        featureWindowSize.current = {
+          width: defaults.window.windowWidth,
+          height: defaults.window.windowHeight
+        };
       }
     };
 
@@ -234,7 +247,8 @@ export default function ActionBarWindow(): JSX.Element {
 
     try {
       if (action.commandWindow) {
-        const anchor = computeFeatureWindowAnchor(actionBarRef.current);
+        const fwSize = featureWindowSize.current;
+        const anchor = computeFeatureWindowAnchor(actionBarRef.current, fwSize.width, fwSize.height);
 
         if (selectedText.trim()) {
           window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, selectedText);
@@ -242,6 +256,11 @@ export default function ActionBarWindow(): JSX.Element {
 
         try {
           await invoke("open_window", { kind: action.commandWindow });
+          await invoke("resize_window", {
+            kind: action.commandWindow,
+            width: fwSize.width,
+            height: fwSize.height
+          });
           await invoke("move_window", {
             kind: action.commandWindow,
             x: anchor.x,

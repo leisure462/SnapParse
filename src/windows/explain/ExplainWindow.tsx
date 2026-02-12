@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
+import { defaultSettings, type AppSettings } from "../../shared/settings";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
 import "../common/windowChrome.css";
@@ -20,6 +21,7 @@ export default function ExplainWindow(): JSX.Element {
   const [resultText, setResultText] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | undefined>();
+  const [fontSize, setFontSize] = useState(14);
   const requestId = useRef(0);
 
   useEffect(() => {
@@ -41,6 +43,12 @@ export default function ExplainWindow(): JSX.Element {
     return () => {
       unlisten?.();
     };
+  }, []);
+
+  useEffect(() => {
+    invoke<AppSettings>("get_settings")
+      .then((s) => { setFontSize(s.window?.fontSize ?? defaultSettings().window.fontSize); })
+      .catch(() => { /* use default */ });
   }, []);
 
   useEffect(() => {
@@ -81,23 +89,11 @@ export default function ExplainWindow(): JSX.Element {
   }, [sourceText]);
 
   return (
-    <main className="md2-window-shell">
+    <main className="md2-window-shell" style={{ "--snapparse-font-size": `${fontSize}px` } as React.CSSProperties}>
       <section className="md2-window-card">
-        <WindowHeader title="解释" subtitle="扩展上下文和含义" />
+        <WindowHeader title="解释" />
 
         <div className="md2-window-body">
-          <label className="md2-input-group">
-            <span className="md2-input-label">原文</span>
-            <textarea
-              className="md2-textarea"
-              value={sourceText}
-              onChange={(event) => {
-                setSourceText(event.target.value);
-              }}
-              placeholder="划词后文本会自动注入，也可手动输入"
-            />
-          </label>
-
           <ResultPanel
             originalText={sourceText}
             resultText={resultText}

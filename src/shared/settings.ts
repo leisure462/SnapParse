@@ -38,6 +38,9 @@ export interface WindowSettings {
   autoClose: boolean;
   autoPin: boolean;
   opacity: number;
+  windowWidth: number;
+  windowHeight: number;
+  fontSize: number;
 }
 
 export interface FeaturesSettings {
@@ -113,7 +116,10 @@ export function defaultSettings(): AppSettings {
       rememberSize: true,
       autoClose: false,
       autoPin: false,
-      opacity: 1
+      opacity: 1,
+      windowWidth: 520,
+      windowHeight: 420,
+      fontSize: 14
     },
     features: {
       customActionsEnabled: false,
@@ -249,6 +255,9 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
   assertNumberRange("api.timeoutMs", merged.api.timeoutMs, 1000, 120000);
   assertNumberRange("api.temperature", merged.api.temperature, 0, 2);
   assertNumberRange("window.opacity", merged.window.opacity, 0.2, 1);
+  assertNumberRange("window.windowWidth", merged.window.windowWidth, 320, 1600);
+  assertNumberRange("window.windowHeight", merged.window.windowHeight, 280, 1200);
+  assertNumberRange("window.fontSize", merged.window.fontSize, 10, 24);
 
   if (merged.toolbar.actions.length === 0) {
     throw new Error("toolbar.actions must contain at least one action");
