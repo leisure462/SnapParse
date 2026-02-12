@@ -100,22 +100,6 @@ export default function ToolbarSettingsSection(props: SettingsSectionProps): JSX
         </select>
       </label>
 
-      <label className="settings-switch">
-        <input
-          aria-label="工具栏明暗切换"
-          type="checkbox"
-          checked={settings.toolbar.showThemeToggleInToolbar}
-          onChange={(event) => {
-            onChange(
-              patchToolbar(settings, (toolbar) => ({
-                ...toolbar,
-                showThemeToggleInToolbar: event.target.checked
-              }))
-            );
-          }}
-        />
-        <span>在工具栏显示明暗切换开关</span>
-      </label>
     </section>
   );
 }

@@ -59,10 +59,10 @@ impl WindowKind {
     pub fn default_size(self) -> (f64, f64) {
         match self {
             WindowKind::Main => (1200.0, 780.0),
-            WindowKind::ActionBar => (460.0, 52.0),
-            WindowKind::Translate => (980.0, 720.0),
-            WindowKind::Summary => (980.0, 720.0),
-            WindowKind::Explain => (980.0, 720.0),
+            WindowKind::ActionBar => (402.0, 62.0),
+            WindowKind::Translate => (760.0, 560.0),
+            WindowKind::Summary => (760.0, 560.0),
+            WindowKind::Explain => (760.0, 560.0),
             WindowKind::Settings => (1040.0, 760.0),
         }
     }

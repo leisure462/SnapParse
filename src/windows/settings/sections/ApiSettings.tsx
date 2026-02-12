@@ -1,5 +1,13 @@
+import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
 import type { AppSettings } from "../../../shared/settings";
 import type { SettingsSectionProps } from "./sectionTypes";
+
+interface ApiConnectionTestResult {
+  model: string;
+  message: string;
+  elapsedMs: number;
+}
 
 function patchApi(
   settings: AppSettings,
@@ -13,6 +21,26 @@ function patchApi(
 
 export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Element {
   const { settings, onChange } = props;
+  const [testStatus, setTestStatus] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [testMessage, setTestMessage] = useState("");
+
+  const runApiTest = async (): Promise<void> => {
+    setTestStatus("testing");
+    setTestMessage("正在测试 API 连接...");
+
+    try {
+      const result = await invoke<ApiConnectionTestResult>("test_api_connection", {
+        api: settings.api
+      });
+
+      setTestStatus("success");
+      setTestMessage(`测试通过：${result.model}（${result.elapsedMs}ms） ${result.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setTestStatus("error");
+      setTestMessage(`测试失败：${message}`);
+    }
+  };
 
   return (
     <section className="settings-section" aria-label="API配置面板">
@@ -66,6 +94,20 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
           }}
         />
       </label>
+
+      <div className="settings-inline-actions">
+        <button
+          type="button"
+          className="settings-api-test-btn"
+          onClick={() => {
+            void runApiTest();
+          }}
+          disabled={testStatus === "testing"}
+        >
+          {testStatus === "testing" ? "测试中..." : "测试 API"}
+        </button>
+        <span className={`settings-api-test-status ${testStatus}`}>{testMessage || "可先填写参数再测试"}</span>
+      </div>
 
       <div className="settings-grid-3">
         <label className="settings-field">

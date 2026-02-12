@@ -16,8 +16,8 @@ const DRAG_TIME_THRESHOLD_MS: u128 = 300;
 const DRAG_DISTANCE_THRESHOLD: f64 = 20.0;
 const DOUBLE_CLICK_TIME_THRESHOLD_MS: u128 = 700;
 const DOUBLE_CLICK_DISTANCE_THRESHOLD: f64 = 10.0;
-const ACTION_BAR_WIDTH: f64 = 460.0;
-const ACTION_BAR_HEIGHT: f64 = 52.0;
+const ACTION_BAR_WIDTH: f64 = 402.0;
+const ACTION_BAR_HEIGHT: f64 = 62.0;
 const ACTION_BAR_ABOVE_GAP: f64 = 14.0;
 const ACTION_BAR_BELOW_GAP: f64 = 18.0;
 const ACTION_BAR_MIN_PADDING: f64 = 10.0;
@@ -47,24 +47,30 @@ struct SelectedTextPayload {
 }
 
 pub fn judge_release(
-    previous_x: i32,
-    previous_y: i32,
+    press_x: i32,
+    press_y: i32,
+    previous_release_x: i32,
+    previous_release_y: i32,
     current_x: i32,
     current_y: i32,
     pressed_time_ms: u128,
     previous_release_time_ms: u128,
     current_release_time_ms: u128,
 ) -> ReleaseJudgement {
-    let delta_x = f64::from(current_x - previous_x);
-    let delta_y = f64::from(current_y - previous_y);
-    let mouse_distance = (delta_x * delta_x + delta_y * delta_y).sqrt();
+    let drag_dx = f64::from(current_x - press_x);
+    let drag_dy = f64::from(current_y - press_y);
+    let drag_distance = (drag_dx * drag_dx + drag_dy * drag_dy).sqrt();
+
+    let release_dx = f64::from(current_x - previous_release_x);
+    let release_dy = f64::from(current_y - previous_release_y);
+    let release_distance = (release_dx * release_dx + release_dy * release_dy).sqrt();
 
     let release_interval = current_release_time_ms.saturating_sub(previous_release_time_ms);
 
     let is_drag_selection =
-        pressed_time_ms > DRAG_TIME_THRESHOLD_MS && mouse_distance > DRAG_DISTANCE_THRESHOLD;
+        pressed_time_ms > DRAG_TIME_THRESHOLD_MS && drag_distance > DRAG_DISTANCE_THRESHOLD;
     let is_double_click_selection =
-        release_interval < DOUBLE_CLICK_TIME_THRESHOLD_MS && mouse_distance < DOUBLE_CLICK_DISTANCE_THRESHOLD;
+        release_interval < DOUBLE_CLICK_TIME_THRESHOLD_MS && release_distance < DOUBLE_CLICK_DISTANCE_THRESHOLD;
 
     ReleaseJudgement {
         is_drag_selection,
@@ -116,25 +122,13 @@ fn handle_mouse_event(app: &AppHandle, event: mouce::common::MouseEvent) {
     use mouce::common::{MouseButton, MouseEvent};
 
     match event {
-        MouseEvent::AbsoluteMove(x, y) => {
-            if let Ok(mut state) = selection_state().lock() {
-                state.record_cursor_position(SelectionPoint { x, y });
-            }
-        }
-        MouseEvent::RelativeMove(dx, dy) => {
-            if let Ok(mut state) = selection_state().lock() {
-                let previous = state
-                    .last_cursor_position()
-                    .unwrap_or(SelectionPoint { x: 0, y: 0 });
-                state.record_cursor_position(SelectionPoint {
-                    x: previous.x.saturating_add(dx),
-                    y: previous.y.saturating_add(dy),
-                });
-            }
-        }
+        MouseEvent::AbsoluteMove(_, _) => {}
+        MouseEvent::RelativeMove(_, _) => {}
         MouseEvent::Press(MouseButton::Left) => {
-            if let Ok(mut state) = selection_state().lock() {
-                state.record_press();
+            if let Some(point) = current_cursor_position(app) {
+                if let Ok(mut state) = selection_state().lock() {
+                    state.record_press(point);
+                }
             }
         }
         MouseEvent::Release(MouseButton::Left) => {
@@ -150,15 +144,17 @@ fn handle_mouse_event(app: &AppHandle, event: mouce::common::MouseEvent) {
 #[cfg(windows)]
 fn handle_left_release(app: AppHandle) {
     let now_ms = now_epoch_ms();
+    let point = match current_cursor_position(&app) {
+        Some(value) => value,
+        None => return,
+    };
+
     let (point, release_snapshot) = {
         let mut state = match selection_state().lock() {
             Ok(guard) => guard,
             Err(_) => return,
         };
 
-        let point = state
-            .last_cursor_position()
-            .unwrap_or(SelectionPoint { x: 0, y: 0 });
         let snapshot = state.begin_release(point, now_ms);
         (point, snapshot)
     };
@@ -168,6 +164,8 @@ fn handle_left_release(app: AppHandle) {
     }
 
     let judgement = judge_release(
+        release_snapshot.press_position.x,
+        release_snapshot.press_position.y,
         release_snapshot.previous_release_position.x,
         release_snapshot.previous_release_position.y,
         point.x,
@@ -209,7 +207,7 @@ fn handle_left_release(app: AppHandle) {
         source: "selection-monitor",
     };
 
-    let (target_x, target_y) = compute_action_bar_position(point);
+    let (target_x, target_y) = compute_action_bar_position(&app, point);
 
     let _ = manager::position_window(
         &app,
@@ -221,16 +219,40 @@ fn handle_left_release(app: AppHandle) {
     let _ = app.emit("selection-text-changed", payload);
 }
 
-fn compute_action_bar_position(point: SelectionPoint) -> (f64, f64) {
+fn compute_action_bar_position(app: &AppHandle, point: SelectionPoint) -> (f64, f64) {
     let mut x = f64::from(point.x) - ACTION_BAR_WIDTH / 2.0;
     let mut y = f64::from(point.y) - ACTION_BAR_HEIGHT - ACTION_BAR_ABOVE_GAP;
 
-    if x < ACTION_BAR_MIN_PADDING {
-        x = ACTION_BAR_MIN_PADDING;
-    }
+    if let Ok(Some(monitor)) = app.monitor_from_point(f64::from(point.x), f64::from(point.y)) {
+        let monitor_position = monitor.position();
+        let monitor_size = monitor.size();
 
-    if y < ACTION_BAR_MIN_PADDING {
-        y = f64::from(point.y) + ACTION_BAR_BELOW_GAP;
+        let min_x = f64::from(monitor_position.x) + ACTION_BAR_MIN_PADDING;
+        let max_x = f64::from(monitor_position.x) + f64::from(monitor_size.width)
+            - ACTION_BAR_WIDTH
+            - ACTION_BAR_MIN_PADDING;
+
+        x = x.clamp(min_x, max_x.max(min_x));
+
+        let top_limit = f64::from(monitor_position.y) + ACTION_BAR_MIN_PADDING;
+        if y < top_limit {
+            y = f64::from(point.y) + ACTION_BAR_BELOW_GAP;
+        }
+
+        let max_y = f64::from(monitor_position.y) + f64::from(monitor_size.height)
+            - ACTION_BAR_HEIGHT
+            - ACTION_BAR_MIN_PADDING;
+        if y > max_y {
+            y = max_y;
+        }
+    } else {
+        if x < ACTION_BAR_MIN_PADDING {
+            x = ACTION_BAR_MIN_PADDING;
+        }
+
+        if y < ACTION_BAR_MIN_PADDING {
+            y = f64::from(point.y) + ACTION_BAR_BELOW_GAP;
+        }
     }
 
     (x, y)
@@ -262,16 +284,23 @@ fn point_hits_action_bar(app: &AppHandle, point: SelectionPoint) -> bool {
         return false;
     };
 
-    let scale_factor = window.scale_factor().unwrap_or(1.0);
-    let left = f64::from(position.x) / scale_factor;
-    let top = f64::from(position.y) / scale_factor;
-    let right = left + f64::from(size.width) / scale_factor;
-    let bottom = top + f64::from(size.height) / scale_factor;
+    let left = f64::from(position.x);
+    let top = f64::from(position.y);
+    let right = left + f64::from(size.width);
+    let bottom = top + f64::from(size.height);
 
     let x = f64::from(point.x);
     let y = f64::from(point.y);
 
     x >= left && x <= right && y >= top && y <= bottom
+}
+
+fn current_cursor_position(app: &AppHandle) -> Option<SelectionPoint> {
+    let position = app.cursor_position().ok()?;
+    Some(SelectionPoint {
+        x: position.x.round() as i32,
+        y: position.y.round() as i32,
+    })
 }
 
 #[cfg(windows)]

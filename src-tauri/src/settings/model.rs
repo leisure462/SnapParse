@@ -67,7 +67,6 @@ pub struct ToolbarSettings {
     pub compact_mode: bool,
     pub show_label: bool,
     pub theme_mode: ThemeMode,
-    pub show_theme_toggle_in_toolbar: bool,
     pub actions: Vec<ToolbarAction>,
 }
 
@@ -78,7 +77,6 @@ impl Default for ToolbarSettings {
             compact_mode: false,
             show_label: true,
             theme_mode: ThemeMode::Dark,
-            show_theme_toggle_in_toolbar: true,
             actions: vec![
                 ToolbarAction::new(ActionId::Translate, "翻译", 0),
                 ToolbarAction::new(ActionId::Explain, "解释", 1),

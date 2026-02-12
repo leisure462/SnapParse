@@ -8,10 +8,9 @@ describe("settings schema", () => {
     expect(settings.toolbar.actions[0].id).toBe("translate");
   });
 
-  it("includes theme controls in toolbar defaults", () => {
+  it("includes theme mode in toolbar defaults", () => {
     const settings = defaultSettings();
     expect(settings.toolbar.themeMode).toBe("dark");
-    expect(settings.toolbar.showThemeToggleInToolbar).toBe(true);
   });
 
   it("rejects invalid baseUrl", () => {

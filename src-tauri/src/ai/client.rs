@@ -24,6 +24,14 @@ pub struct ProcessedText {
     pub elapsed_ms: u128,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApiConnectionTest {
+    pub model: String,
+    pub message: String,
+    pub elapsed_ms: u128,
+}
+
 #[derive(Debug, Serialize)]
 struct ChatCompletionsRequest {
     model: String,
@@ -60,6 +68,58 @@ pub fn build_chat_completions_url(base_url: &str) -> String {
     } else {
         format!("{trimmed}/chat/completions")
     }
+}
+
+pub async fn test_api_connection(
+    api_settings: &ApiSettings,
+) -> Result<ApiConnectionTest, AiClientError> {
+    if api_settings.api_key.trim().is_empty() {
+        return Err(AiClientError::EmptyApiKey);
+    }
+
+    let started = std::time::Instant::now();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(api_settings.timeout_ms))
+        .build()?;
+
+    let request_body = ChatCompletionsRequest {
+        model: api_settings.model.clone(),
+        temperature: 0.0,
+        messages: vec![
+            ChatMessage {
+                role: "system",
+                content: String::from("You are an API connectivity checker. Reply briefly."),
+            },
+            ChatMessage {
+                role: "user",
+                content: String::from("Respond with: API connection successful."),
+            },
+        ],
+    };
+
+    let response = client
+        .post(build_chat_completions_url(&api_settings.base_url))
+        .header(CONTENT_TYPE, "application/json")
+        .header(AUTHORIZATION, format!("Bearer {}", api_settings.api_key.trim()))
+        .json(&request_body)
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<ChatCompletionsResponse>()
+        .await?;
+
+    let message = response
+        .choices
+        .first()
+        .map(|item| item.message.content.trim().to_owned())
+        .filter(|item| !item.is_empty())
+        .ok_or(AiClientError::MissingChoices)?;
+
+    Ok(ApiConnectionTest {
+        model: api_settings.model.clone(),
+        message,
+        elapsed_ms: started.elapsed().as_millis(),
+    })
 }
 
 pub async fn process_text(

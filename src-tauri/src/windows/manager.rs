@@ -1,12 +1,15 @@
 use tauri::{
-    AppHandle, LogicalPosition, Manager, Position, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, Manager, PhysicalPosition, Position, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 
 use crate::windows::ids::WindowKind;
 
 fn app_url_from_kind(kind: WindowKind) -> WebviewUrl {
-    let _ = kind;
-    WebviewUrl::App("index.html".into())
+    if kind == WindowKind::Main {
+        WebviewUrl::App("index.html".into())
+    } else {
+        WebviewUrl::App(format!("index.html?window={}", kind.query_value()).into())
+    }
 }
 
 fn init_script_for_kind(kind: WindowKind) -> String {
@@ -53,6 +56,9 @@ pub fn hide_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<()> {
 
 pub fn position_window(app: &AppHandle, kind: WindowKind, x: f64, y: f64) -> tauri::Result<()> {
     let window = ensure_window(app, kind)?;
-    window.set_position(Position::Logical(LogicalPosition::new(x, y)))?;
+    window.set_position(Position::Physical(PhysicalPosition::new(
+        x.round() as i32,
+        y.round() as i32,
+    )))?;
     Ok(())
 }

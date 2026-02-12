@@ -16,7 +16,8 @@
         "title": "SnapParse",
         "width": 1200,
         "height": 780,
-        "resizable": true
+        "resizable": true,
+        "visible": false
       }
     ]
   },
