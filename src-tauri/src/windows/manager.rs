@@ -42,7 +42,8 @@ pub fn show_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<()> {
     window.show()?;
 
     if !matches!(kind, WindowKind::ActionBar) {
-        window.set_focus()?;
+        let _ = window.unminimize();
+        let _ = window.set_focus();
     }
 
     Ok(())

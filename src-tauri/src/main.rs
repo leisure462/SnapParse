@@ -7,7 +7,7 @@ mod settings;
 mod windows;
 
 use tauri::menu::MenuBuilder;
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
 use single_instance::SingleInstance;
 
@@ -64,7 +64,6 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 
     let mut tray_builder = TrayIconBuilder::with_id("snapparse-tray")
         .menu(&tray_menu)
-        .show_menu_on_left_click(false)
         .tooltip("SnapParse")
         .on_menu_event(|app_handle, event| {
             let event_id = event.id.as_ref();
@@ -82,13 +81,17 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         })
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
+                button,
+                button_state,
                 ..
             } = event
             {
-                let app_handle = tray.app_handle();
-                let _ = windows::manager::show_window(&app_handle, windows::ids::WindowKind::Settings);
+                if matches!(button, MouseButton::Left)
+                    && matches!(button_state, MouseButtonState::Up)
+                {
+                    let app_handle = tray.app_handle();
+                    let _ = windows::manager::show_window(&app_handle, windows::ids::WindowKind::Settings);
+                }
             }
         });
 
@@ -96,7 +99,8 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         tray_builder = tray_builder.icon(icon.clone());
     }
 
-    tray_builder.build(app)?;
+    let tray_icon: TrayIcon = tray_builder.build(app)?;
+    app.manage(tray_icon);
 
     Ok(())
 }

@@ -212,7 +212,6 @@ export default function ActionBarWindow(): JSX.Element {
           window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, selectedText);
         }
 
-        await closeActionBarWindow();
         await invoke("open_window", { kind: action.commandWindow });
         await invoke("move_window", {
           kind: action.commandWindow,
@@ -220,6 +219,7 @@ export default function ActionBarWindow(): JSX.Element {
           y: anchor.y
         });
         await emit("change-text", { text: selectedText, source: "action-bar" });
+        await closeActionBarWindow();
         return;
       }
 

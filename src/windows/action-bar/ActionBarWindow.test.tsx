@@ -63,7 +63,7 @@ describe("ActionBarWindow", () => {
     expect(screen.queryByRole("switch", { name: "明暗切换" })).not.toBeInTheDocument();
   });
 
-  it("closes action bar before opening translate window", async () => {
+  it("opens translate window and then closes action bar", async () => {
     await renderWindow();
 
     await act(async () => {
@@ -87,7 +87,7 @@ describe("ActionBarWindow", () => {
     expect(closeIndex).toBeGreaterThanOrEqual(0);
     expect(openIndex).toBeGreaterThanOrEqual(0);
     expect(moveIndex).toBeGreaterThanOrEqual(0);
-    expect(closeIndex).toBeLessThan(openIndex);
+    expect(openIndex).toBeLessThan(closeIndex);
     expect(window.localStorage.getItem("snapparse:selected-text")).toBe("hello world");
   });
 });
