@@ -2,20 +2,33 @@
 /* Shared styles for Translate, Summary, Explain windows.       */
 
 .md2-window-shell {
+  position: relative;
   height: 100vh;
-  background: var(--sp-surface);
   color: var(--sp-text);
   padding: 0;
   font-size: var(--snapparse-font-size, 14px);
   display: flex;
   flex-direction: column;
+  /* The actual background is rendered by ::before so that opacity
+     only affects the background layer, not text or icons. */
+  background: transparent;
+}
+
+.md2-window-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--sp-surface);
+  opacity: var(--sp-window-opacity, 1);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .md2-window-card {
   height: 100vh;
   border-radius: 0;
   border: none;
-  background: var(--sp-surface);
+  background: transparent;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -31,7 +44,7 @@
   justify-content: space-between;
   padding: 0 6px 0 12px;
   border-bottom: 1px solid var(--sp-border);
-  background: var(--sp-surface);
+  background: transparent;
   -webkit-app-region: drag;
   app-region: drag;
 }

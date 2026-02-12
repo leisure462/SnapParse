@@ -61,9 +61,11 @@ impl WindowKind {
         !matches!(self, WindowKind::Main | WindowKind::Settings)
     }
 
-    /// Only the action bar needs transparency; feature windows use opaque background.
+    /// No windows need transparency — the action bar now fills the full
+    /// opaque rectangle instead of trying (and failing on WebView2) to
+    /// show a floating capsule over a transparent background.
     pub fn transparent(self) -> bool {
-        matches!(self, WindowKind::ActionBar)
+        false
     }
 
     pub fn resizable(self) -> bool {
