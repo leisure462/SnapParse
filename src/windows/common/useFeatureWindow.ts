@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
-import { defaultSettings, resolveWindowSize, type AppSettings, type WindowSizePreset } from "../../shared/settings";
+import { defaultSettings, type AppSettings } from "../../shared/settings";
 
 const OPACITY_LEVELS = [1, 0.85, 0.7, 0.5];
 
@@ -42,7 +42,12 @@ export function useFeatureWindow(): FeatureWindowState {
   // Apply opacity to the actual window whenever it changes
   useEffect(() => {
     const opacity = OPACITY_LEVELS[opacityIndex] ?? 1;
-    getCurrentWindow().setOpacity(opacity).catch(() => {});
+    const win = getCurrentWindow();
+    // @ts-ignore - setOpacity exists in Tauri v2 but TypeScript types may be incomplete
+    if (typeof win.setOpacity === 'function') {
+      // @ts-ignore
+      win.setOpacity(opacity).catch(() => {});
+    }
   }, [opacityIndex]);
 
   // Blur-to-close: listen for focus changes to hide window when not pinned
