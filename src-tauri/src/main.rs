@@ -9,6 +9,7 @@ mod windows;
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
+use single_instance::SingleInstance;
 
 pub const APP_NAME: &str = "SnapParse";
 
@@ -17,6 +18,12 @@ pub const APP_NAME: &str = "SnapParse";
 mod test_suite;
 
 fn main() {
+    let single_instance = SingleInstance::new("com.leisure462.snapparse.single-instance")
+        .expect("failed to create single instance lock");
+    if !single_instance.is_single() {
+        return;
+    }
+
     tauri::Builder::default()
         .setup(|app| {
             if let Some(main_window) = app.get_webview_window("main") {
@@ -41,7 +48,8 @@ fn main() {
             commands::ai::test_api_connection,
             commands::windows::open_window,
             commands::windows::close_window,
-            commands::windows::move_window
+            commands::windows::move_window,
+            commands::windows::resize_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running SnapParse application");
@@ -58,15 +66,19 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
         .tooltip("SnapParse")
-        .on_menu_event(|app_handle, event| match event.id.as_ref() {
-            "open-settings" => {
+        .on_menu_event(|app_handle, event| {
+            let event_id = event.id.as_ref();
+
+            if event_id == "open-settings" || event_id.ends_with("open-settings") {
                 let _ = windows::manager::show_window(app_handle, windows::ids::WindowKind::Settings);
+                return;
             }
-            "quit" => {
+
+            if event_id == "quit" || event_id.ends_with("quit") {
                 app_handle.exit(0);
                 std::process::exit(0);
+                return;
             }
-            _ => {}
         })
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {

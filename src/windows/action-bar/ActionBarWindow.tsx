@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DEFAULT_ACTIONS, type ActionBarAction, type ActionBarActionId } from "./actions";
 import "./actionBar.css";
 import { useThemeMode, type ThemeMode } from "../theme/themeStore";
@@ -94,10 +94,63 @@ function computeFeatureWindowAnchor(): { x: number; y: number } {
   return { x, y };
 }
 
+async function resizeActionBarWindow(element: HTMLElement): Promise<void> {
+  const rect = element.getBoundingClientRect();
+  const width = Math.ceil(rect.width);
+  const height = Math.ceil(rect.height);
+
+  await invoke("resize_window", {
+    kind: "action-bar",
+    width,
+    height
+  });
+}
+
 export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
+  const actionBarRef = useRef<HTMLElement | null>(null);
   const theme = useThemeMode();
+
+  useEffect(() => {
+    const syncWindowSize = (): void => {
+      const element = actionBarRef.current;
+      if (!element) {
+        return;
+      }
+
+      void resizeActionBarWindow(element).catch(() => {
+        // noop in browser test runtime
+      });
+    };
+
+    const raf = window.requestAnimationFrame(syncWindowSize);
+    const timer = window.setTimeout(syncWindowSize, 120);
+    window.addEventListener("resize", syncWindowSize);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+      window.removeEventListener("resize", syncWindowSize);
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const element = actionBarRef.current;
+      if (!element) {
+        return;
+      }
+
+      void resizeActionBarWindow(element).catch(() => {
+        // noop in browser test runtime
+      });
+    }, 24);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [selectedText]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -189,7 +242,7 @@ export default function ActionBarWindow(): JSX.Element {
   };
 
   return (
-    <section className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
+    <section ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
       <div className="md2-action-list">
         {DEFAULT_ACTIONS.map((action) => (
           <button

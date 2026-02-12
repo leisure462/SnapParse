@@ -1,5 +1,6 @@
 use tauri::{
-    AppHandle, Manager, PhysicalPosition, Position, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, LogicalSize, Manager, PhysicalPosition, Position, Size, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder,
 };
 
 use crate::windows::ids::WindowKind;
@@ -60,5 +61,11 @@ pub fn position_window(app: &AppHandle, kind: WindowKind, x: f64, y: f64) -> tau
         x.round() as i32,
         y.round() as i32,
     )))?;
+    Ok(())
+}
+
+pub fn resize_window(app: &AppHandle, kind: WindowKind, width: f64, height: f64) -> tauri::Result<()> {
+    let window = ensure_window(app, kind)?;
+    window.set_size(Size::Logical(LogicalSize::new(width.max(1.0), height.max(1.0))))?;
     Ok(())
 }

@@ -16,3 +16,9 @@ pub fn move_window(app: tauri::AppHandle, kind: WindowKind, x: f64, y: f64) -> R
     manager::position_window(&app, kind, x, y)
         .map_err(|error| format!("failed to move window: {error}"))
 }
+
+#[tauri::command]
+pub fn resize_window(app: tauri::AppHandle, kind: WindowKind, width: f64, height: f64) -> Result<(), String> {
+    manager::resize_window(&app, kind, width, height)
+        .map_err(|error| format!("failed to resize window: {error}"))
+}

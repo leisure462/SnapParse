@@ -45,17 +45,6 @@ impl WindowKind {
         self.label()
     }
 
-    pub fn route(self) -> &'static str {
-        match self {
-            WindowKind::Main => "/",
-            WindowKind::ActionBar => "/windows/action-bar",
-            WindowKind::Translate => "/windows/translate",
-            WindowKind::Summary => "/windows/summary",
-            WindowKind::Explain => "/windows/explain",
-            WindowKind::Settings => "/windows/settings",
-        }
-    }
-
     pub fn default_size(self) -> (f64, f64) {
         match self {
             WindowKind::Main => (1200.0, 780.0),
