@@ -1,40 +1,151 @@
+/* ── SnapParse Design Tokens v2 ──────────────────────────────── */
+/* Single source of truth for the entire design system.          */
+/* All semantic colors, radii, shadows, motion, and typography.  */
+
+/* ── Shared / non-themed tokens ─────────────────────────────── */
 :root {
-  --md2-font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
-  --md2-round-md: 12px;
-  --md2-round-xl: 18px;
-  --md2-elevation-2: 0 6px 18px rgba(31, 41, 55, 0.18), 0 2px 6px rgba(31, 41, 55, 0.12);
-  --md2-elevation-4: 0 12px 28px rgba(31, 41, 55, 0.24), 0 4px 12px rgba(31, 41, 55, 0.16);
-  --md2-motion-fast: 180ms;
-  --md2-motion-mid: 260ms;
+  /* Typography */
+  --sp-font-sans: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --sp-font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
+
+  /* Border radius */
+  --sp-radius-xs: 6px;
+  --sp-radius-sm: 8px;
+  --sp-radius-md: 10px;
+  --sp-radius-lg: 14px;
+  --sp-radius-xl: 18px;
+  --sp-radius-full: 9999px;
+
+  /* Motion */
+  --sp-duration-fast: 150ms;
+  --sp-duration-normal: 220ms;
+  --sp-duration-slow: 350ms;
+  --sp-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --sp-ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+
+  /* Spacing scale (optional, for reference) */
+  --sp-space-1: 4px;
+  --sp-space-2: 8px;
+  --sp-space-3: 12px;
+  --sp-space-4: 16px;
+  --sp-space-5: 20px;
+  --sp-space-6: 24px;
 }
 
+/* ── Light Theme ────────────────────────────────────────────── */
 :root,
 :root[data-theme="light"] {
-  --md2-primary: #1565c0;
-  --md2-primary-variant: #003c8f;
-  --md2-on-primary: #f8fbff;
-  --md2-surface: #ffffff;
-  --md2-surface-soft: #eef3fb;
-  --md2-surface-press: #e2ebfa;
-  --md2-outline: #d0dae9;
-  --md2-on-surface: #1b2430;
-  --md2-on-surface-soft: #5a6679;
-  --md2-backdrop: rgba(12, 20, 35, 0.12);
+  /* Primary */
+  --sp-primary: #2563eb;
+  --sp-primary-hover: #1d4ed8;
+  --sp-primary-soft: rgba(37, 99, 235, 0.10);
+  --sp-on-primary: #ffffff;
+
+  /* Surface hierarchy */
+  --sp-bg: #f1f5f9;
+  --sp-surface: #ffffff;
+  --sp-surface-raised: #ffffff;
+  --sp-surface-overlay: rgba(255, 255, 255, 0.92);
+  --sp-surface-hover: #f8fafc;
+  --sp-surface-active: #f1f5f9;
+
+  /* Border / Divider */
+  --sp-border: #e2e8f0;
+  --sp-border-strong: #cbd5e1;
+  --sp-ring-focus: rgba(37, 99, 235, 0.40);
+
+  /* Text */
+  --sp-text: #0f172a;
+  --sp-text-secondary: #475569;
+  --sp-text-muted: #94a3b8;
+  --sp-text-inverse: #ffffff;
+
+  /* Semantic */
+  --sp-success: #16a34a;
+  --sp-success-soft: rgba(22, 163, 74, 0.10);
+  --sp-warning: #d97706;
+  --sp-warning-soft: rgba(217, 119, 6, 0.10);
+  --sp-error: #dc2626;
+  --sp-error-soft: rgba(220, 38, 38, 0.10);
+
+  /* Elevation */
+  --sp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --sp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --sp-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+  --sp-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.16), 0 4px 16px rgba(0, 0, 0, 0.10);
+
+  /* Scrollbar */
+  --sp-scrollbar-thumb: rgba(0, 0, 0, 0.16);
+  --sp-scrollbar-thumb-hover: rgba(0, 0, 0, 0.28);
+
+  /* Backdrop (for action bar glass effect) */
+  --sp-glass-bg: rgba(255, 255, 255, 0.82);
+  --sp-glass-border: rgba(255, 255, 255, 0.60);
 }
 
+/* ── Dark Theme ─────────────────────────────────────────────── */
 :root[data-theme="dark"] {
-  --md2-primary: #64b5f6;
-  --md2-primary-variant: #90caf9;
-  --md2-on-primary: #082033;
-  --md2-surface: #1f2531;
-  --md2-surface-soft: #262e3d;
-  --md2-surface-press: #313a4d;
-  --md2-outline: #3d475c;
-  --md2-on-surface: #edf2fa;
-  --md2-on-surface-soft: #b0bccd;
-  --md2-backdrop: rgba(2, 6, 17, 0.48);
+  /* Primary */
+  --sp-primary: #60a5fa;
+  --sp-primary-hover: #93c5fd;
+  --sp-primary-soft: rgba(96, 165, 250, 0.12);
+  --sp-on-primary: #0c1929;
+
+  /* Surface hierarchy */
+  --sp-bg: #0c1222;
+  --sp-surface: #151e2e;
+  --sp-surface-raised: #1a2438;
+  --sp-surface-overlay: rgba(21, 30, 46, 0.92);
+  --sp-surface-hover: #1e293b;
+  --sp-surface-active: #253248;
+
+  /* Border / Divider */
+  --sp-border: #1e293b;
+  --sp-border-strong: #334155;
+  --sp-ring-focus: rgba(96, 165, 250, 0.40);
+
+  /* Text */
+  --sp-text: #f1f5f9;
+  --sp-text-secondary: #94a3b8;
+  --sp-text-muted: #64748b;
+  --sp-text-inverse: #0f172a;
+
+  /* Semantic */
+  --sp-success: #4ade80;
+  --sp-success-soft: rgba(74, 222, 128, 0.12);
+  --sp-warning: #fbbf24;
+  --sp-warning-soft: rgba(251, 191, 36, 0.12);
+  --sp-error: #f87171;
+  --sp-error-soft: rgba(248, 113, 113, 0.12);
+
+  /* Elevation */
+  --sp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --sp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --sp-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.40), 0 2px 8px rgba(0, 0, 0, 0.30);
+  --sp-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.50), 0 4px 16px rgba(0, 0, 0, 0.35);
+
+  /* Scrollbar */
+  --sp-scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --sp-scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+
+  /* Backdrop (for action bar glass effect) */
+  --sp-glass-bg: rgba(21, 30, 46, 0.78);
+  --sp-glass-border: rgba(30, 41, 59, 0.60);
 }
 
+/* ── Global Reset ───────────────────────────────────────────── */
 body {
-  font-family: var(--md2-font-family);
+  font-family: var(--sp-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── Reduced motion ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --sp-duration-fast: 0ms;
+    --sp-duration-normal: 0ms;
+    --sp-duration-slow: 0ms;
+  }
 }

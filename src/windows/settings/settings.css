@@ -1,61 +1,71 @@
+/* ── Settings Window ─────────────────────────────────────────── */
+
 .settings-shell {
   min-height: 100vh;
-  background: radial-gradient(130% 120% at 8% 10%, color-mix(in srgb, var(--md2-primary) 16%, transparent) 0%, transparent 42%), var(--md2-backdrop);
-  color: var(--md2-on-surface);
-  padding: 18px;
+  background: var(--sp-bg);
+  color: var(--sp-text);
+  padding: 0;
 }
 
 .settings-layout {
-  min-height: calc(100vh - 36px);
-  border-radius: var(--md2-round-xl);
-  border: 1px solid var(--md2-outline);
-  background: var(--md2-surface);
+  min-height: 100vh;
+  background: var(--sp-surface);
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 220px minmax(0, 1fr);
   overflow: hidden;
-  box-shadow: var(--md2-elevation-4);
 }
 
+/* ── Sidebar ────────────────────────────────────────────────── */
+
 .settings-sidebar {
-  background: color-mix(in srgb, var(--md2-surface) 84%, var(--md2-primary) 16%);
-  border-right: 1px solid var(--md2-outline);
+  background: var(--sp-surface-raised);
+  border-right: 1px solid var(--sp-border);
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  gap: 6px;
+  padding: 12px 10px;
+  gap: 2px;
 }
 
 .settings-sidebar-header {
-  padding: 8px 8px 12px;
+  padding: 10px 10px 16px;
 }
 
 .settings-sidebar-header h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sp-text);
 }
 
 .settings-tab {
-  height: 40px;
+  height: 36px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--sp-radius-sm);
   background: transparent;
-  color: var(--md2-on-surface);
+  color: var(--sp-text-secondary);
   text-align: left;
   padding: 0 12px;
   font: inherit;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color var(--md2-motion-fast), color var(--md2-motion-fast);
-}
-
-.settings-tab[aria-selected="true"] {
-  background: color-mix(in srgb, var(--md2-primary) 20%, var(--md2-surface-soft) 80%);
-  color: var(--md2-primary-variant);
+  transition: background-color var(--sp-duration-fast) var(--sp-ease-out),
+              color var(--sp-duration-fast) var(--sp-ease-out);
 }
 
 .settings-tab:hover {
-  background: var(--md2-surface-soft);
+  background: var(--sp-surface-hover);
+  color: var(--sp-text);
 }
+
+.settings-tab[aria-selected="true"] {
+  background: var(--sp-primary-soft);
+  color: var(--sp-primary);
+  font-weight: 600;
+}
+
+/* ── Main panel ─────────────────────────────────────────────── */
 
 .settings-main {
   min-width: 0;
@@ -64,9 +74,10 @@
 }
 
 .settings-main-header {
-  height: 60px;
-  border-bottom: 1px solid var(--md2-outline);
-  padding: 10px 16px;
+  height: 52px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--sp-border);
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -74,22 +85,25 @@
 
 .settings-status {
   font-size: 13px;
-  color: var(--md2-on-surface-soft);
+  font-weight: 500;
+  color: var(--sp-text-muted);
 }
 
 .settings-status.error {
-  color: #ef5350;
+  color: var(--sp-error);
 }
 
 .settings-status.saved {
-  color: #2e7d32;
+  color: var(--sp-success);
 }
 
 .settings-content {
   min-height: 0;
   overflow: auto;
-  padding: 18px;
+  padding: 20px;
 }
+
+/* ── Actions ────────────────────────────────────────────────── */
 
 .settings-actions {
   display: inline-flex;
@@ -97,25 +111,40 @@
 }
 
 .settings-actions button {
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid var(--md2-outline);
+  height: 32px;
+  border-radius: var(--sp-radius-sm);
+  border: 1px solid var(--sp-border);
   font: inherit;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   padding: 0 14px;
+  transition: all var(--sp-duration-fast) var(--sp-ease-out);
 }
 
 .settings-actions button.ghost {
-  background: var(--md2-surface-soft);
-  color: var(--md2-on-surface);
+  background: var(--sp-surface);
+  color: var(--sp-text-secondary);
+}
+
+.settings-actions button.ghost:hover {
+  background: var(--sp-surface-hover);
+  color: var(--sp-text);
+  border-color: var(--sp-border-strong);
 }
 
 .settings-actions button.primary {
-  border-color: color-mix(in srgb, var(--md2-primary) 60%, var(--md2-outline) 40%);
-  background: color-mix(in srgb, var(--md2-primary) 84%, white 16%);
-  color: var(--md2-on-primary);
+  border-color: var(--sp-primary);
+  background: var(--sp-primary);
+  color: var(--sp-on-primary);
 }
+
+.settings-actions button.primary:hover {
+  background: var(--sp-primary-hover);
+  border-color: var(--sp-primary-hover);
+}
+
+/* ── API Test ───────────────────────────────────────────────── */
 
 .settings-inline-actions {
   display: flex;
@@ -125,88 +154,154 @@
 
 .settings-api-test-btn {
   height: 34px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--md2-primary) 60%, var(--md2-outline) 40%);
-  background: color-mix(in srgb, var(--md2-primary) 84%, white 16%);
-  color: var(--md2-on-primary);
+  border-radius: var(--sp-radius-sm);
+  border: 1px solid var(--sp-primary);
+  background: var(--sp-primary);
+  color: var(--sp-on-primary);
   font: inherit;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0 14px;
+  padding: 0 16px;
+  transition: all var(--sp-duration-fast) var(--sp-ease-out);
+}
+
+.settings-api-test-btn:hover {
+  background: var(--sp-primary-hover);
+  border-color: var(--sp-primary-hover);
 }
 
 .settings-api-test-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: wait;
 }
 
 .settings-api-test-status {
   font-size: 13px;
-  color: var(--md2-on-surface-soft);
+  font-weight: 500;
+  color: var(--sp-text-muted);
 }
 
 .settings-api-test-status.success {
-  color: #2e7d32;
+  color: var(--sp-success);
 }
 
 .settings-api-test-status.error {
-  color: #ef5350;
+  color: var(--sp-error);
 }
+
+/* ── Section ────────────────────────────────────────────────── */
 
 .settings-section {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .settings-section h2 {
   margin: 0;
-  font-size: 23px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sp-text);
 }
 
 .settings-hint {
   margin: 0;
-  color: var(--md2-on-surface-soft);
+  color: var(--sp-text-muted);
+  font-size: 13px;
 }
 
 .settings-warning {
   margin: 0;
-  color: #ffb300;
-  background: color-mix(in srgb, #ffb300 16%, transparent 84%);
-  border: 1px solid color-mix(in srgb, #ffb300 28%, var(--md2-outline) 72%);
-  border-radius: 10px;
+  color: var(--sp-warning);
+  background: var(--sp-warning-soft);
+  border: 1px solid var(--sp-warning);
+  border-radius: var(--sp-radius-sm);
   padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
 }
+
+/* ── Fields ─────────────────────────────────────────────────── */
 
 .settings-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
-.settings-field span {
+.settings-field > span {
   font-size: 13px;
-  color: var(--md2-on-surface-soft);
+  font-weight: 500;
+  color: var(--sp-text-secondary);
 }
 
-.settings-field input,
+.settings-field input[type="text"],
+.settings-field input[type="password"],
+.settings-field input[type="url"],
 .settings-field select,
 .settings-field textarea {
-  border: 1px solid var(--md2-outline);
-  border-radius: 10px;
-  background: var(--md2-surface-soft);
-  color: var(--md2-on-surface);
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-sm);
+  background: var(--sp-surface-raised);
+  color: var(--sp-text);
   font: inherit;
-  padding: 10px 12px;
+  font-size: 13px;
+  padding: 8px 12px;
+  transition: border-color var(--sp-duration-fast) var(--sp-ease-out),
+              box-shadow var(--sp-duration-fast) var(--sp-ease-out);
+}
+
+.settings-field input:focus,
+.settings-field select:focus,
+.settings-field textarea:focus {
+  border-color: var(--sp-primary);
+  box-shadow: 0 0 0 3px var(--sp-ring-focus);
+  outline: none;
 }
 
 .settings-field textarea {
-  min-height: 120px;
+  min-height: 100px;
   resize: vertical;
+  line-height: 1.5;
 }
+
+/* Range slider */
+.settings-field input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: var(--sp-radius-full);
+  background: var(--sp-border);
+  outline: none;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.settings-field input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--sp-primary);
+  border: 2px solid var(--sp-surface);
+  box-shadow: var(--sp-shadow-sm);
+  cursor: pointer;
+  transition: transform var(--sp-duration-fast) var(--sp-ease-out);
+}
+
+.settings-field input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+/* ── Grid layouts ───────────────────────────────────────────── */
 
 .settings-grid-2,
 .settings-grid-3 {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .settings-grid-2 {
@@ -217,21 +312,46 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* ── Switch (checkbox row) ──────────────────────────────────── */
+
 .settings-switch {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 40px;
-  border: 1px solid var(--md2-outline);
-  border-radius: 10px;
+  min-height: 38px;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-sm);
   padding: 0 12px;
-  background: var(--md2-surface-soft);
+  background: var(--sp-surface-raised);
+  cursor: pointer;
+  transition: border-color var(--sp-duration-fast) var(--sp-ease-out),
+              background var(--sp-duration-fast) var(--sp-ease-out);
 }
 
-.settings-switch input {
-  accent-color: var(--md2-primary);
-  flex-shrink: 0;
+.settings-switch:hover {
+  border-color: var(--sp-border-strong);
+  background: var(--sp-surface-hover);
 }
+
+.settings-switch input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sp-primary);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.settings-switch span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sp-text);
+}
+
+.settings-switch.action-item {
+  /* no additional styles needed */
+}
+
+/* ── Size presets ───────────────────────────────────────────── */
 
 .settings-size-presets {
   display: flex;
@@ -240,13 +360,13 @@
 
 .settings-size-btn {
   flex: 1;
-  height: 56px;
-  border: 2px solid var(--md2-outline);
-  border-radius: 10px;
-  background: var(--md2-surface-soft);
-  color: var(--md2-on-surface);
+  height: 60px;
+  border: 1.5px solid var(--sp-border);
+  border-radius: var(--sp-radius-md);
+  background: var(--sp-surface-raised);
+  color: var(--sp-text);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -254,54 +374,58 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  transition: border-color var(--md2-motion-fast), background var(--md2-motion-fast), color var(--md2-motion-fast);
+  transition: all var(--sp-duration-fast) var(--sp-ease-out);
 }
 
-.settings-size-btn span {
+.settings-size-btn .settings-size-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
+}
+
+.settings-size-btn .settings-size-desc {
   font-size: 11px;
   font-weight: 400;
-  color: var(--md2-on-surface-soft);
+  color: var(--sp-text-muted);
 }
 
 .settings-size-btn:hover {
-  border-color: color-mix(in srgb, var(--md2-primary) 50%, var(--md2-outline) 50%);
+  border-color: var(--sp-border-strong);
+  background: var(--sp-surface-hover);
 }
 
 .settings-size-btn.active {
-  border-color: var(--md2-primary);
-  background: color-mix(in srgb, var(--md2-primary) 12%, var(--md2-surface-soft) 88%);
-  color: var(--md2-primary-variant);
+  border-color: var(--sp-primary);
+  background: var(--sp-primary-soft);
+  color: var(--sp-primary);
 }
 
-.settings-size-btn.active span {
-  color: var(--md2-primary);
+.settings-size-btn.active .settings-size-desc {
+  color: var(--sp-primary);
+  opacity: 0.7;
 }
+
+/* ── Action list ────────────────────────────────────────────── */
 
 .settings-action-list {
   display: grid;
   gap: 8px;
 }
 
-.settings-switch.action-item {
-  /* checkbox and label side by side, no spreading */
-}
+/* ── Responsive ─────────────────────────────────────────────── */
 
-@media (max-width: 940px) {
-  .settings-shell {
-    padding: 10px;
-  }
-
+@media (max-width: 700px) {
   .settings-layout {
-    min-height: calc(100vh - 20px);
     grid-template-columns: 1fr;
   }
 
   .settings-sidebar {
     border-right: 0;
-    border-bottom: 1px solid var(--md2-outline);
+    border-bottom: 1px solid var(--sp-border);
     overflow-x: auto;
     flex-direction: row;
     align-items: center;
+    padding: 8px 10px;
   }
 
   .settings-sidebar-header {

@@ -1,94 +1,139 @@
-:root {
-  --md2-primary: #1565c0;
-  --md2-primary-variant: #0d47a1;
-  --md2-surface: #ffffff;
-  --md2-background: #f4f6fa;
-  --md2-on-surface: #1f2937;
-  --md2-on-background: #111827;
-  --md2-shadow: rgba(15, 23, 42, 0.16);
-  --md2-radius: 14px;
-}
+/* ── SnapParse Global Styles ─────────────────────────────────── */
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html,
 body,
 #root {
-  margin: 0;
-  padding: 0;
   width: 100%;
   height: 100%;
-  min-height: 100%;
   overflow: hidden;
 }
 
 body {
-  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
-  background: var(--md2-background, #f4f6fa);
-  color: var(--md2-on-background);
+  background: var(--sp-bg);
+  color: var(--sp-text);
+  font-size: 14px;
+  line-height: 1.5;
 }
+
+/* ── Scrollbar (global) ─────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sp-scrollbar-thumb);
+  border-radius: var(--sp-radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sp-scrollbar-thumb-hover);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sp-scrollbar-thumb) transparent;
+}
+
+/* ── Focus ring ─────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--sp-ring-focus);
+  outline-offset: 2px;
+}
+
+/* ── Selection ──────────────────────────────────────────────── */
+
+::selection {
+  background: var(--sp-primary-soft);
+  color: var(--sp-text);
+}
+
+/* ── Main App Window ────────────────────────────────────────── */
 
 .app-shell {
   display: grid;
   place-items: center;
   min-height: 100vh;
-  padding: 24px;
+  padding: var(--sp-space-6);
 }
 
 .surface-card {
-  width: min(480px, 100%);
-  border-radius: var(--md2-radius);
-  background: var(--md2-surface);
-  box-shadow: 0 16px 34px var(--md2-shadow);
+  width: min(440px, 100%);
+  border-radius: var(--sp-radius-lg);
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border);
+  box-shadow: var(--sp-shadow-lg);
   padding: 28px;
 }
 
 .app-title {
-  margin: 0;
-  font-size: 32px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: 1.2;
-  letter-spacing: 0.015em;
+  color: var(--sp-text);
 }
 
 .app-subtitle {
-  margin: 12px 0 0;
-  color: color-mix(in srgb, var(--md2-on-surface) 70%, white 30%);
-  font-size: 15px;
+  margin-top: 8px;
+  color: var(--sp-text-secondary);
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .app-hint {
-  margin: 14px 0 0;
-  color: color-mix(in srgb, var(--md2-on-surface) 78%, white 22%);
-  font-size: 14px;
+  margin-top: 12px;
+  color: var(--sp-text-muted);
+  font-size: 13px;
   line-height: 1.65;
   white-space: pre-wrap;
 }
 
 .app-actions {
-  margin-top: 18px;
+  margin-top: 20px;
   display: flex;
   gap: 10px;
 }
 
 .app-btn {
-  height: 38px;
-  border-radius: 10px;
-  border: 1px solid transparent;
+  height: 36px;
+  border-radius: var(--sp-radius-sm);
+  border: 1px solid var(--sp-border);
   padding: 0 16px;
   font: inherit;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+  background: var(--sp-surface);
+  color: var(--sp-text);
+  transition: all var(--sp-duration-fast) var(--sp-ease-out);
+}
+
+.app-btn:hover {
+  background: var(--sp-surface-hover);
+  border-color: var(--sp-border-strong);
 }
 
 .app-btn-primary {
-  background: var(--md2-primary);
-  color: #f5f9ff;
-  border-color: color-mix(in srgb, var(--md2-primary) 70%, #ffffff 30%);
+  background: var(--sp-primary);
+  color: var(--sp-on-primary);
+  border-color: var(--sp-primary);
 }
 
 .app-btn-primary:hover {
-  background: var(--md2-primary-variant);
+  background: var(--sp-primary-hover);
+  border-color: var(--sp-primary-hover);
 }
