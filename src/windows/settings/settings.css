@@ -218,9 +218,9 @@
 }
 
 .settings-switch {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-height: 40px;
   border: 1px solid var(--md2-outline);
   border-radius: 10px;
@@ -230,6 +230,7 @@
 
 .settings-switch input {
   accent-color: var(--md2-primary);
+  flex-shrink: 0;
 }
 
 .settings-action-list {
@@ -238,7 +239,7 @@
 }
 
 .settings-switch.action-item {
-  justify-content: space-between;
+  /* checkbox and label side by side, no spreading */
 }
 
 @media (max-width: 940px) {

@@ -1,5 +1,5 @@
 use tauri::{
-    AppHandle, LogicalSize, Manager, PhysicalPosition, Position, Size, WebviewUrl, WebviewWindow,
+    AppHandle, LogicalPosition, LogicalSize, Manager, Position, Size, WebviewUrl, WebviewWindow,
     WebviewWindowBuilder,
 };
 
@@ -19,8 +19,12 @@ fn init_script_for_kind(kind: WindowKind) -> String {
 
 pub fn ensure_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<WebviewWindow> {
     if let Some(existing) = app.get_webview_window(kind.label()) {
+        eprintln!("[window] reusing existing window: {}", kind.label());
         return Ok(existing);
     }
+
+    eprintln!("[window] creating new window: {} (frameless={}, transparent={}, decorations={})",
+        kind.label(), kind.frameless(), kind.transparent(), !kind.frameless());
 
     let (width, height) = kind.default_size();
     let builder = WebviewWindowBuilder::new(app, kind.label(), app_url_from_kind(kind))
@@ -29,39 +33,56 @@ pub fn ensure_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<Webview
         .inner_size(width, height)
         .resizable(kind.resizable())
         .decorations(!kind.frameless())
-        .transparent(kind.frameless())
+        .transparent(kind.transparent())
         .always_on_top(kind.always_on_top())
         .skip_taskbar(kind.skip_taskbar())
-        .visible(kind == WindowKind::Main || kind == WindowKind::Settings);
+        .visible(false);
 
-    builder.build()
+    match builder.build() {
+        Ok(window) => {
+            eprintln!("[window] successfully created: {}", kind.label());
+            Ok(window)
+        }
+        Err(error) => {
+            eprintln!("[window] FAILED to create {}: {}", kind.label(), error);
+            Err(error)
+        }
+    }
 }
 
 pub fn show_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<()> {
     let window = ensure_window(app, kind)?;
-    window.show()?;
+
+    eprintln!("[window] showing: {}", kind.label());
+
+    if let Err(e) = window.show() {
+        eprintln!("[window] show() failed for {}: {}", kind.label(), e);
+        return Err(e);
+    }
 
     if !matches!(kind, WindowKind::ActionBar) {
         let _ = window.unminimize();
-        let _ = window.set_focus();
+        if let Err(e) = window.set_focus() {
+            eprintln!("[window] set_focus() failed for {}: {}", kind.label(), e);
+        }
     }
 
+    eprintln!("[window] show complete: {}", kind.label());
     Ok(())
 }
 
 pub fn hide_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window(kind.label()) {
         window.hide()?;
+        eprintln!("[window] hidden: {}", kind.label());
     }
     Ok(())
 }
 
 pub fn position_window(app: &AppHandle, kind: WindowKind, x: f64, y: f64) -> tauri::Result<()> {
     let window = ensure_window(app, kind)?;
-    window.set_position(Position::Physical(PhysicalPosition::new(
-        x.round() as i32,
-        y.round() as i32,
-    )))?;
+    eprintln!("[window] positioning {} to logical ({}, {})", kind.label(), x, y);
+    window.set_position(Position::Logical(LogicalPosition::new(x, y)))?;
     Ok(())
 }
 

@@ -246,7 +246,13 @@ export default function ActionBarWindow(): JSX.Element {
           x: anchor.x,
           y: anchor.y
         });
-        await emit("change-text", { text: selectedText, source: "action-bar" });
+
+        // Delay event emission to give the target window time to mount and register listeners.
+        // The target window also reads from localStorage as a fallback.
+        setTimeout(() => {
+          void emit("change-text", { text: selectedText, source: "action-bar" });
+        }, 300);
+
         await closeActionBarWindow();
         return;
       }

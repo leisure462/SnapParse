@@ -1,16 +1,15 @@
 .md2-window-shell {
   min-height: 100vh;
-  background: radial-gradient(140% 120% at 10% 8%, color-mix(in srgb, var(--md2-primary) 18%, transparent) 0%, transparent 50%), var(--md2-backdrop);
+  background: radial-gradient(140% 120% at 10% 8%, color-mix(in srgb, var(--md2-primary) 18%, transparent) 0%, transparent 50%), var(--md2-backdrop, var(--md2-background, #f4f6fa));
   color: var(--md2-on-surface);
-  padding: 14px;
+  padding: 0;
 }
 
 .md2-window-card {
-  min-height: calc(100vh - 28px);
-  border-radius: var(--md2-round-xl);
-  border: 1px solid var(--md2-outline);
-  background: var(--md2-surface);
-  box-shadow: var(--md2-elevation-4);
+  min-height: 100vh;
+  border-radius: 0;
+  border: none;
+  background: var(--md2-surface, #ffffff);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -22,8 +21,11 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--md2-outline);
-  background: color-mix(in srgb, var(--md2-surface) 82%, var(--md2-primary) 18%);
+  border-bottom: 1px solid var(--md2-outline, #e0e0e0);
+  background: color-mix(in srgb, var(--md2-surface, #ffffff) 82%, var(--md2-primary, #1565c0) 18%);
+  /* Enable Tauri window dragging on the header bar */
+  -webkit-app-region: drag;
+  app-region: drag;
 }
 
 .md2-window-title-block {
@@ -48,6 +50,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  /* Exclude window control buttons from drag region */
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .md2-window-icon-btn {
@@ -193,11 +198,11 @@
 
 @media (max-width: 720px) {
   .md2-window-shell {
-    padding: 10px;
+    padding: 0;
   }
 
   .md2-window-card {
-    min-height: calc(100vh - 20px);
+    min-height: 100vh;
   }
 
   .md2-window-title {

@@ -60,6 +60,11 @@ impl WindowKind {
         !matches!(self, WindowKind::Main | WindowKind::Settings)
     }
 
+    /// Only the action bar needs transparency; feature windows use opaque background.
+    pub fn transparent(self) -> bool {
+        matches!(self, WindowKind::ActionBar)
+    }
+
     pub fn resizable(self) -> bool {
         !matches!(self, WindowKind::ActionBar)
     }

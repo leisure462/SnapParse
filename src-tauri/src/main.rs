@@ -64,6 +64,7 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
 
     let mut tray_builder = TrayIconBuilder::with_id("snapparse-tray")
         .menu(&tray_menu)
+        .show_menu_on_left_click(false)
         .tooltip("SnapParse")
         .on_menu_event(|app_handle, event| {
             let event_id = event.id.as_ref();
