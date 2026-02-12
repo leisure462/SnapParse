@@ -1,57 +1,102 @@
-/* ── Action Bar (compact toolbar with glass-like finish) ─────── */
+/* ── Action Bar (compact toolbar with liquid-glass finish) ──── */
 
-/* The window is opaque (WebView2 can't do real transparency)
-   so we simulate a frosted-glass look with gradients, inner
-   glow, and a subtle top-highlight border.  The bar sizes to
-   its content; resizeActionBarWindow() shrinks the window to
-   match via getBoundingClientRect().                              */
+/* The window is opaque (WebView2 can't do real transparency),
+   so we simulate a frosted liquid-glass look with layered
+   gradients, inner glow, noise texture, and specular highlight.
+   The bar sizes to its content; resizeActionBarWindow() shrinks
+   the window to match via getBoundingClientRect().               */
 
-.md2-action-bar {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  width: auto;
-  min-height: 36px;
-  box-sizing: border-box;
-  border: 1px solid var(--sp-actionbar-border, var(--sp-border-strong));
-  border-top-color: var(--sp-actionbar-highlight, rgba(255,255,255,0.18));
-  border-radius: var(--sp-radius-sm);
-  background: var(--sp-actionbar-bg);
-  box-shadow: var(--sp-shadow-lg),
-              inset 0 1px 0 0 var(--sp-actionbar-inner-glow);
-  padding: 3px 6px;
+/* Match window body bg to bar bg so no gaps are visible behind
+   the rounded corners.                                           */
+body:has(.md2-action-bar) {
+  background: var(--sp-actionbar-bg-base) !important;
 }
 
 /* ── Light / dark actionbar tokens ──────────────────────────── */
 :root,
 :root[data-theme="light"] {
-  --sp-actionbar-bg: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.96) 0%,
-    rgba(241, 245, 249, 0.92) 100%
-  );
-  --sp-actionbar-border: #cbd5e1;
-  --sp-actionbar-highlight: rgba(255, 255, 255, 0.60);
-  --sp-actionbar-inner-glow: rgba(255, 255, 255, 0.70);
+  --sp-actionbar-bg-base: rgba(255, 255, 255, 0.82);
+  --sp-actionbar-bg-sheen: rgba(255, 255, 255, 0.35);
+  --sp-actionbar-border: rgba(200, 210, 225, 0.60);
+  --sp-actionbar-highlight: rgba(255, 255, 255, 0.80);
+  --sp-actionbar-inner-glow: rgba(255, 255, 255, 0.65);
+  --sp-actionbar-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 :root[data-theme="dark"] {
-  --sp-actionbar-bg: linear-gradient(
-    180deg,
-    rgba(30, 41, 59, 0.98) 0%,
-    rgba(15, 23, 42, 0.95) 100%
+  --sp-actionbar-bg-base: rgba(21, 30, 46, 0.88);
+  --sp-actionbar-bg-sheen: rgba(255, 255, 255, 0.04);
+  --sp-actionbar-border: rgba(55, 70, 95, 0.55);
+  --sp-actionbar-highlight: rgba(255, 255, 255, 0.10);
+  --sp-actionbar-inner-glow: rgba(255, 255, 255, 0.05);
+  --sp-actionbar-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.30),
+    0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.md2-action-bar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  width: auto;
+  min-height: 34px;
+  box-sizing: border-box;
+  /* Uniform 1px border — no separate top color needed */
+  border: 1px solid var(--sp-actionbar-border);
+  border-radius: var(--sp-radius-md);
+  /* Solid base color (gradient is layered via ::before) */
+  background: var(--sp-actionbar-bg-base);
+  box-shadow: var(--sp-actionbar-shadow),
+              inset 0 1px 0 0 var(--sp-actionbar-inner-glow);
+  padding: 2px 4px;
+  overflow: hidden;
+}
+
+/* Specular sheen overlay — simulates the liquid-glass light refraction */
+.md2-action-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    /* Top specular highlight */
+    linear-gradient(
+      180deg,
+      var(--sp-actionbar-highlight) 0%,
+      transparent 45%
+    );
+  pointer-events: none;
+}
+
+/* Top edge glow line */
+.md2-action-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--sp-actionbar-highlight) 30%,
+    var(--sp-actionbar-highlight) 70%,
+    transparent 100%
   );
-  --sp-actionbar-border: #334155;
-  --sp-actionbar-highlight: rgba(255, 255, 255, 0.08);
-  --sp-actionbar-inner-glow: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
 }
 
 .md2-action-bar-icon {
-  width: 20px;
-  height: 20px;
+  position: relative;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
-  margin-left: 4px;
-  margin-right: 2px;
+  margin-left: 3px;
+  margin-right: 1px;
   object-fit: contain;
   pointer-events: none;
   user-select: none;
@@ -59,23 +104,25 @@
 }
 
 .md2-action-list {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 1px;
+  gap: 0;
 }
 
 .md2-action-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   border: 0;
   border-radius: var(--sp-radius-sm);
-  padding: 5px 10px;
+  padding: 4px 8px;
   color: var(--sp-text);
   background: transparent;
   font-family: var(--sp-font-sans);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   line-height: 1;
   cursor: pointer;

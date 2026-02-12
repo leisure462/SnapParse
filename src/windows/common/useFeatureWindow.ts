@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { defaultSettings, type AppSettings } from "../../shared/settings";
+import { applyThemeMode, type ThemeMode } from "../theme/themeStore";
 
 export interface FeatureWindowState {
   pinned: boolean;
@@ -13,10 +14,10 @@ export interface FeatureWindowState {
 
 /**
  * Shared hook for feature windows: loads settings, manages pin/always-on-top,
- * opacity (via CSS), and blur-to-close behavior.
+ * opacity (via CSS), theme, and blur-to-close behavior.
  *
- * Listens for the `settings-changed` Tauri event so font size and opacity
- * update in real-time when the user saves settings – even though feature
+ * Listens for the `settings-changed` Tauri event so font size, opacity, and
+ * theme update in real-time when the user saves settings – even though feature
  * windows are pre-created at startup and never remount.
  */
 export function useFeatureWindow(): FeatureWindowState {
@@ -30,15 +31,24 @@ export function useFeatureWindow(): FeatureWindowState {
     const defaults = defaultSettings();
     const fs = s.window?.fontSize ?? defaults.window.fontSize;
     const op = s.window?.opacity ?? defaults.window.opacity;
+    const tm = (s.toolbar?.themeMode ?? defaults.toolbar.themeMode) as ThemeMode;
     setFontSize(fs);
     setOpacity(op);
+    applyThemeMode(tm);
   };
 
   // Load settings on mount
   useEffect(() => {
+    // Make body transparent so the ::before opacity layer is visible
+    // (global.css sets body background to opaque --sp-bg by default)
+    document.body.style.background = "transparent";
+
     invoke<AppSettings>("get_settings")
       .then(applySettings)
-      .catch(() => { /* use defaults */ });
+      .catch(() => {
+        // Apply default theme even on error
+        applyThemeMode(defaultSettings().toolbar.themeMode as ThemeMode);
+      });
   }, []);
 
   // Listen for settings-changed events (emitted when the user saves settings)
