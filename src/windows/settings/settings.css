@@ -218,9 +218,9 @@
 }
 
 .settings-switch {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-height: 40px;
   border: 1px solid var(--md2-outline);
   border-radius: 10px;
@@ -230,6 +230,51 @@
 
 .settings-switch input {
   accent-color: var(--md2-primary);
+  flex-shrink: 0;
+}
+
+.settings-size-presets {
+  display: flex;
+  gap: 10px;
+}
+
+.settings-size-btn {
+  flex: 1;
+  height: 56px;
+  border: 2px solid var(--md2-outline);
+  border-radius: 10px;
+  background: var(--md2-surface-soft);
+  color: var(--md2-on-surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: border-color var(--md2-motion-fast), background var(--md2-motion-fast), color var(--md2-motion-fast);
+}
+
+.settings-size-btn span {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--md2-on-surface-soft);
+}
+
+.settings-size-btn:hover {
+  border-color: color-mix(in srgb, var(--md2-primary) 50%, var(--md2-outline) 50%);
+}
+
+.settings-size-btn.active {
+  border-color: var(--md2-primary);
+  background: color-mix(in srgb, var(--md2-primary) 12%, var(--md2-surface-soft) 88%);
+  color: var(--md2-primary-variant);
+}
+
+.settings-size-btn.active span {
+  color: var(--md2-primary);
 }
 
 .settings-action-list {
@@ -238,7 +283,7 @@
 }
 
 .settings-switch.action-item {
-  justify-content: space-between;
+  /* checkbox and label side by side, no spreading */
 }
 
 @media (max-width: 940px) {

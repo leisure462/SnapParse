@@ -134,6 +134,20 @@ pub enum ActionId {
     Copy,
 }
 
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum WindowSizePreset {
+    Large,
+    Medium,
+    Small,
+}
+
+impl Default for WindowSizePreset {
+    fn default() -> Self {
+        WindowSizePreset::Large
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowSettings {
@@ -142,6 +156,14 @@ pub struct WindowSettings {
     pub auto_close: bool,
     pub auto_pin: bool,
     pub opacity: f32,
+    #[serde(default)]
+    pub window_size: WindowSizePreset,
+    #[serde(default = "default_font_size")]
+    pub font_size: u32,
+}
+
+fn default_font_size() -> u32 {
+    14
 }
 
 impl Default for WindowSettings {
@@ -152,6 +174,8 @@ impl Default for WindowSettings {
             auto_close: false,
             auto_pin: false,
             opacity: 1.0,
+            window_size: WindowSizePreset::default(),
+            font_size: default_font_size(),
         }
     }
 }

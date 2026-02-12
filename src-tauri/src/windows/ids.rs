@@ -45,30 +45,25 @@ impl WindowKind {
         self.label()
     }
 
-    pub fn route(self) -> &'static str {
-        match self {
-            WindowKind::Main => "/",
-            WindowKind::ActionBar => "/windows/action-bar",
-            WindowKind::Translate => "/windows/translate",
-            WindowKind::Summary => "/windows/summary",
-            WindowKind::Explain => "/windows/explain",
-            WindowKind::Settings => "/windows/settings",
-        }
-    }
-
     pub fn default_size(self) -> (f64, f64) {
         match self {
             WindowKind::Main => (1200.0, 780.0),
-            WindowKind::ActionBar => (402.0, 62.0),
-            WindowKind::Translate => (760.0, 560.0),
-            WindowKind::Summary => (760.0, 560.0),
-            WindowKind::Explain => (760.0, 560.0),
-            WindowKind::Settings => (1040.0, 760.0),
+            WindowKind::ActionBar => (402.0, 48.0),
+            // Feature windows default to "large" preset; actual size set via resize_window at runtime
+            WindowKind::Translate => (680.0, 520.0),
+            WindowKind::Summary => (680.0, 520.0),
+            WindowKind::Explain => (680.0, 520.0),
+            WindowKind::Settings => (780.0, 560.0),
         }
     }
 
     pub fn frameless(self) -> bool {
         !matches!(self, WindowKind::Main | WindowKind::Settings)
+    }
+
+    /// Only the action bar needs transparency; feature windows use opaque background.
+    pub fn transparent(self) -> bool {
+        matches!(self, WindowKind::ActionBar)
     }
 
     pub fn resizable(self) -> bool {

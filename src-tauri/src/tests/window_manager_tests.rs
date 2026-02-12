@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use crate::windows::ids::WindowKind;
 
 #[test]
-fn summary_route_is_correct() {
-    assert_eq!(WindowKind::Summary.route(), "/windows/summary");
+fn summary_query_value_is_correct() {
+    assert_eq!(WindowKind::Summary.query_value(), "summary");
 }
 
 #[test]

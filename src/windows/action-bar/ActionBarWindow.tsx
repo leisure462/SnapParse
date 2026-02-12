@@ -1,12 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DEFAULT_ACTIONS, type ActionBarAction, type ActionBarActionId } from "./actions";
 import "./actionBar.css";
 import { useThemeMode, type ThemeMode } from "../theme/themeStore";
-import { defaultSettings, validateSettings, type AppSettings } from "../../shared/settings";
+import { defaultSettings, resolveWindowSize, validateSettings, type AppSettings } from "../../shared/settings";
+// The icon_transparent.png is copied to public/ for Vite to serve at runtime.
+const APP_ICON_URL = "/icon_transparent.png";
 
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
+const FEATURE_WINDOW_GAP = 12;
+const FEATURE_WINDOW_PADDING = 8;
 
 interface SelectionTextPayload {
   text: string;
@@ -88,16 +92,98 @@ async function closeActionBarWindow(): Promise<void> {
   await invoke("close_window", { kind: "action-bar" });
 }
 
-function computeFeatureWindowAnchor(): { x: number; y: number } {
-  const x = Math.max(8, Math.round(window.screenX - 60));
-  const y = Math.max(8, Math.round(window.screenY + 76));
+function computeFeatureWindowAnchor(
+  actionBarElement: HTMLElement | null | undefined,
+  featureWidth: number,
+  featureHeight: number
+): { x: number; y: number } {
+  const screenLike = window.screen as Screen & {
+    availLeft?: number;
+    availTop?: number;
+  };
+
+  const availLeft = Number.isFinite(screenLike.availLeft) ? Number(screenLike.availLeft) : 0;
+  const availTop = Number.isFinite(screenLike.availTop) ? Number(screenLike.availTop) : 0;
+
+  const actionBarRect = actionBarElement?.getBoundingClientRect();
+  const actionBarWidth = actionBarRect?.width ?? 402;
+  const actionBarHeight = actionBarRect?.height ?? 48;
+
+  const rawX = Math.round(window.screenX + actionBarWidth / 2 - featureWidth / 2);
+  const rawY = Math.round(window.screenY + actionBarHeight + FEATURE_WINDOW_GAP);
+
+  const minX = availLeft + FEATURE_WINDOW_PADDING;
+  const maxX =
+    availLeft + window.screen.availWidth - featureWidth - FEATURE_WINDOW_PADDING;
+
+  const minY = availTop + FEATURE_WINDOW_PADDING;
+  const maxY =
+    availTop + window.screen.availHeight - featureHeight - FEATURE_WINDOW_PADDING;
+
+  const x = Math.min(Math.max(rawX, minX), Math.max(minX, maxX));
+  const y = Math.min(Math.max(rawY, minY), Math.max(minY, maxY));
+
   return { x, y };
+}
+
+async function resizeActionBarWindow(element: HTMLElement): Promise<void> {
+  const rect = element.getBoundingClientRect();
+  const width = Math.ceil(rect.width);
+  const height = Math.ceil(rect.height);
+
+  await invoke("resize_window", {
+    kind: "action-bar",
+    width,
+    height
+  });
 }
 
 export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
+  const actionBarRef = useRef<HTMLElement | null>(null);
+  const featureWindowSize = useRef({ width: 680, height: 520 });
   const theme = useThemeMode();
+
+  useEffect(() => {
+    const syncWindowSize = (): void => {
+      const element = actionBarRef.current;
+      if (!element) {
+        return;
+      }
+
+      void resizeActionBarWindow(element).catch(() => {
+        // noop in browser test runtime
+      });
+    };
+
+    const raf = window.requestAnimationFrame(syncWindowSize);
+    const timerA = window.setTimeout(syncWindowSize, 120);
+    const timerB = window.setTimeout(syncWindowSize, 360);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(timerA);
+      window.clearTimeout(timerB);
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const element = actionBarRef.current;
+      if (!element) {
+        return;
+      }
+
+      void resizeActionBarWindow(element).catch(() => {
+        // noop in browser test runtime
+      });
+    }, 24);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [selectedText]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -127,6 +213,8 @@ export default function ActionBarWindow(): JSX.Element {
 
         const normalized = validateSettings(loaded as Partial<AppSettings>);
         theme.setMode(normalized.toolbar.themeMode as ThemeMode);
+        const size = resolveWindowSize(normalized.window.windowSize);
+        featureWindowSize.current = size;
       } catch {
         if (cancelled) {
           return;
@@ -134,6 +222,7 @@ export default function ActionBarWindow(): JSX.Element {
 
         const defaults = defaultSettings();
         theme.setMode(defaults.toolbar.themeMode as ThemeMode);
+        featureWindowSize.current = resolveWindowSize(defaults.window.windowSize);
       }
     };
 
@@ -153,20 +242,36 @@ export default function ActionBarWindow(): JSX.Element {
 
     try {
       if (action.commandWindow) {
-        const anchor = computeFeatureWindowAnchor();
+        const fwSize = featureWindowSize.current;
+        const anchor = computeFeatureWindowAnchor(actionBarRef.current, fwSize.width, fwSize.height);
 
         if (selectedText.trim()) {
           window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, selectedText);
         }
 
+        try {
+          await invoke("open_window", { kind: action.commandWindow });
+          await invoke("resize_window", {
+            kind: action.commandWindow,
+            width: fwSize.width,
+            height: fwSize.height
+          });
+          await invoke("move_window", {
+            kind: action.commandWindow,
+            x: anchor.x,
+            y: anchor.y
+          });
+        } catch (err) {
+          console.error("[ActionBar] failed to open/move feature window:", err);
+        }
+
+        // Delay event emission to give the target window time to mount and register listeners.
+        // The target window also reads from localStorage as a fallback.
+        setTimeout(() => {
+          void emit("change-text", { text: selectedText, source: "action-bar" });
+        }, 300);
+
         await closeActionBarWindow();
-        await invoke("open_window", { kind: action.commandWindow });
-        await invoke("move_window", {
-          kind: action.commandWindow,
-          x: anchor.x,
-          y: anchor.y
-        });
-        await emit("change-text", { text: selectedText, source: "action-bar" });
         return;
       }
 
@@ -189,7 +294,8 @@ export default function ActionBarWindow(): JSX.Element {
   };
 
   return (
-    <section className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
+    <section ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
+      <img src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
       <div className="md2-action-list">
         {DEFAULT_ACTIONS.map((action) => (
           <button

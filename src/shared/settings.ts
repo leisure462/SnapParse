@@ -3,6 +3,7 @@ export type TriggerMode = "selection" | "ctrl" | "hotkey";
 export type ThemeMode = "light" | "dark" | "system";
 export type AppFilterMode = "off" | "whitelist" | "blacklist";
 export type LogLevel = "error" | "warn" | "info" | "debug";
+export type WindowSizePreset = "large" | "medium" | "small";
 
 export interface ApiSettings {
   baseUrl: string;
@@ -38,6 +39,8 @@ export interface WindowSettings {
   autoClose: boolean;
   autoPin: boolean;
   opacity: number;
+  windowSize: WindowSizePreset;
+  fontSize: number;
 }
 
 export interface FeaturesSettings {
@@ -66,6 +69,20 @@ export const SETTINGS_SECTION_ORDER = [
   "features",
   "advanced"
 ] as const;
+
+/** Resolve a window size preset to pixel dimensions. */
+export function resolveWindowSize(preset: WindowSizePreset): { width: number; height: number } {
+  switch (preset) {
+    case "large":
+      return { width: 680, height: 520 };
+    case "medium":
+      return { width: 520, height: 400 };
+    case "small":
+      return { width: 400, height: 320 };
+    default:
+      return { width: 680, height: 520 };
+  }
+}
 
 type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends Array<infer U>
@@ -113,7 +130,9 @@ export function defaultSettings(): AppSettings {
       rememberSize: true,
       autoClose: false,
       autoPin: false,
-      opacity: 1
+      opacity: 1,
+      windowSize: "large",
+      fontSize: 14
     },
     features: {
       customActionsEnabled: false,
@@ -170,7 +189,31 @@ function mergeWindow(
   defaults: WindowSettings,
   incoming: DeepPartial<WindowSettings> | undefined
 ): WindowSettings {
-  return incoming ? { ...defaults, ...incoming } : defaults;
+  if (!incoming) {
+    return defaults;
+  }
+
+  const merged = { ...defaults, ...incoming };
+
+  // Migrate old windowWidth/windowHeight to windowSize preset
+  const raw = incoming as Record<string, unknown>;
+  if (!incoming.windowSize && (raw.windowWidth || raw.windowHeight)) {
+    const w = Number(raw.windowWidth) || 520;
+    if (w >= 600) {
+      merged.windowSize = "large";
+    } else if (w >= 460) {
+      merged.windowSize = "medium";
+    } else {
+      merged.windowSize = "small";
+    }
+  }
+
+  // Validate windowSize
+  if (!["large", "medium", "small"].includes(merged.windowSize)) {
+    merged.windowSize = "large";
+  }
+
+  return merged;
 }
 
 function mergeFeatures(
@@ -249,6 +292,11 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
   assertNumberRange("api.timeoutMs", merged.api.timeoutMs, 1000, 120000);
   assertNumberRange("api.temperature", merged.api.temperature, 0, 2);
   assertNumberRange("window.opacity", merged.window.opacity, 0.2, 1);
+  assertNumberRange("window.fontSize", merged.window.fontSize, 10, 24);
+
+  if (!["large", "medium", "small"].includes(merged.window.windowSize)) {
+    throw new Error("window.windowSize must be large, medium, or small");
+  }
 
   if (merged.toolbar.actions.length === 0) {
     throw new Error("toolbar.actions must contain at least one action");

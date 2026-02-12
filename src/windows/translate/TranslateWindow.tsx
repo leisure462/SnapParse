@@ -3,8 +3,8 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
+import { useFeatureWindow } from "../common/useFeatureWindow";
 import "../common/windowChrome.css";
-import "./translate.css";
 
 interface ChangeTextPayload {
   text: string;
@@ -41,6 +41,7 @@ export default function TranslateWindow(): JSX.Element {
   const [fromLanguage, setFromLanguage] = useState("auto");
   const [toLanguage, setToLanguage] = useState("en");
   const requestId = useRef(0);
+  const fw = useFeatureWindow();
 
   const subtitle = useMemo(() => {
     return `${findLanguageLabel(fromLanguage)} -> ${findLanguageLabel(toLanguage)}`;
@@ -112,9 +113,15 @@ export default function TranslateWindow(): JSX.Element {
   }, [sourceText, fromLanguage, toLanguage]);
 
   return (
-    <main className="md2-window-shell translate-window">
+    <main className="md2-window-shell" style={fw.shellStyle}>
       <section className="md2-window-card">
-        <WindowHeader title="翻译" subtitle={subtitle} />
+        <WindowHeader
+          title="翻译"
+          subtitle={subtitle}
+          pinned={fw.pinned}
+          onPinToggle={fw.onPinToggle}
+          onOpacityCycle={fw.onOpacityCycle}
+        />
 
         <div className="md2-window-body">
           <section className="md2-inline-controls">
@@ -156,18 +163,6 @@ export default function TranslateWindow(): JSX.Element {
               </select>
             </label>
           </section>
-
-          <label className="md2-input-group">
-            <span className="md2-input-label">原文</span>
-            <textarea
-              className="md2-textarea"
-              value={sourceText}
-              onChange={(event) => {
-                setSourceText(event.target.value);
-              }}
-              placeholder="划词后文本会自动注入，也可手动输入"
-            />
-          </label>
 
           <ResultPanel
             originalText={sourceText}

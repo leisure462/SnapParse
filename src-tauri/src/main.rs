@@ -7,8 +7,9 @@ mod settings;
 mod windows;
 
 use tauri::menu::MenuBuilder;
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
+use single_instance::SingleInstance;
 
 pub const APP_NAME: &str = "SnapParse";
 
@@ -17,11 +18,22 @@ pub const APP_NAME: &str = "SnapParse";
 mod test_suite;
 
 fn main() {
+    let single_instance = SingleInstance::new("com.leisure462.snapparse.single-instance")
+        .expect("failed to create single instance lock");
+    if !single_instance.is_single() {
+        return;
+    }
+
     tauri::Builder::default()
         .setup(|app| {
             if let Some(main_window) = app.get_webview_window("main") {
                 let _ = main_window.hide();
             }
+
+            // Pre-create all windows (hidden) at startup so they are ready
+            // when the user clicks an action button. This avoids blocking
+            // the main thread with heavy webview creation at runtime.
+            windows::manager::precreate_all_windows(app.handle());
 
             if let Err(error) = selection::monitor::bind_mouse_hook(app.handle().clone()) {
                 eprintln!("selection monitor is not active: {error}");
@@ -41,7 +53,8 @@ fn main() {
             commands::ai::test_api_connection,
             commands::windows::open_window,
             commands::windows::close_window,
-            commands::windows::move_window
+            commands::windows::move_window,
+            commands::windows::resize_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running SnapParse application");
@@ -58,25 +71,33 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         .menu(&tray_menu)
         .show_menu_on_left_click(false)
         .tooltip("SnapParse")
-        .on_menu_event(|app_handle, event| match event.id.as_ref() {
-            "open-settings" => {
+        .on_menu_event(|app_handle, event| {
+            let event_id = event.id.as_ref();
+
+            if event_id == "open-settings" || event_id.ends_with("open-settings") {
                 let _ = windows::manager::show_window(app_handle, windows::ids::WindowKind::Settings);
+                return;
             }
-            "quit" => {
+
+            if event_id == "quit" || event_id.ends_with("quit") {
                 app_handle.exit(0);
                 std::process::exit(0);
+                return;
             }
-            _ => {}
         })
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
-                button: MouseButton::Left,
-                button_state: MouseButtonState::Up,
+                button,
+                button_state,
                 ..
             } = event
             {
-                let app_handle = tray.app_handle();
-                let _ = windows::manager::show_window(&app_handle, windows::ids::WindowKind::Settings);
+                if matches!(button, MouseButton::Left)
+                    && matches!(button_state, MouseButtonState::Up)
+                {
+                    let app_handle = tray.app_handle();
+                    let _ = windows::manager::show_window(&app_handle, windows::ids::WindowKind::Settings);
+                }
             }
         });
 
@@ -84,7 +105,8 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         tray_builder = tray_builder.icon(icon.clone());
     }
 
-    tray_builder.build(app)?;
+    let tray_icon: TrayIcon = tray_builder.build(app)?;
+    app.manage(tray_icon);
 
     Ok(())
 }

@@ -1,4 +1,4 @@
-import type { AppSettings } from "../../../shared/settings";
+import type { AppSettings, WindowSizePreset } from "../../../shared/settings";
 import type { SettingsSectionProps } from "./sectionTypes";
 
 function patchWindow(
@@ -11,12 +11,61 @@ function patchWindow(
   };
 }
 
+const SIZE_PRESETS: Array<{ value: WindowSizePreset; label: string; desc: string }> = [
+  { value: "large", label: "大", desc: "680 x 520" },
+  { value: "medium", label: "中", desc: "520 x 400" },
+  { value: "small", label: "小", desc: "400 x 320" }
+];
+
 export default function WindowSettingsSection(props: SettingsSectionProps): JSX.Element {
   const { settings, onChange } = props;
 
   return (
     <section className="settings-section" aria-label="功能窗口配置面板">
       <h2>功能窗口</h2>
+
+      <div className="settings-field">
+        <span>窗口大小</span>
+        <div className="settings-size-presets">
+          {SIZE_PRESETS.map((preset) => (
+            <button
+              key={preset.value}
+              type="button"
+              className={`settings-size-btn ${settings.window.windowSize === preset.value ? "active" : ""}`}
+              onClick={() => {
+                onChange(
+                  patchWindow(settings, (ws) => ({
+                    ...ws,
+                    windowSize: preset.value
+                  }))
+                );
+              }}
+            >
+              <span className="settings-size-label">{preset.label}</span>
+              <span className="settings-size-desc">{preset.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <label className="settings-field">
+        <span>字体大小: {settings.window.fontSize}px</span>
+        <input
+          type="range"
+          min={10}
+          max={24}
+          step={1}
+          value={settings.window.fontSize}
+          onChange={(event) => {
+            onChange(
+              patchWindow(settings, (windowSettings) => ({
+                ...windowSettings,
+                fontSize: Number(event.target.value)
+              }))
+            );
+          }}
+        />
+      </label>
 
       <div className="settings-grid-2">
         <label className="settings-switch">
@@ -85,7 +134,7 @@ export default function WindowSettingsSection(props: SettingsSectionProps): JSX.
       </div>
 
       <label className="settings-field">
-        <span>透明度: {Math.round(settings.window.opacity * 100)}%</span>
+        <span>默认透明度: {Math.round(settings.window.opacity * 100)}%</span>
         <input
           type="range"
           min={0.2}

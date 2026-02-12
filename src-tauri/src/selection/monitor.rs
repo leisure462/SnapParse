@@ -9,23 +9,21 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::selection::state::{selection_state, SelectionPoint};
-use crate::windows::ids::{ACTION_BAR_WINDOW_LABEL, WindowKind};
+use crate::windows::ids::WindowKind;
 use crate::windows::manager;
 
 const DRAG_TIME_THRESHOLD_MS: u128 = 300;
 const DRAG_DISTANCE_THRESHOLD: f64 = 20.0;
 const DOUBLE_CLICK_TIME_THRESHOLD_MS: u128 = 700;
 const DOUBLE_CLICK_DISTANCE_THRESHOLD: f64 = 10.0;
-const ACTION_BAR_WIDTH: f64 = 402.0;
-const ACTION_BAR_HEIGHT: f64 = 62.0;
+const ACTION_BAR_DEFAULT_WIDTH: f64 = 402.0;
+const ACTION_BAR_DEFAULT_HEIGHT: f64 = 62.0;
 const ACTION_BAR_ABOVE_GAP: f64 = 14.0;
 const ACTION_BAR_BELOW_GAP: f64 = 18.0;
 const ACTION_BAR_MIN_PADDING: f64 = 10.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ReleaseJudgement {
-    pub is_drag_selection: bool,
-    pub is_double_click_selection: bool,
     pub is_selection_candidate: bool,
 }
 
@@ -73,8 +71,6 @@ pub fn judge_release(
         release_interval < DOUBLE_CLICK_TIME_THRESHOLD_MS && release_distance < DOUBLE_CLICK_DISTANCE_THRESHOLD;
 
     ReleaseJudgement {
-        is_drag_selection,
-        is_double_click_selection,
         is_selection_candidate: is_drag_selection || is_double_click_selection,
     }
 }
@@ -177,12 +173,17 @@ fn handle_left_release(app: AppHandle) {
 
     let hit_action_bar = point_hits_action_bar(&app, point);
 
-    if !judgement.is_selection_candidate && !hit_action_bar {
+    if hit_action_bar {
+        return;
+    }
+
+    if point_hits_snapparse_windows(&app, point) {
         let _ = manager::hide_window(&app, WindowKind::ActionBar);
         return;
     }
 
-    if hit_action_bar {
+    if !judgement.is_selection_candidate {
+        let _ = manager::hide_window(&app, WindowKind::ActionBar);
         return;
     }
 
@@ -209,7 +210,7 @@ fn handle_left_release(app: AppHandle) {
 
     let (target_x, target_y) = compute_action_bar_position(&app, point);
 
-    let _ = manager::position_window(
+    let _ = manager::position_window_physical(
         &app,
         WindowKind::ActionBar,
         target_x,
@@ -220,8 +221,9 @@ fn handle_left_release(app: AppHandle) {
 }
 
 fn compute_action_bar_position(app: &AppHandle, point: SelectionPoint) -> (f64, f64) {
-    let mut x = f64::from(point.x) - ACTION_BAR_WIDTH / 2.0;
-    let mut y = f64::from(point.y) - ACTION_BAR_HEIGHT - ACTION_BAR_ABOVE_GAP;
+    let (action_bar_width, action_bar_height) = action_bar_window_size(app);
+    let mut x = f64::from(point.x) - action_bar_width / 2.0;
+    let mut y = f64::from(point.y) - action_bar_height - ACTION_BAR_ABOVE_GAP;
 
     if let Ok(Some(monitor)) = app.monitor_from_point(f64::from(point.x), f64::from(point.y)) {
         let monitor_position = monitor.position();
@@ -229,7 +231,7 @@ fn compute_action_bar_position(app: &AppHandle, point: SelectionPoint) -> (f64, 
 
         let min_x = f64::from(monitor_position.x) + ACTION_BAR_MIN_PADDING;
         let max_x = f64::from(monitor_position.x) + f64::from(monitor_size.width)
-            - ACTION_BAR_WIDTH
+            - action_bar_width
             - ACTION_BAR_MIN_PADDING;
 
         x = x.clamp(min_x, max_x.max(min_x));
@@ -240,7 +242,7 @@ fn compute_action_bar_position(app: &AppHandle, point: SelectionPoint) -> (f64, 
         }
 
         let max_y = f64::from(monitor_position.y) + f64::from(monitor_size.height)
-            - ACTION_BAR_HEIGHT
+            - action_bar_height
             - ACTION_BAR_MIN_PADDING;
         if y > max_y {
             y = max_y;
@@ -258,6 +260,17 @@ fn compute_action_bar_position(app: &AppHandle, point: SelectionPoint) -> (f64, 
     (x, y)
 }
 
+fn action_bar_window_size(app: &AppHandle) -> (f64, f64) {
+    let Some(window) = app.get_webview_window(WindowKind::ActionBar.label()) else {
+        return (ACTION_BAR_DEFAULT_WIDTH, ACTION_BAR_DEFAULT_HEIGHT);
+    };
+
+    match window.outer_size() {
+        Ok(size) => (f64::from(size.width), f64::from(size.height)),
+        Err(_) => (ACTION_BAR_DEFAULT_WIDTH, ACTION_BAR_DEFAULT_HEIGHT),
+    }
+}
+
 #[cfg(windows)]
 fn is_latest_release_id(release_id: u64) -> bool {
     selection_state()
@@ -268,7 +281,28 @@ fn is_latest_release_id(release_id: u64) -> bool {
 
 #[cfg(windows)]
 fn point_hits_action_bar(app: &AppHandle, point: SelectionPoint) -> bool {
-    let Some(window) = app.get_webview_window(ACTION_BAR_WINDOW_LABEL) else {
+    point_hits_window_label(app, WindowKind::ActionBar.label(), point)
+}
+
+#[cfg(windows)]
+fn point_hits_snapparse_windows(app: &AppHandle, point: SelectionPoint) -> bool {
+    const WINDOW_KINDS: [WindowKind; 5] = [
+        WindowKind::Settings,
+        WindowKind::Translate,
+        WindowKind::Summary,
+        WindowKind::Explain,
+        WindowKind::Main,
+    ];
+
+    WINDOW_KINDS
+        .iter()
+        .copied()
+        .any(|kind| point_hits_window_label(app, kind.label(), point))
+}
+
+#[cfg(windows)]
+fn point_hits_window_label(app: &AppHandle, label: &str, point: SelectionPoint) -> bool {
+    let Some(window) = app.get_webview_window(label) else {
         return false;
     };
 

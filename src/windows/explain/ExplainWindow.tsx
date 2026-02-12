@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
+import { useFeatureWindow } from "../common/useFeatureWindow";
 import "../common/windowChrome.css";
 
 interface ChangeTextPayload {
@@ -21,6 +22,7 @@ export default function ExplainWindow(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | undefined>();
   const requestId = useRef(0);
+  const fw = useFeatureWindow();
 
   useEffect(() => {
     const cached = window.localStorage.getItem(LAST_SELECTED_TEXT_KEY);
@@ -81,23 +83,16 @@ export default function ExplainWindow(): JSX.Element {
   }, [sourceText]);
 
   return (
-    <main className="md2-window-shell">
+    <main className="md2-window-shell" style={fw.shellStyle}>
       <section className="md2-window-card">
-        <WindowHeader title="解释" subtitle="扩展上下文和含义" />
+        <WindowHeader
+          title="解释"
+          pinned={fw.pinned}
+          onPinToggle={fw.onPinToggle}
+          onOpacityCycle={fw.onOpacityCycle}
+        />
 
         <div className="md2-window-body">
-          <label className="md2-input-group">
-            <span className="md2-input-label">原文</span>
-            <textarea
-              className="md2-textarea"
-              value={sourceText}
-              onChange={(event) => {
-                setSourceText(event.target.value);
-              }}
-              placeholder="划词后文本会自动注入，也可手动输入"
-            />
-          </label>
-
           <ResultPanel
             originalText={sourceText}
             resultText={resultText}

@@ -21,29 +21,46 @@ export default function ResultPanel(props: ResultPanelProps): JSX.Element {
 
   return (
     <section className="md2-result-panel" aria-live="polite">
-      <div className="md2-result-toolbar">
-        <button
-          type="button"
-          className="md2-ghost-btn"
-          onClick={() => {
-            setShowOriginal((prev) => !prev);
-          }}
-        >
-          {showOriginal ? "隐藏原文" : "显示原文"}
-        </button>
-      </div>
+      {props.loading ? (
+        <div className="md2-result-loading">
+          <div className="md2-loading-dots">
+            <span /><span /><span />
+          </div>
+          <span className="md2-loading-label">处理中...</span>
+        </div>
+      ) : null}
 
-      {showOriginal ? <article className="md2-original-text">{props.originalText || "暂无原文"}</article> : null}
-
-      {props.loading ? <p className="md2-status-text">处理中...</p> : null}
-      {!props.loading && props.error ? <p className="md2-status-text error">{props.error}</p> : null}
+      {!props.loading && props.error ? (
+        <div className="md2-result-error">{props.error}</div>
+      ) : null}
 
       {!props.loading && !props.error ? (
-        <article className="md2-result-text">
+        <div className="md2-result-content">
           {(paragraphs.length > 0 ? paragraphs : [props.resultText || "暂无结果"]).map((item, index) => (
-            <p key={`${item}-${index}`}>{item}</p>
+            <p key={`${index}`}>{item}</p>
           ))}
-        </article>
+        </div>
+      ) : null}
+
+      {props.originalText.trim() ? (
+        <div className="md2-original-section">
+          <button
+            type="button"
+            className="md2-original-toggle"
+            onClick={() => {
+              setShowOriginal((prev) => !prev);
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className={showOriginal ? "md2-chevron-open" : "md2-chevron-closed"}>
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+            <span>{showOriginal ? "收起原文" : "展开原文"}</span>
+          </button>
+          {showOriginal ? (
+            <div className="md2-original-text">{props.originalText}</div>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );
