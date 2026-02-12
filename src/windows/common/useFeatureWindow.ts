@@ -3,24 +3,20 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { defaultSettings, type AppSettings } from "../../shared/settings";
 
-const OPACITY_LEVELS = [1, 0.85, 0.7, 0.5];
-
 export interface FeatureWindowState {
   pinned: boolean;
   fontSize: number;
   onPinToggle: () => void;
-  onOpacityCycle: () => void;
   shellStyle: React.CSSProperties;
 }
 
 /**
  * Shared hook for feature windows: loads settings, manages pin/always-on-top,
- * opacity cycling, and blur-to-close behavior.
+ * opacity (from settings only), and blur-to-close behavior.
  */
 export function useFeatureWindow(): FeatureWindowState {
   const [pinned, setPinned] = useState(false);
   const [fontSize, setFontSize] = useState(14);
-  const [opacityIndex, setOpacityIndex] = useState(0);
   const pinnedRef = useRef(false);
 
   // Load settings on mount
@@ -30,39 +26,44 @@ export function useFeatureWindow(): FeatureWindowState {
         const fs = s.window?.fontSize ?? defaultSettings().window.fontSize;
         setFontSize(fs);
 
-        // Apply saved opacity
+        // Apply saved opacity (one-shot, no cycling)
         const savedOpacity = s.window?.opacity ?? 1;
-        const closestIdx = OPACITY_LEVELS.reduce((best, val, idx) =>
-          Math.abs(val - savedOpacity) < Math.abs(OPACITY_LEVELS[best] - savedOpacity) ? idx : best, 0);
-        setOpacityIndex(closestIdx);
+        const win = getCurrentWindow();
+        // @ts-ignore - setOpacity exists in Tauri v2 but TypeScript types may be incomplete
+        if (typeof win.setOpacity === 'function') {
+          // @ts-ignore
+          win.setOpacity(savedOpacity).catch(() => {});
+        }
       })
       .catch(() => { /* use defaults */ });
   }, []);
 
-  // Apply opacity to the actual window whenever it changes
-  useEffect(() => {
-    const opacity = OPACITY_LEVELS[opacityIndex] ?? 1;
-    const win = getCurrentWindow();
-    // @ts-ignore - setOpacity exists in Tauri v2 but TypeScript types may be incomplete
-    if (typeof win.setOpacity === 'function') {
-      // @ts-ignore
-      win.setOpacity(opacity).catch(() => {});
-    }
-  }, [opacityIndex]);
-
-  // Blur-to-close: listen for focus changes to hide window when not pinned
+  // Blur-to-close: listen for focus changes to hide window when not pinned.
+  // Uses a short delay so that dragging the title bar (which briefly blurs the
+  // window) does not accidentally close it.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
+    let blurTimer: ReturnType<typeof setTimeout> | undefined;
 
     getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (blurTimer !== undefined) {
+        clearTimeout(blurTimer);
+        blurTimer = undefined;
+      }
+
       if (!focused && !pinnedRef.current) {
-        getCurrentWindow().hide().catch(() => {});
+        blurTimer = setTimeout(() => {
+          getCurrentWindow().hide().catch(() => {});
+        }, 180);
       }
     }).then((cleanup) => {
       unlisten = cleanup;
     }).catch(() => {});
 
     return () => {
+      if (blurTimer !== undefined) {
+        clearTimeout(blurTimer);
+      }
       unlisten?.();
     };
   }, []);
@@ -74,10 +75,6 @@ export function useFeatureWindow(): FeatureWindowState {
     getCurrentWindow().setAlwaysOnTop(next).catch(() => {});
   };
 
-  const onOpacityCycle = (): void => {
-    setOpacityIndex((prev) => (prev + 1) % OPACITY_LEVELS.length);
-  };
-
   const shellStyle: React.CSSProperties = {
     "--snapparse-font-size": `${fontSize}px`
   } as React.CSSProperties;
@@ -86,7 +83,6 @@ export function useFeatureWindow(): FeatureWindowState {
     pinned,
     fontSize,
     onPinToggle,
-    onOpacityCycle,
     shellStyle
   };
 }

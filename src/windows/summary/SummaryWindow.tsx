@@ -100,7 +100,6 @@ export default function SummaryWindow(): JSX.Element {
           title="总结"
           pinned={fw.pinned}
           onPinToggle={fw.onPinToggle}
-          onOpacityCycle={fw.onOpacityCycle}
         />
 
         <div className="md2-window-body">

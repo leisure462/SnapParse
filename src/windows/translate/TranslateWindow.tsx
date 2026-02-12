@@ -120,48 +120,46 @@ export default function TranslateWindow(): JSX.Element {
           subtitle={subtitle}
           pinned={fw.pinned}
           onPinToggle={fw.onPinToggle}
-          onOpacityCycle={fw.onOpacityCycle}
         />
 
         <div className="md2-window-body">
-          <section className="md2-inline-controls">
-            <label className="md2-input-group">
-              <span className="md2-input-label">源语言</span>
-              <select
-                className="md2-select"
-                value={fromLanguage}
-                onChange={(event) => {
-                  setFromLanguage(event.target.value);
-                }}
-              >
-                {LANGUAGES.map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <section className="md2-lang-bar">
+            <select
+              className="md2-lang-select"
+              value={fromLanguage}
+              onChange={(event) => {
+                setFromLanguage(event.target.value);
+              }}
+              aria-label="源语言"
+            >
+              {LANGUAGES.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
 
-            <span className="md2-inline-arrow" aria-hidden="true">
-              {"->"}
+            <span className="md2-lang-arrow" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </svg>
             </span>
 
-            <label className="md2-input-group">
-              <span className="md2-input-label">目标语言</span>
-              <select
-                className="md2-select"
-                value={toLanguage}
-                onChange={(event) => {
-                  setToLanguage(event.target.value);
-                }}
-              >
-                {LANGUAGES.filter((item) => item.code !== "auto").map((item) => (
-                  <option key={item.code} value={item.code}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <select
+              className="md2-lang-select"
+              value={toLanguage}
+              onChange={(event) => {
+                setToLanguage(event.target.value);
+              }}
+              aria-label="目标语言"
+            >
+              {LANGUAGES.filter((item) => item.code !== "auto").map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
           </section>
 
           <ResultPanel

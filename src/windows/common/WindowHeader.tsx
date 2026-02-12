@@ -5,7 +5,6 @@ interface WindowHeaderProps {
   subtitle?: string;
   pinned?: boolean;
   onPinToggle?: () => void;
-  onOpacityCycle?: () => void;
 }
 
 async function minimizeWindow(): Promise<void> {
@@ -56,19 +55,6 @@ export default function WindowHeader(props: WindowHeaderProps): JSX.Element {
                 <line x1="8" y1="4" x2="16" y2="4" />
               </>
             )}
-          </svg>
-        </button>
-
-        {/* Opacity / 透明度 */}
-        <button
-          type="button"
-          className="md2-window-icon-btn"
-          onClick={props.onOpacityCycle}
-          aria-label="透明度"
-          title="调节透明度"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 3 4 14a8 8 0 1 0 16 0L12 3Z" />
           </svg>
         </button>
 

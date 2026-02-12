@@ -242,6 +242,15 @@ export default function ActionBarWindow(): JSX.Element {
 
     try {
       if (action.commandWindow) {
+        // Re-read settings every time so the latest window-size preset is used
+        try {
+          const freshSettings = await invoke<AppSettings>("get_settings");
+          const normalized = validateSettings(freshSettings as Partial<AppSettings>);
+          featureWindowSize.current = resolveWindowSize(normalized.window.windowSize);
+        } catch {
+          // keep whatever is cached
+        }
+
         const fwSize = featureWindowSize.current;
         const anchor = computeFeatureWindowAnchor(actionBarRef.current, fwSize.width, fwSize.height);
 

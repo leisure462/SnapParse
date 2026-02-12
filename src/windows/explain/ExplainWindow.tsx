@@ -89,7 +89,6 @@ export default function ExplainWindow(): JSX.Element {
           title="解释"
           pinned={fw.pinned}
           onPinToggle={fw.onPinToggle}
-          onOpacityCycle={fw.onOpacityCycle}
         />
 
         <div className="md2-window-body">

@@ -143,6 +143,48 @@
   color: var(--sp-text-secondary);
 }
 
+/* ── Compact language bar (single row) ─────────────────────── */
+
+.md2-lang-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.md2-lang-select {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-sm);
+  background: var(--sp-surface-raised);
+  color: var(--sp-text);
+  font: inherit;
+  font-size: 12px;
+  padding: 0 24px 0 8px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: border-color var(--sp-duration-fast) var(--sp-ease-out),
+              box-shadow var(--sp-duration-fast) var(--sp-ease-out);
+}
+
+.md2-lang-select:focus {
+  border-color: var(--sp-primary);
+  box-shadow: 0 0 0 3px var(--sp-ring-focus);
+  outline: none;
+}
+
+.md2-lang-arrow {
+  flex-shrink: 0;
+  color: var(--sp-text-muted);
+  display: grid;
+  place-items: center;
+}
+
 .md2-textarea,
 .md2-select {
   width: 100%;
