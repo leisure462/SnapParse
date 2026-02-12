@@ -65,10 +65,15 @@ pub fn ensure_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<Webview
         .skip_taskbar(kind.skip_taskbar())
         .visible(false);
 
-    // For transparent windows (action bar), inject an early init script that
-    // forces document background to transparent before CSS loads, eliminating
-    // any brief flash of the webview's default opaque background.
+    // For transparent windows (action bar), set the WebView2 default background
+    // color to fully transparent RGBA(0,0,0,0). On Windows, `.transparent(true)`
+    // alone only makes the Win32 window layered – WebView2 keeps its own opaque
+    // background unless we explicitly clear it via `background_color`.
     if kind.transparent() {
+        builder = builder.background_color(tauri::Color(0, 0, 0, 0));
+
+        // Also inject an early init script that forces document background to
+        // transparent before CSS loads.
         builder = builder.initialization_script(
             "document.documentElement.style.background='transparent';\
              document.body && (document.body.style.background='transparent');"

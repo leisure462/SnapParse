@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use crate::settings::model::AppSettings;
 use crate::settings::store;
@@ -21,11 +21,20 @@ pub fn get_settings(app: tauri::AppHandle) -> Result<AppSettings, String> {
 pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<AppSettings, String> {
     let config_root = resolve_config_root(&app)?;
     store::save_settings(&config_root, &settings).map_err(|error| error.to_string())?;
+
+    // Notify all windows that settings have changed so they can re-apply
+    // font size, opacity, and other runtime-configurable values.
+    let _ = app.emit("settings-changed", &settings);
+
     Ok(settings)
 }
 
 #[tauri::command]
 pub fn reset_settings(app: tauri::AppHandle) -> Result<AppSettings, String> {
     let config_root = resolve_config_root(&app)?;
-    store::reset_settings(&config_root).map_err(|error| error.to_string())
+    let defaults = store::reset_settings(&config_root).map_err(|error| error.to_string())?;
+
+    let _ = app.emit("settings-changed", &defaults);
+
+    Ok(defaults)
 }
