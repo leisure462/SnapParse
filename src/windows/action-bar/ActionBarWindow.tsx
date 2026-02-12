@@ -7,6 +7,10 @@ import { useThemeMode, type ThemeMode } from "../theme/themeStore";
 import { defaultSettings, validateSettings, type AppSettings } from "../../shared/settings";
 
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
+const FEATURE_WINDOW_WIDTH = 760;
+const FEATURE_WINDOW_HEIGHT = 560;
+const FEATURE_WINDOW_GAP = 12;
+const FEATURE_WINDOW_PADDING = 8;
 
 interface SelectionTextPayload {
   text: string;
@@ -88,9 +92,33 @@ async function closeActionBarWindow(): Promise<void> {
   await invoke("close_window", { kind: "action-bar" });
 }
 
-function computeFeatureWindowAnchor(): { x: number; y: number } {
-  const x = Math.max(8, Math.round(window.screenX - 60));
-  const y = Math.max(8, Math.round(window.screenY + 76));
+function computeFeatureWindowAnchor(actionBarElement?: HTMLElement | null): { x: number; y: number } {
+  const screenLike = window.screen as Screen & {
+    availLeft?: number;
+    availTop?: number;
+  };
+
+  const availLeft = Number.isFinite(screenLike.availLeft) ? Number(screenLike.availLeft) : 0;
+  const availTop = Number.isFinite(screenLike.availTop) ? Number(screenLike.availTop) : 0;
+
+  const actionBarRect = actionBarElement?.getBoundingClientRect();
+  const actionBarWidth = actionBarRect?.width ?? 402;
+  const actionBarHeight = actionBarRect?.height ?? 62;
+
+  const rawX = Math.round(window.screenX + actionBarWidth / 2 - FEATURE_WINDOW_WIDTH / 2);
+  const rawY = Math.round(window.screenY + actionBarHeight + FEATURE_WINDOW_GAP);
+
+  const minX = availLeft + FEATURE_WINDOW_PADDING;
+  const maxX =
+    availLeft + window.screen.availWidth - FEATURE_WINDOW_WIDTH - FEATURE_WINDOW_PADDING;
+
+  const minY = availTop + FEATURE_WINDOW_PADDING;
+  const maxY =
+    availTop + window.screen.availHeight - FEATURE_WINDOW_HEIGHT - FEATURE_WINDOW_PADDING;
+
+  const x = Math.min(Math.max(rawX, minX), Math.max(minX, maxX));
+  const y = Math.min(Math.max(rawY, minY), Math.max(minY, maxY));
+
   return { x, y };
 }
 
@@ -125,13 +153,13 @@ export default function ActionBarWindow(): JSX.Element {
     };
 
     const raf = window.requestAnimationFrame(syncWindowSize);
-    const timer = window.setTimeout(syncWindowSize, 120);
-    window.addEventListener("resize", syncWindowSize);
+    const timerA = window.setTimeout(syncWindowSize, 120);
+    const timerB = window.setTimeout(syncWindowSize, 360);
 
     return () => {
       window.cancelAnimationFrame(raf);
-      window.clearTimeout(timer);
-      window.removeEventListener("resize", syncWindowSize);
+      window.clearTimeout(timerA);
+      window.clearTimeout(timerB);
     };
   }, []);
 
@@ -206,7 +234,7 @@ export default function ActionBarWindow(): JSX.Element {
 
     try {
       if (action.commandWindow) {
-        const anchor = computeFeatureWindowAnchor();
+        const anchor = computeFeatureWindowAnchor(actionBarRef.current);
 
         if (selectedText.trim()) {
           window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, selectedText);
