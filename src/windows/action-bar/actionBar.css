@@ -1,17 +1,19 @@
 /* ── Action Bar (compact toolbar with frosted-glass finish) ──── */
 
-/* Keep the action-bar document transparent so only the capsule renders.
-   A small padding on #root ensures box-shadow is not clipped by the
-   webview boundary but stays invisible (transparent background).      */
+/* Keep the action-bar document transparent so only the capsule renders. */
 html:has(.md2-action-bar),
-body:has(.md2-action-bar) {
+body:has(.md2-action-bar),
+#root:has(.md2-action-bar) {
   background: transparent !important;
 }
 
-#root:has(.md2-action-bar) {
-  background: transparent !important;
+/* Invisible measurement wrapper — the ref lives here so
+   resizeActionBarWindow() includes the shadow-padding in
+   the Tauri window size. 4px padding gives box-shadow room. */
+.md2-action-root {
   display: inline-flex;
   padding: 4px;
+  background: transparent;
 }
 
 /* ── Light / dark actionbar tokens ──────────────────────────── */
