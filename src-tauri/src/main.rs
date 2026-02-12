@@ -83,7 +83,6 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
             if event_id == "quit" || event_id.ends_with("quit") {
                 app_handle.exit(0);
                 std::process::exit(0);
-                return;
             }
         })
         .on_tray_icon_event(|tray, event| {

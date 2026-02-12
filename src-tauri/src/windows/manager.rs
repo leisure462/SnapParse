@@ -70,7 +70,7 @@ pub fn ensure_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<Webview
     // alone only makes the Win32 window layered – WebView2 keeps its own opaque
     // background unless we explicitly clear it via `background_color`.
     if kind.transparent() {
-        builder = builder.background_color(tauri::Color(0, 0, 0, 0));
+        builder = builder.background_color(tauri::window::Color(0, 0, 0, 0));
 
         // Also inject an early init script that forces document background to
         // transparent before CSS loads.
