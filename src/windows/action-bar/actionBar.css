@@ -1,12 +1,13 @@
 /* ── Action Bar (floating toolbar) ───────────────────────────── */
 
 /* The action-bar window has transparent: true in Rust.
-   Override body/root background so only the rounded .md2-action-bar
-   element is visible – no opaque rectangle leaking behind corners. */
+   Force every container layer to be transparent so only the
+   rounded capsule (.md2-action-bar) is visible.                   */
 html,
 body,
 #root {
   background: transparent !important;
+  background-color: transparent !important;
 }
 
 .md2-action-bar {

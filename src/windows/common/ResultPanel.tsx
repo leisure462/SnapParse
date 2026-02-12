@@ -4,6 +4,8 @@ interface ResultPanelProps {
   originalText: string;
   resultText: string;
   loading: boolean;
+  /** When true, resultText is still being appended via streaming. */
+  streaming?: boolean;
   error?: string;
 }
 
@@ -19,9 +21,13 @@ export default function ResultPanel(props: ResultPanelProps): JSX.Element {
 
   const paragraphs = useMemo(() => toParagraphs(props.resultText), [props.resultText]);
 
+  const hasResult = props.resultText.trim().length > 0;
+  const showLoadingDots = props.loading && !props.streaming && !hasResult;
+  const showContent = hasResult || props.streaming;
+
   return (
     <section className="md2-result-panel" aria-live="polite">
-      {props.loading ? (
+      {showLoadingDots ? (
         <div className="md2-result-loading">
           <div className="md2-loading-dots">
             <span /><span /><span />
@@ -34,11 +40,18 @@ export default function ResultPanel(props: ResultPanelProps): JSX.Element {
         <div className="md2-result-error">{props.error}</div>
       ) : null}
 
-      {!props.loading && !props.error ? (
+      {showContent && !props.error ? (
         <div className="md2-result-content">
-          {(paragraphs.length > 0 ? paragraphs : [props.resultText || "暂无结果"]).map((item, index) => (
+          {(paragraphs.length > 0 ? paragraphs : [props.resultText || ""]).map((item, index) => (
             <p key={`${index}`}>{item}</p>
           ))}
+          {props.streaming ? <span className="md2-streaming-cursor" /> : null}
+        </div>
+      ) : null}
+
+      {!props.loading && !hasResult && !props.error && !props.streaming ? (
+        <div className="md2-result-content">
+          <p>暂无结果</p>
         </div>
       ) : null}
 

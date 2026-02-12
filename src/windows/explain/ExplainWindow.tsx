@@ -1,28 +1,22 @@
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
 import { useFeatureWindow } from "../common/useFeatureWindow";
+import { useStreamingAI } from "../common/useStreamingAI";
 import "../common/windowChrome.css";
 
 interface ChangeTextPayload {
   text: string;
 }
 
-interface ProcessTextResponse {
-  resultText: string;
-}
-
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 
 export default function ExplainWindow(): JSX.Element {
   const [sourceText, setSourceText] = useState("");
-  const [resultText, setResultText] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [errorText, setErrorText] = useState<string | undefined>();
-  const requestId = useRef(0);
   const fw = useFeatureWindow();
+  const ai = useStreamingAI("解释失败");
+  const prevTrigger = useRef<string>("");
 
   useEffect(() => {
     const cached = window.localStorage.getItem(LAST_SELECTED_TEXT_KEY);
@@ -50,36 +44,12 @@ export default function ExplainWindow(): JSX.Element {
       return;
     }
 
-    requestId.current += 1;
-    const currentRequestId = requestId.current;
+    if (sourceText === prevTrigger.current) {
+      return;
+    }
+    prevTrigger.current = sourceText;
 
-    const run = async (): Promise<void> => {
-      setLoading(true);
-      setErrorText(undefined);
-
-      try {
-        const response = await invoke<ProcessTextResponse>("process_selected_text", {
-          taskKind: "explain",
-          text: sourceText,
-          options: {}
-        });
-
-        if (currentRequestId === requestId.current) {
-          setResultText(response.resultText || "");
-        }
-      } catch (error) {
-        if (currentRequestId === requestId.current) {
-          const message = error instanceof Error ? error.message : String(error);
-          setErrorText(`解释失败：${message}`);
-        }
-      } finally {
-        if (currentRequestId === requestId.current) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void run();
+    ai.startStream("explain", sourceText);
   }, [sourceText]);
 
   return (
@@ -94,9 +64,10 @@ export default function ExplainWindow(): JSX.Element {
         <div className="md2-window-body">
           <ResultPanel
             originalText={sourceText}
-            resultText={resultText}
-            loading={loading}
-            error={errorText}
+            resultText={ai.resultText}
+            loading={ai.loading}
+            streaming={ai.streaming}
+            error={ai.errorText}
           />
         </div>
       </section>

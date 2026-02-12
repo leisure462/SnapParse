@@ -1,9 +1,9 @@
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
 import { useFeatureWindow } from "../common/useFeatureWindow";
+import { useStreamingAI } from "../common/useStreamingAI";
 import "../common/windowChrome.css";
 
 interface ChangeTextPayload {
@@ -11,23 +11,13 @@ interface ChangeTextPayload {
   source?: string;
 }
 
-interface ProcessTextResponse {
-  taskKind: "translate" | "summarize" | "explain";
-  sourceText: string;
-  resultText: string;
-  usedModel: string;
-  elapsedMs: number;
-}
-
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 
 export default function SummaryWindow(): JSX.Element {
   const [sourceText, setSourceText] = useState("");
-  const [resultText, setResultText] = useState("");
-  const [errorText, setErrorText] = useState<string | undefined>();
-  const [loading, setLoading] = useState(false);
-  const requestId = useRef(0);
   const fw = useFeatureWindow();
+  const ai = useStreamingAI("总结失败");
+  const prevTrigger = useRef<string>("");
 
   useEffect(() => {
     const cached = window.localStorage.getItem(LAST_SELECTED_TEXT_KEY);
@@ -55,42 +45,14 @@ export default function SummaryWindow(): JSX.Element {
       return;
     }
 
-    requestId.current += 1;
-    const currentRequestId = requestId.current;
+    if (sourceText === prevTrigger.current) {
+      return;
+    }
+    prevTrigger.current = sourceText;
 
-    const run = async (): Promise<void> => {
-      setLoading(true);
-      setErrorText(undefined);
-
-      try {
-        const response = await invoke<ProcessTextResponse>("process_selected_text", {
-          taskKind: "summarize",
-          text: sourceText,
-          options: {
-            targetLength: "short"
-          }
-        });
-
-        if (currentRequestId !== requestId.current) {
-          return;
-        }
-
-        setResultText(response.resultText || "");
-      } catch (error) {
-        if (currentRequestId !== requestId.current) {
-          return;
-        }
-
-        const message = error instanceof Error ? error.message : String(error);
-        setErrorText(`总结失败：${message}`);
-      } finally {
-        if (currentRequestId === requestId.current) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void run();
+    ai.startStream("summarize", sourceText, {
+      targetLength: "short",
+    });
   }, [sourceText]);
 
   return (
@@ -105,9 +67,10 @@ export default function SummaryWindow(): JSX.Element {
         <div className="md2-window-body">
           <ResultPanel
             originalText={sourceText}
-            resultText={resultText}
-            loading={loading}
-            error={errorText}
+            resultText={ai.resultText}
+            loading={ai.loading}
+            streaming={ai.streaming}
+            error={ai.errorText}
           />
         </div>
       </section>

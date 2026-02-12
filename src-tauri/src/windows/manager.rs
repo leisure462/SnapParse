@@ -54,7 +54,7 @@ pub fn ensure_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<Webview
     );
 
     let (width, height) = kind.default_size();
-    let window = WebviewWindowBuilder::new(app, kind.label(), app_url_from_kind(kind))
+    let mut builder = WebviewWindowBuilder::new(app, kind.label(), app_url_from_kind(kind))
         .title(kind.title())
         .initialization_script(&init_script_for_kind(kind))
         .inner_size(width, height)
@@ -63,8 +63,19 @@ pub fn ensure_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<Webview
         .transparent(kind.transparent())
         .always_on_top(kind.always_on_top())
         .skip_taskbar(kind.skip_taskbar())
-        .visible(false)
-        .build()?;
+        .visible(false);
+
+    // For transparent windows (action bar), inject an early init script that
+    // forces document background to transparent before CSS loads, eliminating
+    // any brief flash of the webview's default opaque background.
+    if kind.transparent() {
+        builder = builder.initialization_script(
+            "document.documentElement.style.background='transparent';\
+             document.body && (document.body.style.background='transparent');"
+        );
+    }
+
+    let window = builder.build()?;
 
     eprintln!("[window] created OK: {}", kind.label());
     Ok(window)

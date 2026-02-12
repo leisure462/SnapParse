@@ -1,22 +1,14 @@
-import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
 import { useFeatureWindow } from "../common/useFeatureWindow";
+import { useStreamingAI } from "../common/useStreamingAI";
 import "../common/windowChrome.css";
 
 interface ChangeTextPayload {
   text: string;
   source?: string;
-}
-
-interface ProcessTextResponse {
-  taskKind: "translate" | "summarize" | "explain";
-  sourceText: string;
-  resultText: string;
-  usedModel: string;
-  elapsedMs: number;
 }
 
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
@@ -35,13 +27,11 @@ function findLanguageLabel(code: string): string {
 
 export default function TranslateWindow(): JSX.Element {
   const [sourceText, setSourceText] = useState("");
-  const [resultText, setResultText] = useState("");
-  const [errorText, setErrorText] = useState<string | undefined>();
-  const [loading, setLoading] = useState(false);
   const [fromLanguage, setFromLanguage] = useState("auto");
   const [toLanguage, setToLanguage] = useState("en");
-  const requestId = useRef(0);
   const fw = useFeatureWindow();
+  const ai = useStreamingAI("翻译失败");
+  const prevTrigger = useRef<string>("");
 
   const subtitle = useMemo(() => {
     return `${findLanguageLabel(fromLanguage)} -> ${findLanguageLabel(toLanguage)}`;
@@ -73,43 +63,17 @@ export default function TranslateWindow(): JSX.Element {
       return;
     }
 
-    requestId.current += 1;
-    const currentRequestId = requestId.current;
+    // Build a trigger key so we re-run when source/from/to changes
+    const triggerKey = `${sourceText}|${fromLanguage}|${toLanguage}`;
+    if (triggerKey === prevTrigger.current) {
+      return;
+    }
+    prevTrigger.current = triggerKey;
 
-    const run = async (): Promise<void> => {
-      setLoading(true);
-      setErrorText(undefined);
-
-      try {
-        const response = await invoke<ProcessTextResponse>("process_selected_text", {
-          taskKind: "translate",
-          text: sourceText,
-          options: {
-            fromLanguage,
-            toLanguage
-          }
-        });
-
-        if (currentRequestId !== requestId.current) {
-          return;
-        }
-
-        setResultText(response.resultText || "");
-      } catch (error) {
-        if (currentRequestId !== requestId.current) {
-          return;
-        }
-
-        const message = error instanceof Error ? error.message : String(error);
-        setErrorText(`翻译失败：${message}`);
-      } finally {
-        if (currentRequestId === requestId.current) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void run();
+    ai.startStream("translate", sourceText, {
+      fromLanguage,
+      toLanguage,
+    });
   }, [sourceText, fromLanguage, toLanguage]);
 
   return (
@@ -164,9 +128,10 @@ export default function TranslateWindow(): JSX.Element {
 
           <ResultPanel
             originalText={sourceText}
-            resultText={resultText}
-            loading={loading}
-            error={errorText}
+            resultText={ai.resultText}
+            loading={ai.loading}
+            streaming={ai.streaming}
+            error={ai.errorText}
           />
         </div>
       </section>
