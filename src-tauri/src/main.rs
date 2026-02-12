@@ -30,6 +30,11 @@ fn main() {
                 let _ = main_window.hide();
             }
 
+            // Pre-create all windows (hidden) at startup so they are ready
+            // when the user clicks an action button. This avoids blocking
+            // the main thread with heavy webview creation at runtime.
+            windows::manager::precreate_all_windows(app.handle());
+
             if let Err(error) = selection::monitor::bind_mouse_hook(app.handle().clone()) {
                 eprintln!("selection monitor is not active: {error}");
             }

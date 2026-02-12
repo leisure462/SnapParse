@@ -240,12 +240,16 @@ export default function ActionBarWindow(): JSX.Element {
           window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, selectedText);
         }
 
-        await invoke("open_window", { kind: action.commandWindow });
-        await invoke("move_window", {
-          kind: action.commandWindow,
-          x: anchor.x,
-          y: anchor.y
-        });
+        try {
+          await invoke("open_window", { kind: action.commandWindow });
+          await invoke("move_window", {
+            kind: action.commandWindow,
+            x: anchor.x,
+            y: anchor.y
+          });
+        } catch (err) {
+          console.error("[ActionBar] failed to open/move feature window:", err);
+        }
 
         // Delay event emission to give the target window time to mount and register listeners.
         // The target window also reads from localStorage as a fallback.

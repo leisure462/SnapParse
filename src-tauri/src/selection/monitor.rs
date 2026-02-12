@@ -210,7 +210,7 @@ fn handle_left_release(app: AppHandle) {
 
     let (target_x, target_y) = compute_action_bar_position(&app, point);
 
-    let _ = manager::position_window(
+    let _ = manager::position_window_physical(
         &app,
         WindowKind::ActionBar,
         target_x,

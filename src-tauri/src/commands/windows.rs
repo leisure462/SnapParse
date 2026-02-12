@@ -19,7 +19,7 @@ pub fn close_window(app: tauri::AppHandle, kind: WindowKind) -> Result<(), Strin
 #[tauri::command]
 pub fn move_window(app: tauri::AppHandle, kind: WindowKind, x: f64, y: f64) -> Result<(), String> {
     eprintln!("[cmd] move_window called: {:?} to ({}, {})", kind, x, y);
-    manager::position_window(&app, kind, x, y)
+    manager::position_window_logical(&app, kind, x, y)
         .map_err(|error| format!("failed to move window: {error}"))
 }
 
