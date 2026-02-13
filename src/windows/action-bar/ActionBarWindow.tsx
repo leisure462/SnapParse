@@ -316,8 +316,10 @@ export default function ActionBarWindow(): JSX.Element {
         };
 
         if (action.commandWindow === "optimize") {
+          console.log("[ActionBar] setting pending optimize request, text length:", payload.text.length, "title:", payload.title);
           try {
             await invoke("set_pending_optimize_request", { payload });
+            console.log("[ActionBar] pending optimize request set successfully");
           } catch (error) {
             console.error("[ActionBar] failed to set pending optimize request:", error);
           }

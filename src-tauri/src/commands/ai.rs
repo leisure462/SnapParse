@@ -34,6 +34,8 @@ pub async fn stream_process_text(
     text: String,
     options: Option<TaskOptions>,
 ) -> Result<String, String> {
+    eprintln!("[cmd] stream_process_text called, task_kind={:?}, text_len={}", task_kind, text.len());
+
     let config_root = app
         .path()
         .app_config_dir()
@@ -50,6 +52,8 @@ pub async fn stream_process_text(
     tauri::async_runtime::spawn(async move {
         use tauri::Emitter;
 
+        eprintln!("[cmd] spawning stream task, stream_id={}", sid);
+
         if let Err(error) = client::process_text_stream(
             &app_clone,
             &settings.api,
@@ -60,6 +64,7 @@ pub async fn stream_process_text(
         )
         .await
         {
+            eprintln!("[cmd] stream error: {}", error);
             let _ = app_clone.emit(
                 "stream-error",
                 client::StreamErrorPayload {
@@ -67,6 +72,8 @@ pub async fn stream_process_text(
                     error: error.to_string(),
                 },
             );
+        } else {
+            eprintln!("[cmd] stream completed successfully");
         }
     });
 

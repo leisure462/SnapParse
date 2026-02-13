@@ -69,6 +69,7 @@ export function useFeatureWindow(): FeatureWindowState {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     let blurTimer: ReturnType<typeof setTimeout> | undefined;
+    let keepOnTopInterval: ReturnType<typeof setInterval> | undefined;
 
     getCurrentWindow().onFocusChanged(({ payload: focused }) => {
       if (blurTimer !== undefined) {
@@ -82,6 +83,18 @@ export function useFeatureWindow(): FeatureWindowState {
         }, 180);
       } else if (!focused && pinnedRef.current) {
         getCurrentWindow().setAlwaysOnTop(true).catch(() => {});
+        if (keepOnTopInterval === undefined) {
+          keepOnTopInterval = setInterval(() => {
+            if (pinnedRef.current) {
+              getCurrentWindow().setAlwaysOnTop(true).catch(() => {});
+            }
+          }, 1000);
+        }
+      } else if (focused) {
+        if (keepOnTopInterval !== undefined) {
+          clearInterval(keepOnTopInterval);
+          keepOnTopInterval = undefined;
+        }
       }
     }).then((cleanup) => {
       unlisten = cleanup;
@@ -90,6 +103,9 @@ export function useFeatureWindow(): FeatureWindowState {
     return () => {
       if (blurTimer !== undefined) {
         clearTimeout(blurTimer);
+      }
+      if (keepOnTopInterval !== undefined) {
+        clearInterval(keepOnTopInterval);
       }
       unlisten?.();
     };

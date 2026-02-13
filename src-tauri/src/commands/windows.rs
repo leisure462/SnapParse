@@ -87,6 +87,8 @@ pub fn open_external_url(url: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn set_pending_optimize_request(payload: PendingOptimizeRequest) -> Result<(), String> {
+    eprintln!("[cmd] set_pending_optimize_request called, text_len={}, target={:?}, title={:?}",
+        payload.text.len(), payload.target, payload.title);
     if payload.text.trim().is_empty() {
         return Err(String::from("pending optimize request text must not be empty"));
     }
@@ -105,5 +107,11 @@ pub fn take_pending_optimize_request() -> Result<Option<PendingOptimizeRequest>,
     let mut guard = store
         .lock()
         .map_err(|error| format!("failed to lock optimize request store: {error}"))?;
-    Ok(guard.take())
+    let result = guard.take();
+    if let Some(ref req) = result {
+        eprintln!("[cmd] take_pending_optimize_request got request, text_len={}", req.text.len());
+    } else {
+        eprintln!("[cmd] take_pending_optimize_request returned None");
+    }
+    Ok(result)
 }
