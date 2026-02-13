@@ -4,6 +4,7 @@
   "version": "0.1.44",
   "identifier": "com.leisure462.snapparse",
   "build": {
+    "devtools": true,
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist",
