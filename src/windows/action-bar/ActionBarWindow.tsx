@@ -146,11 +146,6 @@ export default function ActionBarWindow(): JSX.Element {
   const theme = useThemeMode();
 
   useEffect(() => {
-    document.documentElement.style.background = "transparent";
-    document.body.style.background = "transparent";
-  }, []);
-
-  useEffect(() => {
     const syncWindowSize = (): void => {
       const element = actionBarRef.current;
       if (!element) {

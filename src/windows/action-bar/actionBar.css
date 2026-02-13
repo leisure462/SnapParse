@@ -1,18 +1,13 @@
-/* ── Action Bar (compact toolbar with clean frosted-glass finish) ── */
+/* ── Action Bar (flat design, no translucency) ──────────────── */
 
-/* Use a corner fill under the rounded capsule so WebView2 anti-aliasing
-   does not show dark pinholes at the four corners. */
+/* Fill the whole action-bar document with a solid corner color so
+   rounded corners stay clean in both themes on WebView2. */
 html:has(.md2-action-bar),
-body:has(.md2-action-bar) {
-  margin: 0;
-  padding: 0;
-  background: var(--sp-actionbar-corner-fill) !important;
-}
-
+body:has(.md2-action-bar),
 #root:has(.md2-action-bar) {
   margin: 0;
   padding: 0;
-  background: var(--sp-actionbar-corner-fill) !important;
+  background: var(--sp-actionbar-corner) !important;
   border-radius: calc(var(--sp-radius-md) + 1px);
   overflow: hidden;
 }
@@ -20,29 +15,23 @@ body:has(.md2-action-bar) {
 /* ── Light / dark actionbar tokens ──────────────────────────── */
 :root,
 :root[data-theme="light"] {
-  --sp-actionbar-corner-fill: rgba(255, 255, 255, 0.94);
-  --sp-actionbar-bg-a: rgba(255, 255, 255, 0.72);
-  --sp-actionbar-bg-b: rgba(248, 252, 255, 0.60);
-  --sp-actionbar-border: rgba(216, 228, 242, 0.84);
-  --sp-actionbar-inner-highlight: rgba(255, 255, 255, 0.84);
-  --sp-actionbar-specular: rgba(255, 255, 255, 0.48);
-  --sp-actionbar-btn-hover: rgba(37, 99, 235, 0.12);
-  --sp-actionbar-btn-active: rgba(37, 99, 235, 0.18);
+  --sp-actionbar-bg: #f7f9fc;
+  --sp-actionbar-border: #d5deea;
+  --sp-actionbar-corner: #d5deea;
+  --sp-actionbar-btn-hover: #e8eef8;
+  --sp-actionbar-btn-active: #dce7f7;
 }
 
 :root[data-theme="dark"] {
-  --sp-actionbar-corner-fill: rgba(24, 36, 56, 0.96);
-  --sp-actionbar-bg-a: rgba(31, 45, 68, 0.80);
-  --sp-actionbar-bg-b: rgba(23, 34, 52, 0.74);
-  --sp-actionbar-border: rgba(118, 147, 186, 0.48);
-  --sp-actionbar-inner-highlight: rgba(213, 228, 255, 0.12);
-  --sp-actionbar-specular: rgba(205, 224, 255, 0.15);
-  --sp-actionbar-btn-hover: rgba(96, 165, 250, 0.20);
-  --sp-actionbar-btn-active: rgba(96, 165, 250, 0.28);
+  --sp-actionbar-bg: #1b283d;
+  --sp-actionbar-border: #2f4668;
+  --sp-actionbar-corner: #2f4668;
+  --sp-actionbar-btn-hover: #263a58;
+  --sp-actionbar-btn-active: #304a70;
 }
 
 /* The ref is on this element — getBoundingClientRect() sizes the
-   Tauri window to exactly match.  No outer padding/wrapper.       */
+   Tauri window to exactly match. No blur/transparency effects. */
 .md2-action-bar {
   position: relative;
   display: inline-flex;
@@ -53,23 +42,9 @@ body:has(.md2-action-bar) {
   box-sizing: border-box;
   border: 1px solid var(--sp-actionbar-border);
   border-radius: calc(var(--sp-radius-md) + 1px);
-  background: linear-gradient(160deg, var(--sp-actionbar-bg-a) 0%, var(--sp-actionbar-bg-b) 100%);
-  box-shadow: inset 0 1px 0 0 var(--sp-actionbar-inner-highlight);
-  backdrop-filter: blur(22px) saturate(155%);
-  -webkit-backdrop-filter: blur(22px) saturate(155%);
+  background: var(--sp-actionbar-bg);
   padding: 2px 4px;
   overflow: hidden;
-  isolation: isolate;
-}
-
-/* Soft top specular highlight for depth */
-.md2-action-bar::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(180deg, var(--sp-actionbar-specular) 0%, transparent 50%);
-  pointer-events: none;
 }
 
 .md2-action-bar-icon {
@@ -103,7 +78,7 @@ body:has(.md2-action-bar) {
   border-radius: var(--sp-radius-sm);
   padding: 4px 8px;
   color: var(--sp-text);
-  background: transparent;
+  background: none;
   font-family: var(--sp-font-sans);
   font-size: 12.5px;
   font-weight: 500;
