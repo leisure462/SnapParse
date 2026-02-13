@@ -1,42 +1,38 @@
-/* ── Action Bar (compact toolbar with frosted-glass finish) ──── */
+/* ── Action Bar (compact toolbar with clean frosted-glass finish) ── */
 
-/* Keep the action-bar document fully transparent so the Tauri window
-   shows only the capsule itself — no wrapper, no padding, no extra
-   background that WebView2 might render as a visible rectangle.      */
+/* Force the entire document chain to transparent + same border-radius
+   so WebView2 does not render visible corner artifacts outside the
+   capsule's rounded corners.                                         */
 html:has(.md2-action-bar),
 body:has(.md2-action-bar),
 #root:has(.md2-action-bar) {
   background: transparent !important;
+  border-radius: var(--sp-radius-md);
+  overflow: hidden;
 }
 
 /* ── Light / dark actionbar tokens ──────────────────────────── */
 :root,
 :root[data-theme="light"] {
-  --sp-actionbar-bg-a: rgba(255, 255, 255, 0.78);
-  --sp-actionbar-bg-b: rgba(241, 248, 255, 0.62);
-  --sp-actionbar-border: rgba(180, 198, 220, 0.80);
-  --sp-actionbar-inner-border: rgba(255, 255, 255, 0.82);
-  --sp-actionbar-specular: rgba(255, 255, 255, 0.70);
-  --sp-actionbar-glow: rgba(37, 99, 235, 0.05);
-  --sp-actionbar-btn-hover: rgba(37, 99, 235, 0.14);
-  --sp-actionbar-btn-active: rgba(15, 23, 42, 0.10);
+  --sp-actionbar-bg: rgba(255, 255, 255, 0.88);
+  --sp-actionbar-border: rgba(220, 228, 238, 0.90);
+  --sp-actionbar-inner-highlight: rgba(255, 255, 255, 0.95);
+  --sp-actionbar-specular: rgba(255, 255, 255, 0.60);
+  --sp-actionbar-btn-hover: rgba(37, 99, 235, 0.10);
+  --sp-actionbar-btn-active: rgba(37, 99, 235, 0.16);
 }
 
 :root[data-theme="dark"] {
-  --sp-actionbar-bg-a: rgba(22, 33, 52, 0.82);
-  --sp-actionbar-bg-b: rgba(14, 22, 38, 0.72);
-  --sp-actionbar-border: rgba(80, 100, 130, 0.60);
-  --sp-actionbar-inner-border: rgba(255, 255, 255, 0.12);
-  --sp-actionbar-specular: rgba(255, 255, 255, 0.16);
-  --sp-actionbar-glow: rgba(96, 165, 250, 0.06);
-  --sp-actionbar-btn-hover: rgba(96, 165, 250, 0.20);
-  --sp-actionbar-btn-active: rgba(255, 255, 255, 0.10);
+  --sp-actionbar-bg: rgba(28, 38, 56, 0.88);
+  --sp-actionbar-border: rgba(70, 90, 120, 0.55);
+  --sp-actionbar-inner-highlight: rgba(255, 255, 255, 0.08);
+  --sp-actionbar-specular: rgba(255, 255, 255, 0.10);
+  --sp-actionbar-btn-hover: rgba(96, 165, 250, 0.16);
+  --sp-actionbar-btn-active: rgba(96, 165, 250, 0.24);
 }
 
-/* The ref is on this element — getBoundingClientRect() is used by
-   resizeActionBarWindow() to set the exact Tauri window size.
-   No padding/margin so the window boundary matches the capsule edge.
-   box-shadow is intentionally omitted (would be clipped by window). */
+/* The ref is on this element — getBoundingClientRect() sizes the
+   Tauri window to exactly match.  No outer padding/wrapper.       */
 .md2-action-bar {
   position: relative;
   display: inline-flex;
@@ -47,34 +43,22 @@ body:has(.md2-action-bar),
   box-sizing: border-box;
   border: 1px solid var(--sp-actionbar-border);
   border-radius: var(--sp-radius-md);
-  background: linear-gradient(150deg, var(--sp-actionbar-bg-a) 0%, var(--sp-actionbar-bg-b) 100%);
-  box-shadow: inset 0 1px 0 0 var(--sp-actionbar-inner-border);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  background: var(--sp-actionbar-bg);
+  box-shadow: inset 0 1px 0 0 var(--sp-actionbar-inner-highlight);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
   padding: 2px 4px;
   overflow: hidden;
   isolation: isolate;
 }
 
-/* Specular highlight — soft top-to-center gradient */
+/* Soft top specular highlight for depth */
 .md2-action-bar::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(180deg, var(--sp-actionbar-specular) 0%, transparent 48%);
-  opacity: 0.72;
-  pointer-events: none;
-}
-
-/* Subtle radial glow at top center */
-.md2-action-bar::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(120% 60% at 50% -15%, var(--sp-actionbar-glow) 0%, transparent 70%);
-  opacity: 0.60;
+  background: linear-gradient(180deg, var(--sp-actionbar-specular) 0%, transparent 50%);
   pointer-events: none;
 }
 
