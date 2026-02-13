@@ -89,6 +89,15 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
     pendingChunkBuffer.current = "";
   }, [clearChunkFlushTimer]);
 
+  const acceptStreamEvent = useCallback((incomingStreamId: string): boolean => {
+    if (!activeStreamId.current) {
+      activeStreamId.current = incomingStreamId;
+      return true;
+    }
+
+    return activeStreamId.current === incomingStreamId;
+  }, []);
+
   const reset = useCallback(() => {
     cleanup();
     activeStreamId.current = null;
@@ -113,7 +122,7 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
         // Set up listeners BEFORE invoking the command so we never miss
         // early chunks.
         const chunkUn = await listen<StreamChunkPayload>("stream-chunk", (event) => {
-          if (event.payload.streamId !== activeStreamId.current) {
+          if (!acceptStreamEvent(event.payload.streamId)) {
             return;
           }
           setStreaming(true);
@@ -123,7 +132,7 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
         });
 
         const doneUn = await listen<StreamDonePayload>("stream-done", (event) => {
-          if (event.payload.streamId !== activeStreamId.current) {
+          if (!acceptStreamEvent(event.payload.streamId)) {
             return;
           }
 
@@ -134,7 +143,7 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
         });
 
         const errorUn = await listen<StreamErrorPayload>("stream-error", (event) => {
-          if (event.payload.streamId !== activeStreamId.current) {
+          if (!acceptStreamEvent(event.payload.streamId)) {
             return;
           }
 
@@ -154,7 +163,9 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
             options: options ?? null,
           });
 
-          activeStreamId.current = streamId;
+          if (!activeStreamId.current) {
+            activeStreamId.current = streamId;
+          }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           setErrorText(`${errorLabel}：${message}`);
@@ -165,7 +176,7 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
 
       void run();
     },
-    [cleanup, clearChunkFlushTimer, errorLabel, flushBufferedChunks, queueChunkFlush]
+    [acceptStreamEvent, cleanup, clearChunkFlushTimer, errorLabel, flushBufferedChunks, queueChunkFlush]
   );
 
   return { resultText, loading, streaming, errorText, startStream, reset };

@@ -24,7 +24,18 @@ const BUILTIN_LABEL: Record<BuiltinActionId, string> = {
   copy: "复制"
 };
 
-const DEFAULT_CUSTOM_PROMPT = "请根据以下内容完成任务：\n{{text}}";
+const DEFAULT_CUSTOM_PROMPT = "";
+
+const PLACEHOLDER_ITEMS = [
+  {
+    token: "{{text}}",
+    hint: "选中的原文文本"
+  },
+  {
+    token: "{{target_language}}",
+    hint: "目标语言（如 zh-CN / en-US）"
+  }
+] as const;
 
 function patchSettings(
   settings: AppSettings,
@@ -86,6 +97,7 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
   const [newIcon, setNewIcon] = useState<string>(CUSTOM_ACTION_ICON_PRESETS[0]?.id ?? "bot");
   const [newPrompt, setNewPrompt] = useState(DEFAULT_CUSTOM_PROMPT);
   const [newModel, setNewModel] = useState("");
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const builtinActions = useMemo(() => {
     return [...settings.toolbar.actions].sort((a, b) => a.order - b.order);
@@ -117,6 +129,7 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
     setNewModel("");
     setNewIcon(CUSTOM_ACTION_ICON_PRESETS[0]?.id ?? "bot");
     setNewPrompt(DEFAULT_CUSTOM_PROMPT);
+    setCopiedToken(null);
   };
 
   const openCreateDialog = (): void => {
@@ -138,7 +151,28 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
     setNewModel(action.model ?? "");
     setNewIcon(action.icon);
     setNewPrompt(action.prompt);
+    setCopiedToken(null);
     setDialogOpen(true);
+  };
+
+  const copyPlaceholderToken = async (token: string): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(token);
+    } catch {
+      const fallback = document.createElement("textarea");
+      fallback.value = token;
+      fallback.style.position = "fixed";
+      fallback.style.opacity = "0";
+      document.body.append(fallback);
+      fallback.select();
+      document.execCommand("copy");
+      fallback.remove();
+    }
+
+    setCopiedToken(token);
+    window.setTimeout(() => {
+      setCopiedToken((current) => (current === token ? null : current));
+    }, 1200);
   };
 
   const saveDialog = (): void => {
@@ -369,8 +403,6 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
           }}
         >
           <div className="settings-dialog-card">
-            <h3>{editingId ? "编辑自定义agent" : "新增自定义agent"}</h3>
-
             <div className="settings-dialog-grid-two">
               <label className="settings-field">
                 <span className="settings-field-row">
@@ -430,18 +462,31 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
             <div className="settings-field">
               <div className="settings-prompt-head">
                 <span>Prompt 模板</span>
+                <div className="settings-placeholder-row" aria-label="占位符快捷操作">
+                  {PLACEHOLDER_ITEMS.map((item) => (
+                    <button
+                      key={item.token}
+                      type="button"
+                      className="settings-placeholder-token"
+                      title={item.hint}
+                      onClick={() => {
+                        void copyPlaceholderToken(item.token);
+                      }}
+                    >
+                      {item.token}
+                    </button>
+                  ))}
+                  {copiedToken ? <span className="settings-placeholder-copied">已复制</span> : null}
+                </div>
               </div>
               <div className="settings-prompt-editor">
                 <textarea
                   value={newPrompt}
-                  placeholder={"请输入自定义提示词\n可使用占位符 {{text}} 或 {{target_language}}"}
+                  placeholder="请输入自定义提示词"
                   onChange={(event) => {
                     setNewPrompt(event.target.value);
                   }}
                 />
-                <span className="settings-prompt-inline-tip" aria-hidden="true">
-                  占位符：{"{{text}}"} {"{{target_language}}"}
-                </span>
               </div>
             </div>
 

@@ -207,10 +207,10 @@
 .settings-content {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 14px;
-  display: grid;
-  align-content: start;
+  display: block;
 }
 
 /* ── Section ────────────────────────────────────────────────── */
@@ -676,6 +676,7 @@
 .settings-feature-pill-icon img {
   width: 12px;
   height: 12px;
+  filter: brightness(0) invert(1);
 }
 
 .settings-feature-empty {
@@ -704,6 +705,7 @@
 .settings-action-inline-icon img {
   width: 14px;
   height: 14px;
+  filter: brightness(0) invert(1);
 }
 
 .settings-custom-list {
@@ -748,6 +750,7 @@
 .settings-custom-icon img {
   width: 16px;
   height: 16px;
+  filter: brightness(0) invert(1);
 }
 
 .settings-custom-texts {
@@ -921,6 +924,7 @@
 .settings-icon-glyph img {
   width: 14px;
   height: 14px;
+  filter: brightness(0) invert(1);
 }
 
 .settings-icon-caption {
@@ -935,28 +939,53 @@
 .settings-prompt-head {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .settings-prompt-editor {
-  position: relative;
+  width: 100%;
 }
 
 .settings-prompt-editor textarea {
-  padding-top: 28px;
+  width: 100%;
+  min-height: 180px;
 }
 
-.settings-prompt-inline-tip {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  color: var(--sp-text-muted);
+.settings-placeholder-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.settings-placeholder-token {
+  min-height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--sp-settings-input-border);
+  background: var(--sp-settings-input-bg);
+  box-shadow: var(--sp-settings-input-shadow);
+  color: var(--sp-text-secondary);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
-  pointer-events: none;
-  user-select: none;
+  padding: 0 10px;
+  cursor: pointer;
+  transition: border-color var(--sp-duration-fast) var(--sp-ease-out),
+              color var(--sp-duration-fast) var(--sp-ease-out),
+              transform var(--sp-duration-fast) var(--sp-ease-out);
+}
+
+.settings-placeholder-token:hover {
+  border-color: var(--sp-border-strong);
+  color: var(--sp-text);
+  transform: translateY(-1px);
+}
+
+.settings-placeholder-copied {
+  color: var(--sp-primary);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 /* ── Reset block ────────────────────────────────────────────── */
@@ -1086,7 +1115,7 @@
   }
 
   .settings-prompt-head {
-    flex-direction: row;
+    flex-direction: column;
     align-items: flex-start;
   }
 

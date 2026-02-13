@@ -180,7 +180,7 @@ export default function ActionBarWindow(): JSX.Element {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [selectedText]);
+  }, [actions, isBusy, selectedText]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
