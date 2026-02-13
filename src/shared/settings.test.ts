@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultSettings, validateSettings } from "./settings";
+import { defaultSettings, MAX_CUSTOM_ACTION_COUNT, MAX_CUSTOM_ACTION_NAME_LENGTH, validateSettings } from "./settings";
 
 describe("settings schema", () => {
   it("has api section first and enabled action defaults", () => {
@@ -44,5 +44,41 @@ describe("settings schema", () => {
     });
 
     expect(settings.features.customActions[0].model).toBe("");
+  });
+
+  it("caps custom action count to configured max", () => {
+    const settings = validateSettings({
+      features: {
+        customActions: Array.from({ length: MAX_CUSTOM_ACTION_COUNT + 2 }, (_, index) => ({
+          id: `c-${index}`,
+          name: `a${index}`,
+          icon: "bot",
+          prompt: "{{text}}",
+          enabled: true,
+          order: index
+        }))
+      } as any
+    });
+
+    expect(settings.features.customActions).toHaveLength(MAX_CUSTOM_ACTION_COUNT);
+  });
+
+  it("clamps custom action name length", () => {
+    const settings = validateSettings({
+      features: {
+        customActions: [
+          {
+            id: "c1",
+            name: "123456789abcdef",
+            icon: "bot",
+            prompt: "{{text}}",
+            enabled: true,
+            order: 0
+          }
+        ]
+      } as any
+    });
+
+    expect(Array.from(settings.features.customActions[0].name).length).toBeLessThanOrEqual(MAX_CUSTOM_ACTION_NAME_LENGTH);
   });
 });

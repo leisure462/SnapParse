@@ -1,4 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
 
 interface WindowHeaderProps {
   title: string;
@@ -16,10 +17,18 @@ async function minimizeWindow(): Promise<void> {
 }
 
 async function closeWindow(): Promise<void> {
+  const currentWindow = getCurrentWindow();
+
   try {
-    await getCurrentWindow().hide();
+    await currentWindow.hide();
   } catch {
-    // noop in browser tests
+    try {
+      await invoke("close_window", {
+        kind: (currentWindow as { label?: string }).label
+      });
+    } catch {
+      // noop in browser tests
+    }
   }
 }
 

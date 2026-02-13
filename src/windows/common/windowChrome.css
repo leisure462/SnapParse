@@ -92,6 +92,9 @@
   cursor: pointer;
   display: grid;
   place-items: center;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  pointer-events: auto;
   transition: background-color var(--sp-duration-fast) var(--sp-ease-out),
               color var(--sp-duration-fast) var(--sp-ease-out);
 }

@@ -49,13 +49,45 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
   // Track the current stream_id so stale events are ignored.
   const activeStreamId = useRef<string | null>(null);
   const unlisteners = useRef<UnlistenFn[]>([]);
+  const pendingChunkBuffer = useRef("");
+  const flushTimer = useRef<number | null>(null);
+
+  const clearChunkFlushTimer = useCallback(() => {
+    if (flushTimer.current !== null) {
+      window.clearTimeout(flushTimer.current);
+      flushTimer.current = null;
+    }
+  }, []);
+
+  const flushBufferedChunks = useCallback(() => {
+    clearChunkFlushTimer();
+    if (!pendingChunkBuffer.current) {
+      return;
+    }
+
+    const chunk = pendingChunkBuffer.current;
+    pendingChunkBuffer.current = "";
+    setResultText((prev) => prev + chunk);
+  }, [clearChunkFlushTimer]);
+
+  const queueChunkFlush = useCallback(() => {
+    if (flushTimer.current !== null) {
+      return;
+    }
+
+    flushTimer.current = window.setTimeout(() => {
+      flushBufferedChunks();
+    }, 24);
+  }, [flushBufferedChunks]);
 
   const cleanup = useCallback(() => {
     for (const fn of unlisteners.current) {
       fn();
     }
     unlisteners.current = [];
-  }, []);
+    clearChunkFlushTimer();
+    pendingChunkBuffer.current = "";
+  }, [clearChunkFlushTimer]);
 
   const reset = useCallback(() => {
     cleanup();
@@ -71,6 +103,7 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
       // Abort any previous listeners
       cleanup();
       activeStreamId.current = null;
+      pendingChunkBuffer.current = "";
       setResultText("");
       setErrorText(undefined);
       setLoading(true);
@@ -85,13 +118,16 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
           }
           setStreaming(true);
           setLoading(false);
-          setResultText((prev) => prev + event.payload.chunk);
+          pendingChunkBuffer.current += event.payload.chunk;
+          queueChunkFlush();
         });
 
         const doneUn = await listen<StreamDonePayload>("stream-done", (event) => {
           if (event.payload.streamId !== activeStreamId.current) {
             return;
           }
+
+          flushBufferedChunks();
           setResultText(event.payload.fullText);
           setStreaming(false);
           setLoading(false);
@@ -101,6 +137,9 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
           if (event.payload.streamId !== activeStreamId.current) {
             return;
           }
+
+          clearChunkFlushTimer();
+          pendingChunkBuffer.current = "";
           setErrorText(`${errorLabel}：${event.payload.error}`);
           setStreaming(false);
           setLoading(false);
@@ -126,7 +165,7 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
 
       void run();
     },
-    [cleanup, errorLabel]
+    [cleanup, clearChunkFlushTimer, errorLabel, flushBufferedChunks, queueChunkFlush]
   );
 
   return { resultText, loading, streaming, errorText, startStream, reset };

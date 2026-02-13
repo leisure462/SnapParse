@@ -5,6 +5,10 @@ import type {
   CustomFeatureAction
 } from "../../../shared/settings";
 import {
+  MAX_CUSTOM_ACTION_COUNT,
+  MAX_CUSTOM_ACTION_NAME_LENGTH
+} from "../../../shared/settings";
+import {
   CUSTOM_ACTION_ICON_PRESETS,
   renderActionIcon,
   resolveCustomIconLabel
@@ -29,6 +33,14 @@ function patchSettings(
   return updater(settings);
 }
 
+function countChars(value: string): number {
+  return Array.from(value).length;
+}
+
+function clampName(value: string): string {
+  return Array.from(value).slice(0, MAX_CUSTOM_ACTION_NAME_LENGTH).join("");
+}
+
 function normalizeCustomOrder(actions: CustomFeatureAction[]): CustomFeatureAction[] {
   return actions
     .slice()
@@ -46,18 +58,18 @@ function makeCustomAction(input: {
   model: string;
   order: number;
 }): CustomFeatureAction {
-  const idSeed = input.name
-    .trim()
+  const safeName = clampName(input.name.trim());
+  const idSeed = safeName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 32);
 
-  const id = `custom-${idSeed || "action"}-${Date.now()}`;
+  const id = `custom-${idSeed || "agent"}-${Date.now()}`;
 
   return {
     id,
-    name: input.name.trim(),
+    name: safeName,
     icon: input.icon.trim(),
     prompt: input.prompt.trim(),
     model: input.model.trim(),
@@ -71,7 +83,7 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
-  const [newIcon, setNewIcon] = useState<string>(CUSTOM_ACTION_ICON_PRESETS[0].id);
+  const [newIcon, setNewIcon] = useState<string>(CUSTOM_ACTION_ICON_PRESETS[0]?.id ?? "bot");
   const [newPrompt, setNewPrompt] = useState(DEFAULT_CUSTOM_PROMPT);
   const [newModel, setNewModel] = useState("");
 
@@ -95,27 +107,34 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
     return [...builtin, ...custom];
   }, [builtinActions, customActions]);
 
+  const reachedCreateLimit = editingId === null && customActions.length >= MAX_CUSTOM_ACTION_COUNT;
+  const nameCharCount = countChars(newName.trim());
+
   const closeDialog = (): void => {
     setDialogOpen(false);
     setEditingId(null);
     setNewName("");
     setNewModel("");
-    setNewIcon(CUSTOM_ACTION_ICON_PRESETS[0].id);
+    setNewIcon(CUSTOM_ACTION_ICON_PRESETS[0]?.id ?? "bot");
     setNewPrompt(DEFAULT_CUSTOM_PROMPT);
   };
 
   const openCreateDialog = (): void => {
+    if (customActions.length >= MAX_CUSTOM_ACTION_COUNT) {
+      return;
+    }
+
     setEditingId(null);
     setNewName("");
     setNewModel("");
-    setNewIcon(CUSTOM_ACTION_ICON_PRESETS[0].id);
+    setNewIcon(CUSTOM_ACTION_ICON_PRESETS[0]?.id ?? "bot");
     setNewPrompt(DEFAULT_CUSTOM_PROMPT);
     setDialogOpen(true);
   };
 
   const openEditDialog = (action: CustomFeatureAction): void => {
     setEditingId(action.id);
-    setNewName(action.name);
+    setNewName(clampName(action.name));
     setNewModel(action.model ?? "");
     setNewIcon(action.icon);
     setNewPrompt(action.prompt);
@@ -123,7 +142,14 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
   };
 
   const saveDialog = (): void => {
-    if (!newName.trim() || !newPrompt.trim()) {
+    const safeName = clampName(newName).trim();
+    const safePrompt = newPrompt.trim();
+
+    if (!safeName || !safePrompt) {
+      return;
+    }
+
+    if (!editingId && customActions.length >= MAX_CUSTOM_ACTION_COUNT) {
       return;
     }
 
@@ -139,9 +165,9 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
                   item.id === editingId
                     ? {
                         ...item,
-                        name: newName.trim(),
+                        name: safeName,
                         icon: newIcon,
-                        prompt: newPrompt.trim(),
+                        prompt: safePrompt,
                         model: newModel.trim()
                       }
                     : item
@@ -152,9 +178,9 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
         }
 
         const nextAction = makeCustomAction({
-          name: newName,
+          name: safeName,
           icon: newIcon,
-          prompt: newPrompt,
+          prompt: safePrompt,
           model: newModel,
           order: current.features.customActions.length
         });
@@ -190,22 +216,26 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
     closeDialog();
   };
 
+  const saveDisabled = !newName.trim() || !newPrompt.trim() || nameCharCount > MAX_CUSTOM_ACTION_NAME_LENGTH || reachedCreateLimit;
+
   return (
-    <section className="settings-section" aria-label="功能配置面板">
+    <section className="settings-section settings-feature-section" aria-label="功能配置面板">
       <div className="settings-section-topbar">
         <div>
           <h2>功能</h2>
           <p className="settings-hint">右侧开关控制功能是否出现在条形栏，顶部预览会实时更新。</p>
+          <p className="settings-hint">自定义agent最多 {MAX_CUSTOM_ACTION_COUNT} 个，名称最多 {MAX_CUSTOM_ACTION_NAME_LENGTH} 字。</p>
         </div>
 
         <button
           type="button"
           className="settings-api-test-btn"
+          disabled={customActions.length >= MAX_CUSTOM_ACTION_COUNT}
           onClick={() => {
             openCreateDialog();
           }}
         >
-          自定义agent
+          自定义agent {`(${customActions.length}/${MAX_CUSTOM_ACTION_COUNT})`}
         </button>
       </div>
 
@@ -342,32 +372,37 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
           <div className="settings-dialog-card">
             <h3>{editingId ? "编辑自定义agent" : "新增自定义agent"}</h3>
 
-            <label className="settings-field">
-              <span>功能名称</span>
-              <input
-                type="text"
-                value={newName}
-                onChange={(event) => {
-                  setNewName(event.target.value);
-                }}
-                placeholder="例如：润色为商务语气"
-              />
-            </label>
+            <div className="settings-dialog-grid-two">
+              <label className="settings-field">
+                <span className="settings-field-row">
+                  <span>功能名称</span>
+                  <em className="settings-field-counter">{nameCharCount}/{MAX_CUSTOM_ACTION_NAME_LENGTH}</em>
+                </span>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(event) => {
+                    setNewName(clampName(event.target.value));
+                  }}
+                  placeholder="例如：润色商务语气"
+                />
+              </label>
 
-            <label className="settings-field">
-              <span>模型名称（可选）</span>
-              <input
-                type="text"
-                value={newModel}
-                onChange={(event) => {
-                  setNewModel(event.target.value);
-                }}
-                placeholder="留空则使用优化模型"
-              />
-            </label>
+              <label className="settings-field">
+                <span>模型名称（可选）</span>
+                <input
+                  type="text"
+                  value={newModel}
+                  onChange={(event) => {
+                    setNewModel(event.target.value);
+                  }}
+                  placeholder="留空则使用优化模型"
+                />
+              </label>
+            </div>
 
             <div className="settings-field">
-              <span>图标（50 预置）</span>
+              <span>图标（Lucide 100）</span>
               <div className="settings-icon-grid" role="listbox" aria-label="图标预置">
                 {CUSTOM_ACTION_ICON_PRESETS.map((item) => {
                   const active = item.id === newIcon;
@@ -393,54 +428,58 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
               </div>
             </div>
 
-            <label className="settings-field">
-              <span>Prompt 模板</span>
+            <div className="settings-field">
+              <div className="settings-prompt-head">
+                <span>Prompt 模板</span>
+                <div className="settings-placeholder-guide" aria-hidden="true">
+                  <span className="settings-placeholder-chip">{"{{text}}"}</span>
+                  <span className="settings-placeholder-chip">{"{{language}}"}</span>
+                  <span className="settings-placeholder-chip">{"{{target_language}}"}</span>
+                </div>
+              </div>
+              <p className="settings-placeholder-note" aria-hidden="true">
+                使用说明：text=选中文本，language=界面语言，target_language=目标语言。
+              </p>
               <textarea
                 value={newPrompt}
                 onChange={(event) => {
                   setNewPrompt(event.target.value);
                 }}
               />
-            </label>
+            </div>
 
-            <div className="settings-dialog-footer">
-              <span className="settings-hint">
-                占位符：<code>{"{{text}}"}</code>、<code>{"{{language}}"}</code>、<code>{"{{target_language}}"}</code>
-              </span>
-
-              <div className="settings-dialog-actions">
-                {editingId ? (
-                  <button
-                    type="button"
-                    className="settings-size-btn settings-inline-btn"
-                    onClick={() => {
-                      deleteEditingAction();
-                    }}
-                  >
-                    删除
-                  </button>
-                ) : null}
-
+            <div className="settings-dialog-actions settings-dialog-actions-right">
+              {editingId ? (
                 <button
                   type="button"
                   className="settings-size-btn settings-inline-btn"
                   onClick={() => {
-                    closeDialog();
+                    deleteEditingAction();
                   }}
                 >
-                  取消
+                  删除
                 </button>
-                <button
-                  type="button"
-                  className="settings-api-test-btn"
-                  disabled={!newName.trim() || !newPrompt.trim()}
-                  onClick={() => {
-                    saveDialog();
-                  }}
-                >
-                  保存
-                </button>
-              </div>
+              ) : null}
+
+              <button
+                type="button"
+                className="settings-size-btn settings-inline-btn"
+                onClick={() => {
+                  closeDialog();
+                }}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="settings-api-test-btn"
+                disabled={saveDisabled}
+                onClick={() => {
+                  saveDialog();
+                }}
+              >
+                保存
+              </button>
             </div>
           </div>
         </div>

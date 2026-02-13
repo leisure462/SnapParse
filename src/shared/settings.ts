@@ -7,6 +7,9 @@ export type AppFilterMode = "off" | "whitelist" | "blacklist";
 export type LogLevel = "error" | "warn" | "info" | "debug";
 export type WindowSizePreset = "large" | "medium" | "small";
 
+export const MAX_CUSTOM_ACTION_COUNT = 3;
+export const MAX_CUSTOM_ACTION_NAME_LENGTH = 8;
+
 export interface GeneralSettings {
   launchAtStartup: boolean;
   silentStartup: boolean;
@@ -114,6 +117,10 @@ type DeepPartial<T> = {
       ? DeepPartial<T[K]>
       : T[K];
 };
+
+function clampChars(value: string, max: number): string {
+  return Array.from(value).slice(0, max).join("");
+}
 
 function defaultToolbarActions(): ToolbarAction[] {
   return [
@@ -267,10 +274,10 @@ function mergeFeatures(
         ...incoming,
         enabledActions: incoming.enabledActions ?? defaults.enabledActions,
         customActions: incoming.customActions
-          ? incoming.customActions.map((action, index) => ({
+          ? incoming.customActions.slice(0, MAX_CUSTOM_ACTION_COUNT).map((action, index) => ({
               id: action.id ?? `custom-${index}`,
-              name: action.name ?? "自定义功能",
-              icon: action.icon ?? "sparkles",
+              name: clampChars(action.name ?? "自定义功能", MAX_CUSTOM_ACTION_NAME_LENGTH),
+              icon: action.icon ?? "bot",
               prompt: action.prompt ?? "{{text}}",
               model: action.model ?? "",
               enabled: action.enabled ?? true,
@@ -317,6 +324,10 @@ function assertActionIds(actions: ToolbarAction[]): void {
 }
 
 function assertCustomActions(actions: CustomFeatureAction[]): void {
+  if (actions.length > MAX_CUSTOM_ACTION_COUNT) {
+    throw new Error(`features.customActions supports up to ${MAX_CUSTOM_ACTION_COUNT} items`);
+  }
+
   const ids = new Set<string>();
   for (const action of actions) {
     if (!action.id.trim()) {
@@ -329,6 +340,10 @@ function assertCustomActions(actions: CustomFeatureAction[]): void {
 
     if (!action.name.trim()) {
       throw new Error("features.customActions[].name must not be empty");
+    }
+
+    if (Array.from(action.name.trim()).length > MAX_CUSTOM_ACTION_NAME_LENGTH) {
+      throw new Error(`features.customActions[].name must be <= ${MAX_CUSTOM_ACTION_NAME_LENGTH} chars`);
     }
 
     if (!action.prompt.trim()) {

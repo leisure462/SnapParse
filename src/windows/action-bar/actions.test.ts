@@ -31,7 +31,7 @@ describe("resolveActionBarActions", () => {
       {
         id: "custom-tone",
         name: "商务润色",
-        icon: "briefcase",
+        icon: "bot",
         prompt: "请把下面内容改写为商务语气：\n{{text}}",
         model: "gpt-4o-mini",
         enabled: true,
