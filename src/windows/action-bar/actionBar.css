@@ -57,6 +57,31 @@ body:has(.md2-action-bar),
   pointer-events: none;
   user-select: none;
   border-radius: var(--sp-radius-xs);
+  transform-origin: 50% 50%;
+  animation: sp-actionbar-clover-enter 420ms var(--sp-ease-out);
+}
+
+@keyframes sp-actionbar-clover-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(2px) scale(0.76) rotate(-20deg);
+  }
+
+  55% {
+    opacity: 1;
+    transform: translateY(0) scale(1.10) rotate(8deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md2-action-bar-icon {
+    animation: none;
+  }
 }
 
 .md2-action-list {

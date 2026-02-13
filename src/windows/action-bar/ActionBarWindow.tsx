@@ -141,9 +141,30 @@ async function resizeActionBarWindow(element: HTMLElement): Promise<void> {
 export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
+  const [iconAnimationKey, setIconAnimationKey] = useState(0);
   const actionBarRef = useRef<HTMLDivElement | null>(null);
   const featureWindowSize = useRef({ width: 680, height: 520 });
   const theme = useThemeMode();
+
+  useEffect(() => {
+    const replayIconAnimation = (): void => {
+      setIconAnimationKey((value) => value + 1);
+    };
+
+    const handleVisibilityChange = (): void => {
+      if (document.visibilityState === "visible") {
+        replayIconAnimation();
+      }
+    };
+
+    window.addEventListener("focus", replayIconAnimation);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", replayIconAnimation);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     const syncWindowSize = (): void => {
@@ -321,7 +342,7 @@ export default function ActionBarWindow(): JSX.Element {
 
   return (
     <div ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
-      <img src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
+      <img key={iconAnimationKey} src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
       <div className="md2-action-list">
         {DEFAULT_ACTIONS.map((action) => (
           <button
