@@ -11,6 +11,8 @@ describe("settings schema", () => {
   it("includes theme mode in toolbar defaults", () => {
     const settings = defaultSettings();
     expect(settings.toolbar.themeMode).toBe("dark");
+    expect(settings.toolbar.triggerHotkey).toBe("Ctrl+Shift+Space");
+    expect(settings.general.language).toBe("zh-CN");
   });
 
   it("rejects invalid baseUrl", () => {

@@ -9,6 +9,7 @@ mod windows;
 use tauri::menu::MenuBuilder;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use tauri::Manager;
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use single_instance::SingleInstance;
 
 pub const APP_NAME: &str = "SnapParse";
@@ -16,6 +17,45 @@ pub const APP_NAME: &str = "SnapParse";
 #[cfg(test)]
 #[path = "tests/mod.rs"]
 mod test_suite;
+
+fn is_autostart_launch() -> bool {
+    std::env::args().any(|arg| arg == "--autostart")
+}
+
+fn load_startup_settings(app: &tauri::AppHandle) -> settings::model::AppSettings {
+    let config_root = match app.path().app_config_dir() {
+        Ok(path) => path,
+        Err(error) => {
+            eprintln!("failed to resolve app config dir: {error}");
+            return settings::model::AppSettings::default();
+        }
+    };
+
+    settings::store::load_settings(&config_root).unwrap_or_else(|error| {
+        eprintln!("failed to load settings at startup: {error}");
+        settings::model::AppSettings::default()
+    })
+}
+
+fn sync_autostart_at_startup(app: &tauri::AppHandle, enabled: bool) {
+    let autolaunch = app.autolaunch();
+    match autolaunch.is_enabled() {
+        Ok(current) if current == enabled => {}
+        Ok(_) if enabled => {
+            if let Err(error) = autolaunch.enable() {
+                eprintln!("failed to enable auto-launch: {error}");
+            }
+        }
+        Ok(_) => {
+            if let Err(error) = autolaunch.disable() {
+                eprintln!("failed to disable auto-launch: {error}");
+            }
+        }
+        Err(error) => {
+            eprintln!("failed to query auto-launch state: {error}");
+        }
+    }
+}
 
 fn main() {
     let single_instance = SingleInstance::new("com.leisure462.snapparse.single-instance")
@@ -25,6 +65,10 @@ fn main() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            Some(vec!["--autostart"]),
+        ))
         .setup(|app| {
             if let Some(main_window) = app.get_webview_window("main") {
                 let _ = main_window.hide();
@@ -41,6 +85,13 @@ fn main() {
 
             if let Err(error) = setup_tray(app) {
                 eprintln!("tray setup failed: {error}");
+            }
+
+            let settings = load_startup_settings(&app.handle());
+            sync_autostart_at_startup(&app.handle(), settings.general.launch_at_startup);
+
+            if !is_autostart_launch() && !settings.general.silent_startup {
+                let _ = windows::manager::show_window(&app.handle(), windows::ids::WindowKind::Settings);
             }
 
             Ok(())

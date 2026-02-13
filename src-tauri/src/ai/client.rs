@@ -4,6 +4,25 @@ use serde::{Deserialize, Serialize};
 use crate::ai::prompts::{build_prompt, TaskKind, TaskOptions};
 use crate::settings::model::ApiSettings;
 
+fn model_for_task(api_settings: &ApiSettings, task_kind: TaskKind) -> String {
+    let preferred = match task_kind {
+        TaskKind::Translate => api_settings.feature_models.translate.trim(),
+        TaskKind::Summarize => api_settings.feature_models.summarize.trim(),
+        TaskKind::Explain => api_settings.feature_models.explain.trim(),
+    };
+
+    if !preferred.is_empty() {
+        return preferred.to_owned();
+    }
+
+    let fallback = api_settings.model.trim();
+    if !fallback.is_empty() {
+        return fallback.to_owned();
+    }
+
+    String::from("gpt-4o-mini")
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum AiClientError {
     #[error("api key is empty")]
@@ -190,12 +209,13 @@ pub async fn process_text(
 
     let started = std::time::Instant::now();
     let prompt = build_prompt(task_kind, source_text, options);
+    let selected_model = model_for_task(api_settings, task_kind);
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_millis(api_settings.timeout_ms))
         .build()?;
 
     let request_body = ChatCompletionsRequest {
-        model: api_settings.model.clone(),
+        model: selected_model.clone(),
         temperature: api_settings.temperature,
         stream: None,
         messages: vec![
@@ -232,7 +252,7 @@ pub async fn process_text(
         task_kind,
         source_text: source_text.to_owned(),
         result_text,
-        used_model: api_settings.model.clone(),
+        used_model: selected_model,
         elapsed_ms: started.elapsed().as_millis(),
     })
 }
@@ -258,12 +278,13 @@ pub async fn process_text_stream(
 
     let started = std::time::Instant::now();
     let prompt = build_prompt(task_kind, source_text, options);
+    let selected_model = model_for_task(api_settings, task_kind);
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_millis(api_settings.timeout_ms))
         .build()?;
 
     let request_body = ChatCompletionsRequest {
-        model: api_settings.model.clone(),
+        model: selected_model,
         temperature: api_settings.temperature,
         stream: Some(true),
         messages: vec![

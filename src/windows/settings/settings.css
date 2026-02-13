@@ -156,9 +156,11 @@
 
 .settings-brand {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.03em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
   color: var(--sp-text);
 }
 
@@ -236,6 +238,105 @@
   margin: 0;
   color: var(--sp-text-muted);
   font-size: 12px;
+}
+
+/* ── Trigger segmented control ───────────────────────────────── */
+
+.settings-trigger-card {
+  border: 1px solid var(--sp-settings-input-border);
+  border-radius: 9px;
+  background: var(--sp-settings-input-bg);
+  box-shadow: var(--sp-settings-input-shadow);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.settings-trigger-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-trigger-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sp-text);
+}
+
+.settings-trigger-help {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--sp-settings-input-border);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sp-text-muted);
+  background: var(--sp-settings-card-bg);
+}
+
+.settings-trigger-segment-wrap {
+  position: relative;
+  display: grid;
+  gap: 8px;
+}
+
+.settings-trigger-tooltip {
+  justify-self: start;
+  max-width: min(420px, 100%);
+  background: rgba(22, 18, 14, 0.92);
+  color: #f4e7d1;
+  border: 1px solid rgba(215, 185, 141, 0.35);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.24);
+}
+
+:root[data-theme="light"] .settings-trigger-tooltip {
+  background: rgba(44, 34, 20, 0.94);
+  color: #f6ead5;
+}
+
+.settings-segmented {
+  display: inline-flex;
+  border: 1px solid var(--sp-settings-input-border);
+  border-radius: 9px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.settings-segment-btn {
+  min-width: 96px;
+  min-height: 38px;
+  border: 0;
+  border-right: 1px solid var(--sp-settings-input-border);
+  background: var(--sp-settings-card-bg);
+  color: var(--sp-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--sp-duration-fast) var(--sp-ease-out),
+              color var(--sp-duration-fast) var(--sp-ease-out);
+}
+
+.settings-segment-btn:last-child {
+  border-right: 0;
+}
+
+.settings-segment-btn:hover {
+  background: var(--sp-settings-tab-hover);
+  color: var(--sp-text);
+}
+
+.settings-segment-btn.active {
+  background: linear-gradient(180deg, var(--sp-primary) 0%, var(--sp-primary-hover) 100%);
+  color: var(--sp-on-primary);
 }
 
 /* ── API Test ───────────────────────────────────────────────── */
@@ -594,6 +695,19 @@
   .settings-inline-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .settings-segmented {
+    width: 100%;
+  }
+
+  .settings-segment-btn {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .settings-trigger-tooltip {
+    max-width: 100%;
   }
 
   .settings-api-test-btn {

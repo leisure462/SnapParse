@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
+    #[serde(default)]
+    pub general: GeneralSettings,
     pub api: ApiSettings,
     pub toolbar: ToolbarSettings,
     pub window: WindowSettings,
@@ -13,12 +15,48 @@ pub struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
+            general: GeneralSettings::default(),
             api: ApiSettings::default(),
             toolbar: ToolbarSettings::default(),
             window: WindowSettings::default(),
             features: FeaturesSettings::default(),
             advanced: AdvancedSettings::default(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneralSettings {
+    #[serde(default)]
+    pub launch_at_startup: bool,
+    #[serde(default)]
+    pub silent_startup: bool,
+    #[serde(default)]
+    pub language: AppLanguage,
+}
+
+impl Default for GeneralSettings {
+    fn default() -> Self {
+        Self {
+            launch_at_startup: false,
+            silent_startup: false,
+            language: AppLanguage::default(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum AppLanguage {
+    #[serde(rename = "zh-CN")]
+    ZhCn,
+    #[serde(rename = "en-US")]
+    EnUs,
+}
+
+impl Default for AppLanguage {
+    fn default() -> Self {
+        AppLanguage::ZhCn
     }
 }
 
@@ -64,16 +102,23 @@ pub struct FeatureModels {
 #[serde(rename_all = "camelCase")]
 pub struct ToolbarSettings {
     pub trigger_mode: TriggerMode,
+    #[serde(default = "default_trigger_hotkey")]
+    pub trigger_hotkey: String,
     pub compact_mode: bool,
     pub show_label: bool,
     pub theme_mode: ThemeMode,
     pub actions: Vec<ToolbarAction>,
 }
 
+fn default_trigger_hotkey() -> String {
+    String::from("Ctrl+Shift+Space")
+}
+
 impl Default for ToolbarSettings {
     fn default() -> Self {
         Self {
             trigger_mode: TriggerMode::Selection,
+            trigger_hotkey: default_trigger_hotkey(),
             compact_mode: false,
             show_label: true,
             theme_mode: ThemeMode::Dark,

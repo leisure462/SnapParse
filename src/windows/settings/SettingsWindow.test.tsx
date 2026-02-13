@@ -43,13 +43,12 @@ describe("SettingsWindow", () => {
     expect(screen.getByRole("tab", { name: "API配置" })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("shows theme mode selector inside 工具栏 section", async () => {
+  it("shows theme mode selector inside 通用设置 section", async () => {
     await renderWindow();
 
-    fireEvent.click(screen.getByRole("tab", { name: "工具栏" }));
+    fireEvent.click(screen.getByRole("tab", { name: "通用设置" }));
 
-    expect(screen.getByLabelText("默认主题模式")).toBeInTheDocument();
-    expect(screen.queryByLabelText("工具栏明暗切换")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("界面主题")).toBeInTheDocument();
   });
 
   it("allows temporarily invalid api fields while editing", async () => {

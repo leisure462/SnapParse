@@ -1,9 +1,16 @@
 export type ActionId = "translate" | "explain" | "summarize" | "search" | "copy";
 export type TriggerMode = "selection" | "ctrl" | "hotkey";
 export type ThemeMode = "light" | "dark" | "system";
+export type AppLanguage = "zh-CN" | "en-US";
 export type AppFilterMode = "off" | "whitelist" | "blacklist";
 export type LogLevel = "error" | "warn" | "info" | "debug";
 export type WindowSizePreset = "large" | "medium" | "small";
+
+export interface GeneralSettings {
+  launchAtStartup: boolean;
+  silentStartup: boolean;
+  language: AppLanguage;
+}
 
 export interface ApiSettings {
   baseUrl: string;
@@ -27,6 +34,7 @@ export interface ToolbarAction {
 
 export interface ToolbarSettings {
   triggerMode: TriggerMode;
+  triggerHotkey: string;
   compactMode: boolean;
   showLabel: boolean;
   themeMode: ThemeMode;
@@ -54,6 +62,7 @@ export interface AdvancedSettings {
 }
 
 export interface AppSettings {
+  general: GeneralSettings;
   api: ApiSettings;
   toolbar: ToolbarSettings;
   window: WindowSettings;
@@ -63,7 +72,9 @@ export interface AppSettings {
 
 export const SETTINGS_SECTION_ORDER = [
   "api",
+  "general",
   "toolbar",
+  "hotkeys",
   "window",
   "features",
   "advanced"
@@ -105,6 +116,11 @@ export function defaultSettings(): AppSettings {
   const model = "gpt-4o-mini";
 
   return {
+    general: {
+      launchAtStartup: false,
+      silentStartup: false,
+      language: "zh-CN"
+    },
     api: {
       baseUrl: "https://api.openai.com/v1",
       apiKey: "",
@@ -119,6 +135,7 @@ export function defaultSettings(): AppSettings {
     },
     toolbar: {
       triggerMode: "selection",
+      triggerHotkey: "Ctrl+Shift+Space",
       compactMode: false,
       showLabel: true,
       themeMode: "dark",
@@ -160,6 +177,13 @@ function mergeApi(
       ...incoming.featureModels
     }
   };
+}
+
+function mergeGeneral(
+  defaults: GeneralSettings,
+  incoming: DeepPartial<GeneralSettings> | undefined
+): GeneralSettings {
+  return incoming ? { ...defaults, ...incoming } : defaults;
 }
 
 function mergeToolbar(
@@ -244,6 +268,7 @@ export function mergeSettings(partial: DeepPartial<AppSettings> = {}): AppSettin
   const defaults = defaultSettings();
 
   return {
+    general: mergeGeneral(defaults.general, partial.general),
     api: mergeApi(defaults.api, partial.api),
     toolbar: mergeToolbar(defaults.toolbar, partial.toolbar),
     window: mergeWindow(defaults.window, partial.window),
@@ -284,7 +309,24 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
   assertUrl(merged.api.baseUrl);
 
   if (!merged.api.model.trim()) {
-    throw new Error("api.model must not be empty");
+    const fallbackModel =
+      merged.api.featureModels.translate.trim() ||
+      merged.api.featureModels.summarize.trim() ||
+      merged.api.featureModels.explain.trim();
+
+    if (!fallbackModel) {
+      throw new Error("api.model and feature models must not all be empty");
+    }
+
+    merged.api.model = fallbackModel;
+  }
+
+  if (!merged.toolbar.triggerHotkey.trim()) {
+    throw new Error("toolbar.triggerHotkey must not be empty");
+  }
+
+  if (!["zh-CN", "en-US"].includes(merged.general.language)) {
+    throw new Error("general.language must be zh-CN or en-US");
   }
 
   assertNumberRange("api.timeoutMs", merged.api.timeoutMs, 1000, 120000);

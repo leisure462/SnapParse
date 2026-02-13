@@ -9,17 +9,21 @@ import {
 } from "../../shared/settings";
 import { saveThemeMode } from "../theme/themeStore";
 import ApiSettingsSection from "./sections/ApiSettings";
+import GeneralSettingsSection from "./sections/GeneralSettings";
 import ToolbarSettingsSection from "./sections/ToolbarSettings";
+import HotkeySettingsSection from "./sections/HotkeySettings";
 import WindowSettingsSection from "./sections/WindowSettings";
 import FeatureSettingsSection from "./sections/FeatureSettings";
 import AdvancedSettingsSection from "./sections/AdvancedSettings";
 import "./settings.css";
 
-type SectionKey = "api" | "toolbar" | "window" | "features" | "advanced";
+type SectionKey = "api" | "general" | "toolbar" | "hotkeys" | "window" | "features" | "advanced";
 
 const SECTIONS: Array<{ key: SectionKey; label: string }> = [
   { key: "api", label: "API配置" },
+  { key: "general", label: "通用设置" },
   { key: "toolbar", label: "工具栏" },
+  { key: "hotkeys", label: "快捷键设置" },
   { key: "window", label: "功能窗口" },
   { key: "features", label: "功能" },
   { key: "advanced", label: "高级设置" }
@@ -144,8 +148,16 @@ export default function SettingsWindow(): JSX.Element {
       return <ApiSettingsSection settings={settings} onChange={onSettingsChange} />;
     }
 
+    if (activeSection === "general") {
+      return <GeneralSettingsSection settings={settings} onChange={onSettingsChange} />;
+    }
+
     if (activeSection === "toolbar") {
       return <ToolbarSettingsSection settings={settings} onChange={onSettingsChange} />;
+    }
+
+    if (activeSection === "hotkeys") {
+      return <HotkeySettingsSection settings={settings} onChange={onSettingsChange} />;
     }
 
     if (activeSection === "window") {
