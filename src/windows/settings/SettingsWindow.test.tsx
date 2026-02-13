@@ -80,4 +80,9 @@ describe("SettingsWindow", () => {
 
     expect(await screen.findByText(/测试通过/i)).toBeInTheDocument();
   });
+
+  it("shows optimize model field in api section", async () => {
+    await renderWindow();
+    expect(screen.getByLabelText("优化模型")).toBeInTheDocument();
+  });
 });

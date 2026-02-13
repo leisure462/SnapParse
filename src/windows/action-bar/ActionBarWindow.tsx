@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
-import { DEFAULT_ACTIONS, type ActionBarAction, type ActionBarActionId } from "./actions";
+import { resolveActionBarActions, type ActionBarAction } from "./actions";
 import "./actionBar.css";
 import { useThemeMode, type ThemeMode } from "../theme/themeStore";
 import { defaultSettings, resolveWindowSize, validateSettings, type AppSettings } from "../../shared/settings";
@@ -18,10 +18,10 @@ interface SelectionTextPayload {
   source?: string;
 }
 
-function iconForAction(id: ActionBarActionId): JSX.Element {
+function iconForAction(icon: string): JSX.Element {
   const common = { viewBox: "0 0 24 24", width: 16, height: 16, fill: "none", stroke: "currentColor" };
 
-  if (id === "translate") {
+  if (icon === "translate") {
     return (
       <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M4 5h10" />
@@ -33,7 +33,7 @@ function iconForAction(id: ActionBarActionId): JSX.Element {
     );
   }
 
-  if (id === "explain") {
+  if (icon === "explain") {
     return (
       <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 18h.01" />
@@ -43,7 +43,7 @@ function iconForAction(id: ActionBarActionId): JSX.Element {
     );
   }
 
-  if (id === "summarize") {
+  if (icon === "summarize") {
     return (
       <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M5 6h14" />
@@ -53,7 +53,17 @@ function iconForAction(id: ActionBarActionId): JSX.Element {
     );
   }
 
-  if (id === "search") {
+  if (icon === "optimize") {
+    return (
+      <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m7 16 4-9 6 10" />
+        <path d="M4 19h16" />
+        <path d="m14 5 1.5 1.5L17 5l-1.5-1.5z" />
+      </svg>
+    );
+  }
+
+  if (icon === "search") {
     return (
       <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="11" cy="11" r="7" />
@@ -62,10 +72,25 @@ function iconForAction(id: ActionBarActionId): JSX.Element {
     );
   }
 
+  if (icon === "copy") {
+    return (
+      <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="8" y="8" width="11" height="12" rx="2" />
+        <path d="M5 15V6a2 2 0 0 1 2-2h8" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="8" y="8" width="11" height="12" rx="2" />
-      <path d="M5 15V6a2 2 0 0 1 2-2h8" />
+      <path d="M12 3v5" />
+      <path d="M12 16v5" />
+      <path d="m4.2 7.2 3.5 3.5" />
+      <path d="m16.3 13.3 3.5 3.5" />
+      <path d="M3 12h5" />
+      <path d="M16 12h5" />
+      <path d="m4.2 16.8 3.5-3.5" />
+      <path d="m16.3 10.7 3.5-3.5" />
     </svg>
   );
 }
@@ -142,6 +167,7 @@ async function resizeActionBarWindow(element: HTMLElement): Promise<void> {
 export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
+  const [actions, setActions] = useState<ActionBarAction[]>(() => resolveActionBarActions(defaultSettings()));
   const actionBarRef = useRef<HTMLDivElement | null>(null);
   const iconRef = useRef<HTMLImageElement | null>(null);
   const iconAnimationTimerRef = useRef<number | null>(null);
@@ -262,6 +288,7 @@ export default function ActionBarWindow(): JSX.Element {
         theme.setMode(normalized.toolbar.themeMode as ThemeMode);
         const size = resolveWindowSize(normalized.window.windowSize);
         featureWindowSize.current = size;
+        setActions(resolveActionBarActions(normalized));
       } catch {
         if (cancelled) {
           return;
@@ -270,6 +297,7 @@ export default function ActionBarWindow(): JSX.Element {
         const defaults = defaultSettings();
         theme.setMode(defaults.toolbar.themeMode as ThemeMode);
         featureWindowSize.current = resolveWindowSize(defaults.window.windowSize);
+        setActions(resolveActionBarActions(defaults));
       }
     };
 
@@ -288,6 +316,7 @@ export default function ActionBarWindow(): JSX.Element {
       const normalized = validateSettings(event.payload as Partial<AppSettings>);
       theme.setMode(normalized.toolbar.themeMode as ThemeMode);
       featureWindowSize.current = resolveWindowSize(normalized.window.windowSize);
+      setActions(resolveActionBarActions(normalized));
     }).then((cleanup) => {
       unlisten = cleanup;
     });
@@ -341,7 +370,13 @@ export default function ActionBarWindow(): JSX.Element {
         // Delay event emission to give the target window time to mount and register listeners.
         // The target window also reads from localStorage as a fallback.
         setTimeout(() => {
-          void emit("change-text", { text: selectedText, source: "action-bar" });
+          void emit("change-text", {
+            text: selectedText,
+            source: "action-bar",
+            target: action.commandWindow,
+            title: action.label,
+            customPrompt: action.prompt
+          });
         }, 300);
 
         await closeActionBarWindow();
@@ -351,7 +386,12 @@ export default function ActionBarWindow(): JSX.Element {
       if (action.id === "search") {
         if (selectedText.trim()) {
           const query = encodeURIComponent(selectedText);
-          window.open(`https://www.google.com/search?q=${query}`, "_blank");
+          const searchUrl = `https://www.google.com/search?q=${query}`;
+          try {
+            await invoke("open_external_url", { url: searchUrl });
+          } catch {
+            window.open(searchUrl, "_blank");
+          }
         }
         await closeActionBarWindow();
         return;
@@ -370,7 +410,7 @@ export default function ActionBarWindow(): JSX.Element {
     <div ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
       <img ref={iconRef} src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
       <div className="md2-action-list">
-        {DEFAULT_ACTIONS.map((action) => (
+        {actions.map((action) => (
           <button
             key={action.id}
             type="button"
@@ -381,7 +421,7 @@ export default function ActionBarWindow(): JSX.Element {
             disabled={isBusy}
           >
             <span className="md2-action-icon" aria-hidden="true">
-              {iconForAction(action.id)}
+              {iconForAction(action.icon)}
             </span>
             <span className="md2-action-label">{action.label}</span>
           </button>

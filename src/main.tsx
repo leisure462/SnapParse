@@ -9,6 +9,7 @@ import TranslateWindow from "./windows/translate/TranslateWindow";
 import SummaryWindow from "./windows/summary/SummaryWindow";
 import SettingsWindow from "./windows/settings/SettingsWindow";
 import ExplainWindow from "./windows/explain/ExplainWindow";
+import OptimizeWindow from "./windows/optimize/OptimizeWindow";
 
 function WindowPlaceholder(props: { windowKey: string }): JSX.Element {
   return (
@@ -42,6 +43,10 @@ function resolveAppEntry(): JSX.Element {
 
   if (key === "explain") {
     return <ExplainWindow />;
+  }
+
+  if (key === "optimize") {
+    return <OptimizeWindow />;
   }
 
   if (key === "settings") {

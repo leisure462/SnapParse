@@ -1,4 +1,5 @@
-export type ActionId = "translate" | "explain" | "summarize" | "search" | "copy";
+export type BuiltinActionId = "translate" | "explain" | "summarize" | "optimize" | "search" | "copy";
+export type ActionId = BuiltinActionId;
 export type TriggerMode = "selection" | "ctrl" | "hotkey";
 export type ThemeMode = "light" | "dark" | "system";
 export type AppLanguage = "zh-CN" | "en-US";
@@ -22,12 +23,22 @@ export interface ApiSettings {
     translate: string;
     summarize: string;
     explain: string;
+    optimize: string;
   };
 }
 
 export interface ToolbarAction {
   id: ActionId;
   label: string;
+  enabled: boolean;
+  order: number;
+}
+
+export interface CustomFeatureAction {
+  id: string;
+  name: string;
+  icon: string;
+  prompt: string;
   enabled: boolean;
   order: number;
 }
@@ -53,6 +64,7 @@ export interface WindowSettings {
 export interface FeaturesSettings {
   customActionsEnabled: boolean;
   enabledActions: ActionId[];
+  customActions: CustomFeatureAction[];
 }
 
 export interface AdvancedSettings {
@@ -107,8 +119,9 @@ function defaultToolbarActions(): ToolbarAction[] {
     { id: "translate", label: "翻译", enabled: true, order: 0 },
     { id: "explain", label: "解释", enabled: true, order: 1 },
     { id: "summarize", label: "总结", enabled: true, order: 2 },
-    { id: "search", label: "搜索", enabled: true, order: 3 },
-    { id: "copy", label: "复制", enabled: true, order: 4 }
+    { id: "optimize", label: "优化", enabled: true, order: 3 },
+    { id: "search", label: "搜索", enabled: true, order: 4 },
+    { id: "copy", label: "复制", enabled: true, order: 5 }
   ];
 }
 
@@ -130,7 +143,8 @@ export function defaultSettings(): AppSettings {
       featureModels: {
         translate: model,
         summarize: model,
-        explain: model
+        explain: model,
+        optimize: model
       }
     },
     toolbar: {
@@ -151,7 +165,8 @@ export function defaultSettings(): AppSettings {
     },
     features: {
       customActionsEnabled: false,
-      enabledActions: ["translate", "explain", "summarize", "search", "copy"]
+      enabledActions: ["translate", "explain", "summarize", "optimize", "search", "copy"],
+      customActions: []
     },
     advanced: {
       appFilterMode: "off",
@@ -198,11 +213,14 @@ function mergeToolbar(
     ...defaults,
     ...incoming,
     actions: incoming.actions
-      ? incoming.actions.map((action, index) => ({
-          ...defaultToolbarActions()[index],
-          ...action,
-          order: action.order ?? index
-        }))
+      ? defaultToolbarActions().map((fallback, index) => {
+          const incomingAction = incoming.actions?.find((item) => item.id === fallback.id);
+          return {
+            ...fallback,
+            ...incomingAction,
+            order: incomingAction?.order ?? fallback.order ?? index
+          };
+        })
       : defaults.actions
   };
 }
@@ -246,7 +264,17 @@ function mergeFeatures(
     ? {
         ...defaults,
         ...incoming,
-        enabledActions: incoming.enabledActions ?? defaults.enabledActions
+        enabledActions: incoming.enabledActions ?? defaults.enabledActions,
+        customActions: incoming.customActions
+          ? incoming.customActions.map((action, index) => ({
+              id: action.id ?? `custom-${index}`,
+              name: action.name ?? "自定义功能",
+              icon: action.icon ?? "sparkles",
+              prompt: action.prompt ?? "{{text}}",
+              enabled: action.enabled ?? true,
+              order: action.order ?? index
+            }))
+          : defaults.customActions
       }
     : defaults;
 }
@@ -278,10 +306,40 @@ export function mergeSettings(partial: DeepPartial<AppSettings> = {}): AppSettin
 }
 
 function assertActionIds(actions: ToolbarAction[]): void {
-  const validIds = new Set<ActionId>(["translate", "explain", "summarize", "search", "copy"]);
+  const validIds = new Set<ActionId>(["translate", "explain", "summarize", "optimize", "search", "copy"]);
   for (const action of actions) {
     if (!validIds.has(action.id)) {
       throw new Error(`Unknown toolbar action: ${action.id}`);
+    }
+  }
+}
+
+function assertCustomActions(actions: CustomFeatureAction[]): void {
+  const ids = new Set<string>();
+  for (const action of actions) {
+    if (!action.id.trim()) {
+      throw new Error("features.customActions[].id must not be empty");
+    }
+    if (ids.has(action.id)) {
+      throw new Error(`features.customActions has duplicate id: ${action.id}`);
+    }
+    ids.add(action.id);
+
+    if (!action.name.trim()) {
+      throw new Error("features.customActions[].name must not be empty");
+    }
+
+    if (!action.prompt.trim()) {
+      throw new Error("features.customActions[].prompt must not be empty");
+    }
+  }
+}
+
+function assertEnabledActionIds(actionIds: ActionId[]): void {
+  const validIds = new Set<ActionId>(["translate", "explain", "summarize", "optimize", "search", "copy"]);
+  for (const id of actionIds) {
+    if (!validIds.has(id)) {
+      throw new Error(`Unknown enabled feature action: ${id}`);
     }
   }
 }
@@ -312,7 +370,8 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
     const fallbackModel =
       merged.api.featureModels.translate.trim() ||
       merged.api.featureModels.summarize.trim() ||
-      merged.api.featureModels.explain.trim();
+      merged.api.featureModels.explain.trim() ||
+      merged.api.featureModels.optimize.trim();
 
     if (!fallbackModel) {
       throw new Error("api.model and feature models must not all be empty");
@@ -342,6 +401,8 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
   }
 
   assertActionIds(merged.toolbar.actions);
+  assertEnabledActionIds(merged.features.enabledActions);
+  assertCustomActions(merged.features.customActions);
 
   return merged;
 }

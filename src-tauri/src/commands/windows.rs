@@ -28,3 +28,42 @@ pub fn resize_window(app: tauri::AppHandle, kind: WindowKind, width: f64, height
     manager::resize_window(&app, kind, width, height)
         .map_err(|error| format!("failed to resize window: {error}"))
 }
+
+#[tauri::command]
+pub fn open_external_url(url: String) -> Result<(), String> {
+    let target = url.trim();
+    if !(target.starts_with("http://") || target.starts_with("https://")) {
+        return Err(String::from("url must start with http:// or https://"));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("rundll32")
+            .arg("url.dll,FileProtocolHandler")
+            .arg(target)
+            .spawn()
+            .map_err(|error| format!("failed to open url: {error}"))?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(target)
+            .spawn()
+            .map_err(|error| format!("failed to open url: {error}"))?;
+        return Ok(());
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(target)
+            .spawn()
+            .map_err(|error| format!("failed to open url: {error}"))?;
+        return Ok(());
+    }
+
+    #[allow(unreachable_code)]
+    Err(String::from("unsupported platform for opening external url"))
+}

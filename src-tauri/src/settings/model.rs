@@ -68,6 +68,7 @@ pub struct ApiSettings {
     pub model: String,
     pub timeout_ms: u64,
     pub temperature: f32,
+    #[serde(default)]
     pub feature_models: FeatureModels,
 }
 
@@ -85,6 +86,7 @@ impl Default for ApiSettings {
                 translate: model.clone(),
                 summarize: model.clone(),
                 explain: model,
+                optimize: String::from("gpt-4o-mini"),
             },
         }
     }
@@ -93,9 +95,29 @@ impl Default for ApiSettings {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FeatureModels {
+    #[serde(default = "default_feature_model")]
     pub translate: String,
+    #[serde(default = "default_feature_model")]
     pub summarize: String,
+    #[serde(default = "default_feature_model")]
     pub explain: String,
+    #[serde(default = "default_feature_model")]
+    pub optimize: String,
+}
+
+impl Default for FeatureModels {
+    fn default() -> Self {
+        Self {
+            translate: default_feature_model(),
+            summarize: default_feature_model(),
+            explain: default_feature_model(),
+            optimize: default_feature_model(),
+        }
+    }
+}
+
+fn default_feature_model() -> String {
+    String::from("gpt-4o-mini")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -126,8 +148,9 @@ impl Default for ToolbarSettings {
                 ToolbarAction::new(ActionId::Translate, "翻译", 0),
                 ToolbarAction::new(ActionId::Explain, "解释", 1),
                 ToolbarAction::new(ActionId::Summarize, "总结", 2),
-                ToolbarAction::new(ActionId::Search, "搜索", 3),
-                ToolbarAction::new(ActionId::Copy, "复制", 4),
+                ToolbarAction::new(ActionId::Optimize, "优化", 3),
+                ToolbarAction::new(ActionId::Search, "搜索", 4),
+                ToolbarAction::new(ActionId::Copy, "复制", 5),
             ],
         }
     }
@@ -175,6 +198,7 @@ pub enum ActionId {
     Translate,
     Explain,
     Summarize,
+    Optimize,
     Search,
     Copy,
 }
@@ -226,23 +250,44 @@ impl Default for WindowSettings {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FeaturesSettings {
+    #[serde(default)]
     pub custom_actions_enabled: bool,
+    #[serde(default = "default_enabled_actions")]
     pub enabled_actions: Vec<ActionId>,
+    #[serde(default)]
+    pub custom_actions: Vec<CustomFeatureAction>,
 }
 
 impl Default for FeaturesSettings {
     fn default() -> Self {
         Self {
             custom_actions_enabled: false,
-            enabled_actions: vec![
-                ActionId::Translate,
-                ActionId::Explain,
-                ActionId::Summarize,
-                ActionId::Search,
-                ActionId::Copy,
-            ],
+            enabled_actions: default_enabled_actions(),
+            custom_actions: Vec::new(),
         }
     }
+}
+
+fn default_enabled_actions() -> Vec<ActionId> {
+    vec![
+        ActionId::Translate,
+        ActionId::Explain,
+        ActionId::Summarize,
+        ActionId::Optimize,
+        ActionId::Search,
+        ActionId::Copy,
+    ]
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomFeatureAction {
+    pub id: String,
+    pub name: String,
+    pub icon: String,
+    pub prompt: String,
+    pub enabled: bool,
+    pub order: u16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

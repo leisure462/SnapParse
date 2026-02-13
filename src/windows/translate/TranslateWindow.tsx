@@ -9,6 +9,7 @@ import "../common/windowChrome.css";
 interface ChangeTextPayload {
   text: string;
   source?: string;
+  target?: "translate" | "summary" | "explain" | "optimize";
 }
 
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
@@ -46,6 +47,10 @@ export default function TranslateWindow(): JSX.Element {
     let unlisten: (() => void) | undefined;
 
     listen<ChangeTextPayload>("change-text", (event) => {
+      if (event.payload.target && event.payload.target !== "translate") {
+        return;
+      }
+
       if (typeof event.payload.text === "string") {
         setSourceText(event.payload.text);
       }

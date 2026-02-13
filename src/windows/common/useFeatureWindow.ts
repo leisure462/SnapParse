@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { defaultSettings, type AppSettings } from "../../shared/settings";
+import { defaultSettings, type AppLanguage, type AppSettings } from "../../shared/settings";
 import { applyThemeMode, type ThemeMode } from "../theme/themeStore";
 
 export interface FeatureWindowState {
   pinned: boolean;
   fontSize: number;
+  language: AppLanguage;
   onPinToggle: () => void;
   shellStyle: React.CSSProperties;
 }
@@ -23,6 +24,7 @@ export interface FeatureWindowState {
 export function useFeatureWindow(): FeatureWindowState {
   const [pinned, setPinned] = useState(false);
   const [fontSize, setFontSize] = useState(14);
+  const [language, setLanguage] = useState<AppLanguage>(defaultSettings().general.language);
   const pinnedRef = useRef(false);
 
   /** Apply settings values from an AppSettings object. */
@@ -30,7 +32,9 @@ export function useFeatureWindow(): FeatureWindowState {
     const defaults = defaultSettings();
     const fs = s.window?.fontSize ?? defaults.window.fontSize;
     const tm = (s.toolbar?.themeMode ?? defaults.toolbar.themeMode) as ThemeMode;
+    const languageValue = s.general?.language ?? defaults.general.language;
     setFontSize(fs);
+    setLanguage(languageValue);
     applyThemeMode(tm);
   };
 
@@ -103,6 +107,7 @@ export function useFeatureWindow(): FeatureWindowState {
   return {
     pinned,
     fontSize,
+    language,
     onPinToggle,
     shellStyle
   };

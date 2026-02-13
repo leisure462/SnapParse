@@ -9,6 +9,7 @@ fn model_for_task(api_settings: &ApiSettings, task_kind: TaskKind) -> String {
         TaskKind::Translate => api_settings.feature_models.translate.trim(),
         TaskKind::Summarize => api_settings.feature_models.summarize.trim(),
         TaskKind::Explain => api_settings.feature_models.explain.trim(),
+        TaskKind::Optimize => api_settings.feature_models.optimize.trim(),
     };
 
     if !preferred.is_empty() {

@@ -13,9 +13,24 @@ describe("settings schema", () => {
     expect(settings.toolbar.themeMode).toBe("dark");
     expect(settings.toolbar.triggerHotkey).toBe("Ctrl+Shift+Space");
     expect(settings.general.language).toBe("zh-CN");
+    expect(settings.api.featureModels.optimize).toBe("gpt-4o-mini");
+    expect(settings.features.enabledActions).toContain("optimize");
   });
 
   it("rejects invalid baseUrl", () => {
     expect(() => validateSettings({ api: { baseUrl: "abc" } as any })).toThrow();
+  });
+
+  it("rejects duplicate custom action ids", () => {
+    expect(() =>
+      validateSettings({
+        features: {
+          customActions: [
+            { id: "c1", name: "a", icon: "sparkles", prompt: "{{text}}", enabled: true, order: 0 },
+            { id: "c1", name: "b", icon: "sparkles", prompt: "{{text}}", enabled: true, order: 1 }
+          ]
+        } as any
+      })
+    ).toThrow();
   });
 });

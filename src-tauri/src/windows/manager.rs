@@ -7,11 +7,12 @@ use tauri::{
 use crate::windows::ids::WindowKind;
 
 /// All window kinds that should be pre-created at startup.
-const PRECREATE_KINDS: [WindowKind; 5] = [
+const PRECREATE_KINDS: [WindowKind; 6] = [
     WindowKind::ActionBar,
     WindowKind::Translate,
     WindowKind::Summary,
     WindowKind::Explain,
+    WindowKind::Optimize,
     WindowKind::Settings,
 ];
 

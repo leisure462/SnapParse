@@ -5,6 +5,7 @@ pub const ACTION_BAR_WINDOW_LABEL: &str = "action-bar";
 pub const TRANSLATE_WINDOW_LABEL: &str = "translate";
 pub const SUMMARY_WINDOW_LABEL: &str = "summary";
 pub const EXPLAIN_WINDOW_LABEL: &str = "explain";
+pub const OPTIMIZE_WINDOW_LABEL: &str = "optimize";
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
@@ -15,6 +16,7 @@ pub enum WindowKind {
     Translate,
     Summary,
     Explain,
+    Optimize,
     Settings,
 }
 
@@ -26,6 +28,7 @@ impl WindowKind {
             WindowKind::Translate => TRANSLATE_WINDOW_LABEL,
             WindowKind::Summary => SUMMARY_WINDOW_LABEL,
             WindowKind::Explain => EXPLAIN_WINDOW_LABEL,
+            WindowKind::Optimize => OPTIMIZE_WINDOW_LABEL,
             WindowKind::Settings => SETTINGS_WINDOW_LABEL,
         }
     }
@@ -37,6 +40,7 @@ impl WindowKind {
             WindowKind::Translate => "翻译",
             WindowKind::Summary => "总结",
             WindowKind::Explain => "解释",
+            WindowKind::Optimize => "优化",
             WindowKind::Settings => "设置",
         }
     }
@@ -53,6 +57,7 @@ impl WindowKind {
             WindowKind::Translate => (680.0, 520.0),
             WindowKind::Summary => (680.0, 520.0),
             WindowKind::Explain => (680.0, 520.0),
+            WindowKind::Optimize => (680.0, 520.0),
             WindowKind::Settings => (780.0, 560.0),
         }
     }

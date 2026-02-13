@@ -6,6 +6,10 @@ describe("window router", () => {
     expect(resolveWindowRoute("summary")).toBe("/windows/summary");
   });
 
+  it("resolves optimize window route", () => {
+    expect(resolveWindowRoute("optimize")).toBe("/windows/optimize");
+  });
+
   it("resolves location query to window key", () => {
     expect(resolveWindowFromLocation("?window=settings")).toBe("settings");
   });

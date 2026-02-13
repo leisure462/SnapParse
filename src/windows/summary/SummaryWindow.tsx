@@ -9,6 +9,7 @@ import "../common/windowChrome.css";
 interface ChangeTextPayload {
   text: string;
   source?: string;
+  target?: "translate" | "summary" | "explain" | "optimize";
 }
 
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
@@ -28,6 +29,10 @@ export default function SummaryWindow(): JSX.Element {
     let unlisten: (() => void) | undefined;
 
     listen<ChangeTextPayload>("change-text", (event) => {
+      if (event.payload.target && event.payload.target !== "summary") {
+        return;
+      }
+
       if (typeof event.payload.text === "string") {
         setSourceText(event.payload.text);
       }
@@ -52,8 +57,9 @@ export default function SummaryWindow(): JSX.Element {
 
     ai.startStream("summarize", sourceText, {
       targetLength: "short",
+      language: fw.language
     });
-  }, [sourceText]);
+  }, [fw.language, sourceText]);
 
   return (
     <main className="md2-window-shell" style={fw.shellStyle}>

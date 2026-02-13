@@ -240,6 +240,14 @@
   font-size: 12px;
 }
 
+.settings-hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  background: var(--sp-settings-input-bg);
+  border: 1px solid var(--sp-settings-input-border);
+  border-radius: 6px;
+  padding: 0 5px;
+}
+
 /* ── Trigger segmented control ───────────────────────────────── */
 
 .settings-trigger-card {
@@ -593,6 +601,97 @@
   gap: 8px;
 }
 
+.settings-switch.action-item {
+  justify-content: space-between;
+}
+
+.settings-switch.action-item input[type="checkbox"] {
+  order: 2;
+}
+
+.settings-switch.action-item span {
+  order: 1;
+}
+
+.settings-feature-preview {
+  border: 1px solid var(--sp-settings-input-border);
+  border-radius: 9px;
+  background: var(--sp-settings-input-bg);
+  box-shadow: var(--sp-settings-input-shadow);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.settings-feature-preview-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sp-text-secondary);
+}
+
+.settings-feature-preview-bar {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px dashed var(--sp-settings-input-border);
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-feature-pill {
+  min-height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--sp-settings-tab-active-border);
+  background: var(--sp-settings-tab-active-bg);
+  color: var(--sp-primary);
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-feature-empty {
+  font-size: 12px;
+  color: var(--sp-text-muted);
+}
+
+.settings-dialog-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 80;
+  padding: 16px;
+}
+
+.settings-dialog-card {
+  width: min(620px, 100%);
+  border-radius: 12px;
+  border: 1px solid var(--sp-settings-card-border);
+  background: var(--sp-settings-card-bg);
+  box-shadow: var(--sp-settings-card-shadow);
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.settings-dialog-card h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--sp-text);
+}
+
+.settings-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ── Reset block ────────────────────────────────────────────── */
 
 .settings-reset-block {
@@ -695,6 +794,15 @@
   .settings-inline-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .settings-dialog-actions {
+    width: 100%;
+  }
+
+  .settings-dialog-actions .settings-size-btn,
+  .settings-dialog-actions .settings-api-test-btn {
+    flex: 1;
   }
 
   .settings-segmented {

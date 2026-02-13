@@ -49,11 +49,12 @@ describe("ActionBarWindow", () => {
     });
   }
 
-  it("renders default five actions", async () => {
+  it("renders default six actions", async () => {
     await renderWindow();
     expect(screen.getByText("翻译")).toBeInTheDocument();
     expect(screen.getByText("解释")).toBeInTheDocument();
     expect(screen.getByText("总结")).toBeInTheDocument();
+    expect(screen.getByText("优化")).toBeInTheDocument();
     expect(screen.getByText("搜索")).toBeInTheDocument();
     expect(screen.getByText("复制")).toBeInTheDocument();
   });
@@ -75,7 +76,10 @@ describe("ActionBarWindow", () => {
     await waitFor(() => {
       expect(mocks.emitMock).toHaveBeenCalledWith("change-text", {
         text: "hello world",
-        source: "action-bar"
+        source: "action-bar",
+        target: "translate",
+        title: "翻译",
+        customPrompt: undefined
       });
     });
 
@@ -89,5 +93,24 @@ describe("ActionBarWindow", () => {
     expect(moveIndex).toBeGreaterThanOrEqual(0);
     expect(openIndex).toBeLessThan(closeIndex);
     expect(window.localStorage.getItem("snapparse:selected-text")).toBe("hello world");
+  });
+
+  it("opens search with external browser command", async () => {
+    await renderWindow();
+
+    await act(async () => {
+      listeners.get("selection-text-changed")?.({ payload: { text: "snapparse test" } });
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "搜索" }));
+
+    await waitFor(() => {
+      expect(mocks.invokeMock).toHaveBeenCalledWith(
+        "open_external_url",
+        expect.objectContaining({
+          url: expect.stringContaining("google.com/search")
+        })
+      );
+    });
   });
 });

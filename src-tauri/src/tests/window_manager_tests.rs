@@ -8,6 +8,11 @@ fn summary_query_value_is_correct() {
 }
 
 #[test]
+fn optimize_query_value_is_correct() {
+    assert_eq!(WindowKind::Optimize.query_value(), "optimize");
+}
+
+#[test]
 fn window_labels_are_unique() {
     let labels = [
         WindowKind::Main.label(),
@@ -15,6 +20,7 @@ fn window_labels_are_unique() {
         WindowKind::Translate.label(),
         WindowKind::Summary.label(),
         WindowKind::Explain.label(),
+        WindowKind::Optimize.label(),
         WindowKind::Settings.label(),
     ];
 

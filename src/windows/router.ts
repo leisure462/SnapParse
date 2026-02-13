@@ -4,6 +4,7 @@ export type WindowRouteKey =
   | "translate"
   | "summary"
   | "explain"
+  | "optimize"
   | "settings";
 
 const WINDOW_ROUTE_MAP: Record<WindowRouteKey, string> = {
@@ -12,6 +13,7 @@ const WINDOW_ROUTE_MAP: Record<WindowRouteKey, string> = {
   translate: "/windows/translate",
   summary: "/windows/summary",
   explain: "/windows/explain",
+  optimize: "/windows/optimize",
   settings: "/windows/settings"
 };
 

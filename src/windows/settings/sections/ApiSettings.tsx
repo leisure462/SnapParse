@@ -19,6 +19,7 @@ function patchApi(
     nextApi.featureModels.translate.trim() ||
     nextApi.featureModels.summarize.trim() ||
     nextApi.featureModels.explain.trim() ||
+    nextApi.featureModels.optimize.trim() ||
     "gpt-4o-mini";
 
   return {
@@ -47,6 +48,7 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
             settings.api.featureModels.translate.trim() ||
             settings.api.featureModels.summarize.trim() ||
             settings.api.featureModels.explain.trim() ||
+            settings.api.featureModels.optimize.trim() ||
             settings.api.model
         }
       });
@@ -162,6 +164,25 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
                   featureModels: {
                     ...api.featureModels,
                     explain: event.target.value
+                  }
+                }))
+              );
+            }}
+          />
+        </label>
+
+        <label className="settings-field">
+          <span>优化模型</span>
+          <input
+            type="text"
+            value={settings.api.featureModels.optimize}
+            onChange={(event) => {
+              onChange(
+                patchApi(settings, (api) => ({
+                  ...api,
+                  featureModels: {
+                    ...api.featureModels,
+                    optimize: event.target.value
                   }
                 }))
               );
