@@ -608,6 +608,10 @@
   gap: 8px;
 }
 
+.settings-action-list-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .settings-switch.action-item {
   justify-content: space-between;
 }
@@ -949,7 +953,7 @@
 
 .settings-prompt-editor textarea {
   width: 100%;
-  min-height: 180px;
+  min-height: 92px;
 }
 
 .settings-placeholder-row {
@@ -1085,6 +1089,10 @@
 
   .settings-size-presets {
     flex-direction: column;
+  }
+
+  .settings-action-list-two {
+    grid-template-columns: 1fr;
   }
 
   .settings-inline-actions {

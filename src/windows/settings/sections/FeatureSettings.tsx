@@ -287,7 +287,7 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
         </div>
       </div>
 
-      <div className="settings-action-list">
+      <div className="settings-action-list settings-action-list-two">
         {builtinActions.map((action) => (
           <label key={action.id} className="settings-switch action-item">
             <input

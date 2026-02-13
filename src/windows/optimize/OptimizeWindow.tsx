@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
 import { useFeatureWindow } from "../common/useFeatureWindow";
@@ -15,6 +15,24 @@ interface ChangeTextPayload {
   requestId?: number;
 }
 
+const LAST_OPTIMIZE_REQUEST_KEY = "snapparse:last-optimize-request";
+
+function safeParsePayload(raw: string | null): ChangeTextPayload | null {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as ChangeTextPayload;
+    if (typeof parsed.text !== "string") {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 export default function OptimizeWindow(): JSX.Element {
   const [sourceText, setSourceText] = useState("");
   const [title, setTitle] = useState("优化");
@@ -23,28 +41,40 @@ export default function OptimizeWindow(): JSX.Element {
   const [requestId, setRequestId] = useState(0);
   const fw = useFeatureWindow();
   const ai = useStreamingAI("优化失败");
-  const lastStartedRequestId = useRef(0);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-
-    listen<ChangeTextPayload>("change-text", (event) => {
-      if (event.payload.target && event.payload.target !== "optimize") {
+    const applyPayload = (payload: ChangeTextPayload): void => {
+      if (payload.target && payload.target !== "optimize") {
         return;
       }
 
-      if (typeof event.payload.title === "string" && event.payload.title.trim()) {
-        setTitle(event.payload.title.trim());
+      if (typeof payload.title === "string" && payload.title.trim()) {
+        setTitle(payload.title.trim());
       } else {
         setTitle("优化");
       }
 
-      setCustomPrompt(event.payload.customPrompt?.trim() || undefined);
-      setCustomModel(event.payload.customModel?.trim() || undefined);
+      setCustomPrompt(payload.customPrompt?.trim() || undefined);
+      setCustomModel(payload.customModel?.trim() || undefined);
 
-      if (typeof event.payload.text === "string") {
-        setSourceText(event.payload.text);
-        setRequestId(event.payload.requestId ?? Date.now());
+      if (typeof payload.text === "string") {
+        setSourceText(payload.text);
+        setRequestId(payload.requestId ?? Date.now());
+      }
+    };
+
+    const pending = safeParsePayload(window.localStorage.getItem(LAST_OPTIMIZE_REQUEST_KEY));
+    if (pending) {
+      applyPayload(pending);
+      window.localStorage.removeItem(LAST_OPTIMIZE_REQUEST_KEY);
+    }
+
+    let unlisten: (() => void) | undefined;
+
+    listen<ChangeTextPayload>("change-text", (event) => {
+      applyPayload(event.payload);
+      if (event.payload.target === "optimize") {
+        window.localStorage.removeItem(LAST_OPTIMIZE_REQUEST_KEY);
       }
     }).then((cleanup) => {
       unlisten = cleanup;
@@ -56,11 +86,9 @@ export default function OptimizeWindow(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (!sourceText.trim() || requestId === 0 || requestId === lastStartedRequestId.current) {
+    if (!sourceText.trim() || requestId === 0) {
       return;
     }
-
-    lastStartedRequestId.current = requestId;
 
     ai.startStream("optimize", sourceText, {
       customPrompt,

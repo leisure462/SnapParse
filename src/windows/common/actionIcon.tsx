@@ -3,7 +3,7 @@ export interface ActionIconPreset {
   label: string;
 }
 
-const LUCIDE_ICON_URL_MODULES = import.meta.glob("../../../lucide-common-100-pack/icons/*.svg", {
+const LUCIDE_ICON_URL_MODULES = import.meta.glob("/lucide-common-100-pack/icons/*.svg", {
   eager: true,
   import: "default"
 }) as Record<string, string>;

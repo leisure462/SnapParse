@@ -9,6 +9,7 @@ import { renderActionIcon } from "../common/actionIcon";
 // The icon_transparent.png is copied to public/ for Vite to serve at runtime.
 const APP_ICON_URL = "/icon_transparent.png";
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
+const LAST_OPTIMIZE_REQUEST_KEY = "snapparse:last-optimize-request";
 
 const FEATURE_WINDOW_GAP = 12;
 const FEATURE_WINDOW_PADDING = 8;
@@ -315,16 +316,17 @@ export default function ActionBarWindow(): JSX.Element {
           requestId
         };
 
+        if (action.commandWindow === "optimize") {
+          window.localStorage.setItem(LAST_OPTIMIZE_REQUEST_KEY, JSON.stringify(payload));
+        }
+
         // Emit multiple times with same requestId to reduce first-open race conditions.
-        void emit("change-text", payload);
-
-        setTimeout(() => {
-          void emit("change-text", payload);
-        }, 300);
-
-        setTimeout(() => {
-          void emit("change-text", payload);
-        }, 620);
+        const emitDelays = [0, 220, 480, 860, 1320];
+        for (const delay of emitDelays) {
+          window.setTimeout(() => {
+            void emit("change-text", payload);
+          }, delay);
+        }
 
         await closeActionBarWindow();
         return;
