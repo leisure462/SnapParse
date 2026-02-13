@@ -2,117 +2,137 @@
 
 :root,
 :root[data-theme="light"] {
-  --sp-settings-bg-top: #ecf3ff;
-  --sp-settings-bg-bottom: #dfe8f6;
-  --sp-settings-bg-glow: rgba(83, 136, 227, 0.22);
-  --sp-settings-frame-bg: #f7faff;
-  --sp-settings-frame-border: #cfdced;
+  --sp-settings-bg-top: #f6efe3;
+  --sp-settings-bg-bottom: #ede1cf;
+  --sp-settings-bg-glow: rgba(190, 149, 86, 0.18);
+  --sp-settings-frame-bg: #f4ead9;
+  --sp-settings-frame-border: #d5bf9c;
   --sp-settings-frame-shadow:
-    0 26px 52px rgba(15, 34, 68, 0.16),
-    0 10px 22px rgba(15, 34, 68, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+    0 18px 34px rgba(64, 43, 18, 0.18),
+    0 8px 18px rgba(64, 43, 18, 0.12),
+    inset 0 1px 0 rgba(255, 250, 240, 0.74);
 
   --sp-settings-sidebar-bg:
-    linear-gradient(180deg, #f6f9ff 0%, #eaf1fc 100%);
-  --sp-settings-sidebar-border: #c8d6ea;
+    linear-gradient(180deg, #efe3cf 0%, #e7dac4 100%);
+  --sp-settings-sidebar-border: #ceb690;
 
   --sp-settings-main-bg:
-    linear-gradient(180deg, #f9fbff 0%, #f0f5fd 100%);
-  --sp-settings-main-border: #d9e3f1;
+    linear-gradient(180deg, #f5ecdc 0%, #ede1ce 100%);
 
-  --sp-settings-card-bg: #ffffff;
-  --sp-settings-card-border: #d6e1f2;
+  --sp-settings-card-bg: #f9f2e5;
+  --sp-settings-card-border: #d8c3a0;
   --sp-settings-card-shadow:
-    0 18px 30px rgba(33, 62, 112, 0.10),
-    0 6px 14px rgba(33, 62, 112, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    0 12px 24px rgba(86, 58, 24, 0.12),
+    inset 0 1px 0 rgba(255, 248, 236, 0.84);
 
-  --sp-settings-tab-bg: rgba(255, 255, 255, 0.78);
-  --sp-settings-tab-border: #d5e0ef;
-  --sp-settings-tab-hover: #f5f8ff;
-  --sp-settings-tab-active-bg: linear-gradient(180deg, #eaf2ff 0%, #dce8ff 100%);
-  --sp-settings-tab-active-border: #9eb8e8;
+  --sp-settings-tab-bg: #f2e5d0;
+  --sp-settings-tab-border: #d2bc98;
+  --sp-settings-tab-hover: #ebdcc2;
+  --sp-settings-tab-active-bg: linear-gradient(180deg, #e7d4b5 0%, #ddc6a3 100%);
+  --sp-settings-tab-active-border: #b8935e;
 
-  --sp-settings-status-bg: #eef4ff;
-  --sp-settings-status-border: #c7d7f0;
-
-  --sp-settings-input-bg: #f8fbff;
-  --sp-settings-input-border: #cad9ee;
+  --sp-settings-input-bg: #f5ead8;
+  --sp-settings-input-border: #d2b792;
   --sp-settings-input-shadow:
-    0 6px 14px rgba(42, 74, 130, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+    inset 0 1px 0 rgba(255, 247, 233, 0.84),
+    0 4px 10px rgba(86, 58, 24, 0.10);
 
-  --sp-settings-switch-bg: #f7faff;
-  --sp-settings-switch-border: #ccdaec;
-  --sp-settings-switch-hover: #f1f6ff;
+  --sp-settings-switch-bg: #f3e6d2;
+  --sp-settings-switch-border: #d1b690;
+  --sp-settings-switch-hover: #ebdcc1;
 
-  --sp-settings-reset-bg: #eef4ff;
-  --sp-settings-reset-border: #c9d8ef;
+  --sp-settings-reset-bg: #ecddc3;
+  --sp-settings-reset-border: #ccaf87;
+
+  --sp-settings-text: #8a6f49;
+  --sp-settings-text-secondary: #9b7f58;
+  --sp-settings-text-muted: #ad956f;
+  --sp-settings-accent: #b78d59;
+  --sp-settings-accent-hover: #a37a49;
+  --sp-settings-accent-soft: rgba(183, 141, 89, 0.22);
+  --sp-settings-accent-ring: rgba(183, 141, 89, 0.32);
+  --sp-settings-on-accent: #23170d;
+  --sp-settings-border-strong: #bc9b70;
 }
 
 :root[data-theme="dark"] {
-  --sp-settings-bg-top: #111c31;
-  --sp-settings-bg-bottom: #0a1220;
-  --sp-settings-bg-glow: rgba(68, 120, 207, 0.24);
-  --sp-settings-frame-bg: #0e1a2f;
-  --sp-settings-frame-border: #273a56;
+  --sp-settings-bg-top: #17120d;
+  --sp-settings-bg-bottom: #100c08;
+  --sp-settings-bg-glow: rgba(187, 145, 83, 0.18);
+  --sp-settings-frame-bg: #1a140f;
+  --sp-settings-frame-border: #3e3021;
   --sp-settings-frame-shadow:
-    0 26px 56px rgba(0, 0, 0, 0.44),
-    0 10px 22px rgba(0, 0, 0, 0.34),
-    inset 0 1px 0 rgba(165, 198, 255, 0.10);
+    0 18px 38px rgba(0, 0, 0, 0.46),
+    0 8px 20px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(220, 186, 133, 0.12);
 
   --sp-settings-sidebar-bg:
-    linear-gradient(180deg, #12213b 0%, #0e1b32 100%);
-  --sp-settings-sidebar-border: #263a58;
+    linear-gradient(180deg, #211911 0%, #1b140e 100%);
+  --sp-settings-sidebar-border: #433323;
 
   --sp-settings-main-bg:
-    linear-gradient(180deg, #111f37 0%, #0d182d 100%);
-  --sp-settings-main-border: #2a3d5e;
+    linear-gradient(180deg, #1d1610 0%, #17120d 100%);
 
-  --sp-settings-card-bg: #152440;
-  --sp-settings-card-border: #2d4368;
+  --sp-settings-card-bg: #251c14;
+  --sp-settings-card-border: #4f3b28;
   --sp-settings-card-shadow:
-    0 16px 28px rgba(0, 0, 0, 0.36),
-    0 8px 18px rgba(0, 0, 0, 0.28),
-    inset 0 1px 0 rgba(178, 203, 246, 0.10);
+    0 12px 24px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(220, 186, 133, 0.10);
 
-  --sp-settings-tab-bg: rgba(17, 31, 54, 0.86);
-  --sp-settings-tab-border: #2b446a;
-  --sp-settings-tab-hover: #1a3154;
-  --sp-settings-tab-active-bg: linear-gradient(180deg, #1f3a64 0%, #183359 100%);
-  --sp-settings-tab-active-border: #5e86bd;
+  --sp-settings-tab-bg: #2a2017;
+  --sp-settings-tab-border: #5a442d;
+  --sp-settings-tab-hover: #322519;
+  --sp-settings-tab-active-bg: linear-gradient(180deg, #4e3a28 0%, #3f2f21 100%);
+  --sp-settings-tab-active-border: #c19964;
 
-  --sp-settings-status-bg: #172b49;
-  --sp-settings-status-border: #35527d;
-
-  --sp-settings-input-bg: #1a2e4e;
-  --sp-settings-input-border: #36547f;
+  --sp-settings-input-bg: #2f241a;
+  --sp-settings-input-border: #664d33;
   --sp-settings-input-shadow:
-    0 10px 20px rgba(0, 0, 0, 0.20),
-    inset 0 1px 0 rgba(197, 219, 255, 0.10);
+    inset 0 1px 0 rgba(223, 192, 143, 0.10),
+    0 5px 12px rgba(0, 0, 0, 0.28);
 
-  --sp-settings-switch-bg: #182b48;
-  --sp-settings-switch-border: #345177;
-  --sp-settings-switch-hover: #1e3558;
+  --sp-settings-switch-bg: #2a2017;
+  --sp-settings-switch-border: #604932;
+  --sp-settings-switch-hover: #34281c;
 
-  --sp-settings-reset-bg: #162949;
-  --sp-settings-reset-border: #35527e;
+  --sp-settings-reset-bg: #2c2117;
+  --sp-settings-reset-border: #634b33;
+
+  --sp-settings-text: #d4b78d;
+  --sp-settings-text-secondary: #c3a47b;
+  --sp-settings-text-muted: #af9168;
+  --sp-settings-accent: #c79c66;
+  --sp-settings-accent-hover: #d7ad79;
+  --sp-settings-accent-soft: rgba(199, 156, 102, 0.22);
+  --sp-settings-accent-ring: rgba(199, 156, 102, 0.30);
+  --sp-settings-on-accent: #1f150b;
+  --sp-settings-border-strong: #8b6942;
 }
 
 .settings-shell {
   min-height: 100vh;
-  color: var(--sp-text);
-  padding: 12px;
+  padding: 8px;
+  color: var(--sp-settings-text);
   background:
-    radial-gradient(900px 440px at 8% -8%, var(--sp-settings-bg-glow) 0%, transparent 62%),
+    radial-gradient(960px 460px at 8% -8%, var(--sp-settings-bg-glow) 0%, transparent 62%),
     linear-gradient(180deg, var(--sp-settings-bg-top) 0%, var(--sp-settings-bg-bottom) 100%);
+
+  --sp-text: var(--sp-settings-text);
+  --sp-text-secondary: var(--sp-settings-text-secondary);
+  --sp-text-muted: var(--sp-settings-text-muted);
+  --sp-primary: var(--sp-settings-accent);
+  --sp-primary-hover: var(--sp-settings-accent-hover);
+  --sp-primary-soft: var(--sp-settings-accent-soft);
+  --sp-on-primary: var(--sp-settings-on-accent);
+  --sp-ring-focus: var(--sp-settings-accent-ring);
+  --sp-border-strong: var(--sp-settings-border-strong);
 }
 
 .settings-layout {
-  min-height: calc(100vh - 24px);
+  min-height: calc(100vh - 16px);
   display: grid;
-  grid-template-columns: 236px minmax(0, 1fr);
-  border-radius: 20px;
+  grid-template-columns: 208px minmax(0, 1fr);
+  border-radius: 12px;
   border: 1px solid var(--sp-settings-frame-border);
   background: var(--sp-settings-frame-bg);
   overflow: hidden;
@@ -126,36 +146,34 @@
   border-right: 1px solid var(--sp-settings-sidebar-border);
   display: flex;
   flex-direction: column;
-  padding: 16px 12px;
-  gap: 8px;
+  padding: 12px 10px;
+  gap: 6px;
 }
 
 .settings-sidebar-header {
-  padding: 6px 10px 14px;
+  padding: 4px 10px 10px;
 }
 
 .settings-brand {
   margin: 0;
-  font-size: 30px;
+  font-size: 38px;
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--sp-text);
-  text-wrap: balance;
 }
 
 .settings-tab {
-  min-height: 42px;
+  min-height: 36px;
   border: 1px solid var(--sp-settings-tab-border);
-  border-radius: 12px;
+  border-radius: 9px;
   background: var(--sp-settings-tab-bg);
   color: var(--sp-text-secondary);
   text-align: left;
-  padding: 0 14px;
+  padding: 0 12px;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
   transition: transform var(--sp-duration-fast) var(--sp-ease-out),
               background var(--sp-duration-fast) var(--sp-ease-out),
               border-color var(--sp-duration-fast) var(--sp-ease-out),
@@ -172,62 +190,23 @@
   background: var(--sp-settings-tab-active-bg);
   border-color: var(--sp-settings-tab-active-border);
   color: var(--sp-primary);
-  box-shadow:
-    0 8px 16px rgba(24, 51, 92, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 246, 231, 0.30);
 }
 
 /* ── Main panel ─────────────────────────────────────────────── */
 
 .settings-main {
   min-width: 0;
+  min-height: 0;
   display: flex;
-  flex-direction: column;
   background: var(--sp-settings-main-bg);
 }
 
-.settings-main-header {
-  min-height: 64px;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--sp-settings-main-border);
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-}
-
-.settings-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  border-radius: var(--sp-radius-full);
-  border: 1px solid var(--sp-settings-status-border);
-  background: var(--sp-settings-status-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20);
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--sp-text-secondary);
-}
-
-.settings-status.loading,
-.settings-status.saving {
-  color: var(--sp-primary);
-}
-
-.settings-status.error {
-  color: var(--sp-error);
-  border-color: rgba(220, 38, 38, 0.55);
-}
-
-.settings-status.saved {
-  color: var(--sp-success);
-  border-color: rgba(22, 163, 74, 0.48);
-}
-
 .settings-content {
+  flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 22px;
+  padding: 14px;
   display: grid;
   align-content: start;
 }
@@ -236,18 +215,18 @@
 
 .settings-section {
   display: grid;
-  gap: 16px;
+  gap: 12px;
   max-width: 980px;
   background: var(--sp-settings-card-bg);
   border: 1px solid var(--sp-settings-card-border);
-  border-radius: 16px;
+  border-radius: 10px;
   box-shadow: var(--sp-settings-card-shadow);
-  padding: 22px;
+  padding: 14px;
 }
 
 .settings-section h2 {
   margin: 0;
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--sp-text);
@@ -256,7 +235,7 @@
 .settings-hint {
   margin: 0;
   color: var(--sp-text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* ── API Test ───────────────────────────────────────────────── */
@@ -264,12 +243,12 @@
 .settings-inline-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .settings-api-test-btn {
-  min-height: 38px;
-  border-radius: 11px;
+  min-height: 36px;
+  border-radius: 9px;
   border: 1px solid var(--sp-primary);
   background: var(--sp-primary);
   color: var(--sp-on-primary);
@@ -277,8 +256,7 @@
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  padding: 0 18px;
-  box-shadow: 0 8px 14px rgba(37, 99, 235, 0.24);
+  padding: 0 16px;
   transition: transform var(--sp-duration-fast) var(--sp-ease-out),
               filter var(--sp-duration-fast) var(--sp-ease-out),
               background var(--sp-duration-fast) var(--sp-ease-out);
@@ -293,11 +271,10 @@
   opacity: 0.6;
   cursor: wait;
   transform: none;
-  box-shadow: none;
 }
 
 .settings-api-test-status {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--sp-text-muted);
 }
@@ -314,7 +291,7 @@
 
 .settings-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .settings-field > span {
@@ -327,13 +304,13 @@
 .settings-field select,
 .settings-field textarea {
   border: 1px solid var(--sp-settings-input-border);
-  border-radius: 12px;
+  border-radius: 9px;
   background: var(--sp-settings-input-bg);
   color: var(--sp-text);
   box-shadow: var(--sp-settings-input-shadow);
   font: inherit;
   font-size: 13px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   transition: border-color var(--sp-duration-fast) var(--sp-ease-out),
               box-shadow var(--sp-duration-fast) var(--sp-ease-out),
               transform var(--sp-duration-fast) var(--sp-ease-out);
@@ -341,22 +318,20 @@
 
 .settings-field input:not([type="range"]):not([type="checkbox"]),
 .settings-field select {
-  min-height: 42px;
+  min-height: 38px;
 }
 
 .settings-field input:focus,
 .settings-field select:focus,
 .settings-field textarea:focus {
   border-color: var(--sp-primary);
-  box-shadow:
-    0 0 0 3px var(--sp-ring-focus),
-    0 10px 18px rgba(30, 64, 124, 0.18);
+  box-shadow: 0 0 0 3px var(--sp-ring-focus);
   outline: none;
   transform: translateY(-1px);
 }
 
 .settings-field textarea {
-  min-height: 122px;
+  min-height: 96px;
   resize: vertical;
   line-height: 1.5;
 }
@@ -378,18 +353,18 @@
 .settings-field input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--sp-primary);
-  border: 2px solid var(--sp-surface);
+  border: 2px solid var(--sp-settings-card-bg);
   box-shadow: var(--sp-shadow-sm);
   cursor: pointer;
   transition: transform var(--sp-duration-fast) var(--sp-ease-out);
 }
 
 .settings-field input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
+  transform: scale(1.12);
 }
 
 /* ── Grid layouts ───────────────────────────────────────────── */
@@ -397,7 +372,7 @@
 .settings-grid-2,
 .settings-grid-3 {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .settings-grid-2 {
@@ -414,10 +389,10 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
+  min-height: 40px;
   border: 1px solid var(--sp-settings-switch-border);
-  border-radius: 12px;
-  padding: 0 12px;
+  border-radius: 9px;
+  padding: 0 10px;
   background: var(--sp-settings-switch-bg);
   cursor: pointer;
   box-shadow: var(--sp-settings-input-shadow);
@@ -450,18 +425,18 @@
 
 .settings-size-presets {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .settings-size-btn {
   flex: 1;
-  min-height: 72px;
+  min-height: 58px;
   border: 1px solid var(--sp-settings-input-border);
-  border-radius: 12px;
+  border-radius: 9px;
   background: var(--sp-settings-input-bg);
   color: var(--sp-text);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -476,7 +451,7 @@
 }
 
 .settings-size-btn .settings-size-label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: inherit;
 }
@@ -500,41 +475,40 @@
 
 .settings-size-btn.active .settings-size-desc {
   color: var(--sp-primary);
-  opacity: 0.8;
+  opacity: 0.82;
 }
 
 /* ── Action list ────────────────────────────────────────────── */
 
 .settings-action-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* ── Reset block ────────────────────────────────────────────── */
 
 .settings-reset-block {
-  margin-top: 8px;
+  margin-top: 4px;
   border: 1px solid var(--sp-settings-reset-border);
-  border-radius: 12px;
-  padding: 14px;
+  border-radius: 9px;
+  padding: 12px;
   background: var(--sp-settings-reset-bg);
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .settings-reset-btn {
   justify-self: start;
-  min-height: 38px;
-  border-radius: 10px;
+  min-height: 36px;
+  border-radius: 9px;
   border: 1px solid var(--sp-primary);
   background: var(--sp-primary);
   color: var(--sp-on-primary);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
-  padding: 0 16px;
+  padding: 0 14px;
   cursor: pointer;
-  box-shadow: 0 8px 14px rgba(37, 99, 235, 0.20);
   transition: transform var(--sp-duration-fast) var(--sp-ease-out),
               filter var(--sp-duration-fast) var(--sp-ease-out),
               opacity var(--sp-duration-fast) var(--sp-ease-out);
@@ -542,17 +516,22 @@
 
 .settings-reset-btn:hover {
   transform: translateY(-1px);
-  filter: brightness(1.03);
+  filter: brightness(1.05);
 }
 
 .settings-reset-btn:disabled {
   opacity: 0.6;
   cursor: wait;
   transform: none;
-  box-shadow: none;
 }
 
 /* ── Responsive ─────────────────────────────────────────────── */
+
+@media (max-width: 1020px) {
+  .settings-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
 
 @media (max-width: 700px) {
   .settings-shell {
@@ -571,8 +550,8 @@
     overflow-x: auto;
     flex-direction: row;
     align-items: center;
-    padding: 10px;
-    gap: 10px;
+    padding: 8px;
+    gap: 8px;
   }
 
   .settings-sidebar-header {
@@ -581,24 +560,19 @@
 
   .settings-tab {
     white-space: nowrap;
-    min-height: 38px;
-  }
-
-  .settings-main-header {
-    min-height: 56px;
-    padding: 0 14px;
+    min-height: 34px;
   }
 
   .settings-content {
-    padding: 14px;
+    padding: 10px;
   }
 
   .settings-section {
-    padding: 16px;
+    padding: 12px;
   }
 
   .settings-section h2 {
-    font-size: 22px;
+    font-size: 18px;
   }
 
   .settings-grid-2,

@@ -32,8 +32,6 @@ function persistThemeFromSettings(settings: AppSettings): void {
 export default function SettingsWindow(): JSX.Element {
   const [activeSection, setActiveSection] = useState<SectionKey>("api");
   const [settings, setSettings] = useState<AppSettings>(() => defaultSettings());
-  const [status, setStatus] = useState<"loading" | "saving" | "saved" | "error">("loading");
-  const [statusText, setStatusText] = useState("正在加载设置...");
   const [isResettingDefaults, setIsResettingDefaults] = useState(false);
   const hasHydratedRef = useRef(false);
   const skipNextAutoSaveRef = useRef(true);
@@ -53,15 +51,11 @@ export default function SettingsWindow(): JSX.Element {
         const normalized = mergeSettings(value as Partial<AppSettings>);
         setSettings(normalized);
         persistThemeFromSettings(normalized);
-        setStatus("saved");
-        setStatusText("自动保存已开启");
       } catch {
         if (!cancelled) {
           const defaults = defaultSettings();
           setSettings(defaults);
           persistThemeFromSettings(defaults);
-          setStatus("saved");
-          setStatusText("已载入默认配置，自动保存已开启");
         }
       } finally {
         hasHydratedRef.current = true;
@@ -99,9 +93,6 @@ export default function SettingsWindow(): JSX.Element {
       window.clearTimeout(saveTimerRef.current);
     }
 
-    setStatus("saving");
-    setStatusText("自动保存中...");
-
     const saveJob = ++latestSaveJobRef.current;
 
     saveTimerRef.current = window.setTimeout(() => {
@@ -113,17 +104,13 @@ export default function SettingsWindow(): JSX.Element {
           if (saveJob !== latestSaveJobRef.current) {
             return;
           }
-
-          setStatus("saved");
-          setStatusText("已自动保存");
         } catch (error) {
           if (saveJob !== latestSaveJobRef.current) {
             return;
           }
 
           const message = error instanceof Error ? error.message : String(error);
-          setStatus("error");
-          setStatusText(`保存失败：${message}`);
+          console.error("[Settings] auto-save failed:", message);
         }
       })();
     }, 260);
@@ -144,12 +131,9 @@ export default function SettingsWindow(): JSX.Element {
       skipNextAutoSaveRef.current = true;
       setSettings(normalized);
       persistThemeFromSettings(normalized);
-      setStatus("saved");
-      setStatusText("已恢复全部默认设置");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setStatus("error");
-      setStatusText(`恢复默认失败：${message}`);
+      console.error("[Settings] reset defaults failed:", message);
     } finally {
       setIsResettingDefaults(false);
     }
@@ -208,10 +192,6 @@ export default function SettingsWindow(): JSX.Element {
         </aside>
 
         <section className="settings-main">
-          <header className="settings-main-header">
-            <div className={`settings-status ${status}`}>{statusText}</div>
-          </header>
-
           <div className="settings-content">{sectionPanel}</div>
         </section>
       </section>

@@ -11,7 +11,7 @@ const APP_ICON_URL = "/icon_transparent.png";
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 const FEATURE_WINDOW_GAP = 12;
 const FEATURE_WINDOW_PADDING = 8;
-const ACTION_BAR_ICON_ANIMATION_DELAY_MS = 220;
+const ACTION_BAR_ICON_ANIMATION_DELAY_MS = 120;
 
 interface SelectionTextPayload {
   text: string;
@@ -142,11 +142,22 @@ async function resizeActionBarWindow(element: HTMLElement): Promise<void> {
 export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
-  const [iconAnimationKey, setIconAnimationKey] = useState(0);
   const actionBarRef = useRef<HTMLDivElement | null>(null);
+  const iconRef = useRef<HTMLImageElement | null>(null);
   const iconAnimationTimerRef = useRef<number | null>(null);
   const featureWindowSize = useRef({ width: 680, height: 520 });
   const theme = useThemeMode();
+
+  const replayIconAnimation = (): void => {
+    const icon = iconRef.current;
+    if (!icon) {
+      return;
+    }
+
+    icon.classList.remove("md2-action-bar-icon--animated");
+    void icon.offsetWidth;
+    icon.classList.add("md2-action-bar-icon--animated");
+  };
 
   const queueIconAnimation = (): void => {
     if (iconAnimationTimerRef.current !== null) {
@@ -154,7 +165,7 @@ export default function ActionBarWindow(): JSX.Element {
     }
 
     iconAnimationTimerRef.current = window.setTimeout(() => {
-      setIconAnimationKey((value) => value + 1);
+      replayIconAnimation();
       iconAnimationTimerRef.current = null;
     }, ACTION_BAR_ICON_ANIMATION_DELAY_MS);
   };
@@ -355,14 +366,9 @@ export default function ActionBarWindow(): JSX.Element {
     }
   };
 
-  const iconClassName =
-    iconAnimationKey === 0
-      ? "md2-action-bar-icon"
-      : "md2-action-bar-icon md2-action-bar-icon--animated";
-
   return (
     <div ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
-      <img key={iconAnimationKey} src={APP_ICON_URL} alt="" className={iconClassName} draggable={false} />
+      <img ref={iconRef} src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
       <div className="md2-action-list">
         {DEFAULT_ACTIONS.map((action) => (
           <button

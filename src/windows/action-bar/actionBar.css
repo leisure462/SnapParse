@@ -58,6 +58,8 @@ body:has(.md2-action-bar),
   user-select: none;
   border-radius: var(--sp-radius-xs);
   transform-origin: 50% 50%;
+  backface-visibility: hidden;
+  will-change: transform;
 }
 
 .md2-action-bar-icon--animated {
@@ -66,22 +68,18 @@ body:has(.md2-action-bar),
 
 @keyframes sp-actionbar-clover-enter {
   0% {
-    opacity: 0;
-    transform: translateY(3px) scale(0.62) rotate(-24deg);
+    transform: translateY(2px) scale(0.78) rotate(-18deg);
   }
 
-  38% {
-    opacity: 1;
+  42% {
     transform: translateY(0) scale(1.14) rotate(10deg);
   }
 
-  66% {
-    opacity: 1;
+  68% {
     transform: translateY(0) scale(0.95) rotate(-5deg);
   }
 
   100% {
-    opacity: 1;
     transform: translateY(0) scale(1) rotate(0deg);
   }
 }
