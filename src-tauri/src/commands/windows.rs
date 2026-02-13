@@ -1,5 +1,22 @@
 use crate::windows::ids::WindowKind;
 use crate::windows::manager;
+use std::sync::{Mutex, OnceLock};
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingOptimizeRequest {
+    pub text: String,
+    pub target: Option<String>,
+    pub title: Option<String>,
+    pub custom_prompt: Option<String>,
+    pub custom_model: Option<String>,
+    pub request_id: Option<u64>,
+}
+
+fn pending_optimize_request_store() -> &'static Mutex<Option<PendingOptimizeRequest>> {
+    static STORE: OnceLock<Mutex<Option<PendingOptimizeRequest>>> = OnceLock::new();
+    STORE.get_or_init(|| Mutex::new(None))
+}
 
 #[tauri::command]
 pub fn open_window(app: tauri::AppHandle, kind: WindowKind) -> Result<(), String> {
@@ -66,4 +83,27 @@ pub fn open_external_url(url: String) -> Result<(), String> {
 
     #[allow(unreachable_code)]
     Err(String::from("unsupported platform for opening external url"))
+}
+
+#[tauri::command]
+pub fn set_pending_optimize_request(payload: PendingOptimizeRequest) -> Result<(), String> {
+    if payload.text.trim().is_empty() {
+        return Err(String::from("pending optimize request text must not be empty"));
+    }
+
+    let store = pending_optimize_request_store();
+    let mut guard = store
+        .lock()
+        .map_err(|error| format!("failed to lock optimize request store: {error}"))?;
+    *guard = Some(payload);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn take_pending_optimize_request() -> Result<Option<PendingOptimizeRequest>, String> {
+    let store = pending_optimize_request_store();
+    let mut guard = store
+        .lock()
+        .map_err(|error| format!("failed to lock optimize request store: {error}"))?;
+    Ok(guard.take())
 }

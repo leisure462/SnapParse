@@ -80,6 +80,8 @@ export function useFeatureWindow(): FeatureWindowState {
         blurTimer = setTimeout(() => {
           getCurrentWindow().hide().catch(() => {});
         }, 180);
+      } else if (!focused && pinnedRef.current) {
+        getCurrentWindow().setAlwaysOnTop(true).catch(() => {});
       }
     }).then((cleanup) => {
       unlisten = cleanup;
@@ -99,6 +101,10 @@ export function useFeatureWindow(): FeatureWindowState {
     pinnedRef.current = next;
     getCurrentWindow().setAlwaysOnTop(next).catch(() => {});
   };
+
+  useEffect(() => {
+    getCurrentWindow().setAlwaysOnTop(pinned).catch(() => {});
+  }, [pinned]);
 
   const shellStyle: React.CSSProperties = {
     "--snapparse-font-size": `${fontSize}px`,

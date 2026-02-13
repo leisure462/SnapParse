@@ -9,7 +9,6 @@ import { renderActionIcon } from "../common/actionIcon";
 // The icon_transparent.png is copied to public/ for Vite to serve at runtime.
 const APP_ICON_URL = "/icon_transparent.png";
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
-const LAST_OPTIMIZE_REQUEST_KEY = "snapparse:last-optimize-request";
 
 const FEATURE_WINDOW_GAP = 12;
 const FEATURE_WINDOW_PADDING = 8;
@@ -317,7 +316,11 @@ export default function ActionBarWindow(): JSX.Element {
         };
 
         if (action.commandWindow === "optimize") {
-          window.localStorage.setItem(LAST_OPTIMIZE_REQUEST_KEY, JSON.stringify(payload));
+          try {
+            await invoke("set_pending_optimize_request", { payload });
+          } catch (error) {
+            console.error("[ActionBar] failed to set pending optimize request:", error);
+          }
         }
 
         // Emit multiple times with same requestId to reduce first-open race conditions.
@@ -325,6 +328,9 @@ export default function ActionBarWindow(): JSX.Element {
         for (const delay of emitDelays) {
           window.setTimeout(() => {
             void emit("change-text", payload);
+            if (action.commandWindow === "optimize") {
+              void emit("optimize-pending-updated", { requestId });
+            }
           }, delay);
         }
 

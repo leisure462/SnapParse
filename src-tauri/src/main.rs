@@ -107,7 +107,9 @@ fn main() {
             commands::windows::close_window,
             commands::windows::move_window,
             commands::windows::resize_window,
-            commands::windows::open_external_url
+            commands::windows::open_external_url,
+            commands::windows::set_pending_optimize_request,
+            commands::windows::take_pending_optimize_request
         ])
         .run(tauri::generate_context!())
         .expect("error while running SnapParse application");

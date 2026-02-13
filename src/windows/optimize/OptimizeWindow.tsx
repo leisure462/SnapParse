@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
@@ -15,22 +16,22 @@ interface ChangeTextPayload {
   requestId?: number;
 }
 
-const LAST_OPTIMIZE_REQUEST_KEY = "snapparse:last-optimize-request";
-
-function safeParsePayload(raw: string | null): ChangeTextPayload | null {
-  if (!raw) {
+function normalizePayload(payload: ChangeTextPayload): ChangeTextPayload | null {
+  if (payload.target && payload.target !== "optimize") {
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(raw) as ChangeTextPayload;
-    if (typeof parsed.text !== "string") {
-      return null;
-    }
-    return parsed;
-  } catch {
+  if (typeof payload.text !== "string" || !payload.text.trim()) {
     return null;
   }
+
+  return {
+    ...payload,
+    text: payload.text.trim(),
+    title: payload.title?.trim(),
+    customPrompt: payload.customPrompt?.trim(),
+    customModel: payload.customModel?.trim()
+  };
 }
 
 export default function OptimizeWindow(): JSX.Element {
@@ -44,44 +45,54 @@ export default function OptimizeWindow(): JSX.Element {
 
   useEffect(() => {
     const applyPayload = (payload: ChangeTextPayload): void => {
-      if (payload.target && payload.target !== "optimize") {
+      const normalized = normalizePayload(payload);
+      if (!normalized) {
         return;
       }
 
-      if (typeof payload.title === "string" && payload.title.trim()) {
-        setTitle(payload.title.trim());
+      if (normalized.title) {
+        setTitle(normalized.title);
       } else {
         setTitle("优化");
       }
 
-      setCustomPrompt(payload.customPrompt?.trim() || undefined);
-      setCustomModel(payload.customModel?.trim() || undefined);
+      setCustomPrompt(normalized.customPrompt || undefined);
+      setCustomModel(normalized.customModel || undefined);
+      setSourceText(normalized.text);
+      setRequestId(normalized.requestId ?? Date.now());
+    };
 
-      if (typeof payload.text === "string") {
-        setSourceText(payload.text);
-        setRequestId(payload.requestId ?? Date.now());
+    const consumePendingRequest = async (): Promise<void> => {
+      try {
+        const pending = await invoke<ChangeTextPayload | null>("take_pending_optimize_request");
+        if (pending) {
+          applyPayload(pending);
+        }
+      } catch {
+        // noop
       }
     };
 
-    const pending = safeParsePayload(window.localStorage.getItem(LAST_OPTIMIZE_REQUEST_KEY));
-    if (pending) {
-      applyPayload(pending);
-      window.localStorage.removeItem(LAST_OPTIMIZE_REQUEST_KEY);
-    }
+    void consumePendingRequest();
 
-    let unlisten: (() => void) | undefined;
+    let unlistenText: (() => void) | undefined;
+    let unlistenPending: (() => void) | undefined;
 
     listen<ChangeTextPayload>("change-text", (event) => {
       applyPayload(event.payload);
-      if (event.payload.target === "optimize") {
-        window.localStorage.removeItem(LAST_OPTIMIZE_REQUEST_KEY);
-      }
     }).then((cleanup) => {
-      unlisten = cleanup;
+      unlistenText = cleanup;
+    });
+
+    listen<{ requestId?: number }>("optimize-pending-updated", () => {
+      void consumePendingRequest();
+    }).then((cleanup) => {
+      unlistenPending = cleanup;
     });
 
     return () => {
-      unlisten?.();
+      unlistenText?.();
+      unlistenPending?.();
     };
   }, []);
 
