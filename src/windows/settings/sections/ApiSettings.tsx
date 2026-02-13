@@ -113,7 +113,7 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
         </button>
       </div>
 
-      <div className="settings-grid-3">
+      <div className="settings-grid-2">
         <label className="settings-field">
           <span>翻译模型</span>
           <input

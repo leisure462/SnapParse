@@ -79,7 +79,9 @@ describe("ActionBarWindow", () => {
         source: "action-bar",
         target: "translate",
         title: "翻译",
-        customPrompt: undefined
+        customPrompt: undefined,
+        customModel: undefined,
+        requestId: expect.any(Number)
       });
     });
 
@@ -92,7 +94,6 @@ describe("ActionBarWindow", () => {
     expect(openIndex).toBeGreaterThanOrEqual(0);
     expect(moveIndex).toBeGreaterThanOrEqual(0);
     expect(openIndex).toBeLessThan(closeIndex);
-    expect(window.localStorage.getItem("snapparse:selected-text")).toBe("hello world");
   });
 
   it("opens search with external browser command", async () => {

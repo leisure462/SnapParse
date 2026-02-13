@@ -26,11 +26,23 @@ describe("settings schema", () => {
       validateSettings({
         features: {
           customActions: [
-            { id: "c1", name: "a", icon: "sparkles", prompt: "{{text}}", enabled: true, order: 0 },
-            { id: "c1", name: "b", icon: "sparkles", prompt: "{{text}}", enabled: true, order: 1 }
+            { id: "c1", name: "a", icon: "sparkles", prompt: "{{text}}", model: "", enabled: true, order: 0 },
+            { id: "c1", name: "b", icon: "sparkles", prompt: "{{text}}", model: "", enabled: true, order: 1 }
           ]
         } as any
       })
     ).toThrow();
+  });
+
+  it("fills missing custom action model with empty string", () => {
+    const settings = validateSettings({
+      features: {
+        customActions: [
+          { id: "c1", name: "a", icon: "sparkles", prompt: "{{text}}", enabled: true, order: 0 }
+        ]
+      } as any
+    });
+
+    expect(settings.features.customActions[0].model).toBe("");
   });
 });

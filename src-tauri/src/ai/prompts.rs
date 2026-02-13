@@ -17,6 +17,7 @@ pub struct TaskOptions {
     pub language: Option<String>,
     pub target_length: Option<String>,
     pub custom_prompt: Option<String>,
+    pub custom_model: Option<String>,
 }
 
 #[derive(Debug, Clone)]

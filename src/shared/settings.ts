@@ -39,6 +39,7 @@ export interface CustomFeatureAction {
   name: string;
   icon: string;
   prompt: string;
+  model: string;
   enabled: boolean;
   order: number;
 }
@@ -271,6 +272,7 @@ function mergeFeatures(
               name: action.name ?? "自定义功能",
               icon: action.icon ?? "sparkles",
               prompt: action.prompt ?? "{{text}}",
+              model: action.model ?? "",
               enabled: action.enabled ?? true,
               order: action.order ?? index
             }))

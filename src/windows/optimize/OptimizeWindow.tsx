@@ -11,24 +11,21 @@ interface ChangeTextPayload {
   target?: "translate" | "summary" | "explain" | "optimize";
   title?: string;
   customPrompt?: string;
+  customModel?: string;
+  requestId?: number;
 }
-
-const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 
 export default function OptimizeWindow(): JSX.Element {
   const [sourceText, setSourceText] = useState("");
   const [title, setTitle] = useState("优化");
   const [customPrompt, setCustomPrompt] = useState<string | undefined>(undefined);
+  const [customModel, setCustomModel] = useState<string | undefined>(undefined);
+  const [requestId, setRequestId] = useState(0);
   const fw = useFeatureWindow();
   const ai = useStreamingAI("优化失败");
-  const prevTrigger = useRef<string>("");
+  const lastStartedRequestId = useRef(0);
 
   useEffect(() => {
-    const cached = window.localStorage.getItem(LAST_SELECTED_TEXT_KEY);
-    if (cached?.trim()) {
-      setSourceText(cached);
-    }
-
     let unlisten: (() => void) | undefined;
 
     listen<ChangeTextPayload>("change-text", (event) => {
@@ -43,9 +40,11 @@ export default function OptimizeWindow(): JSX.Element {
       }
 
       setCustomPrompt(event.payload.customPrompt?.trim() || undefined);
+      setCustomModel(event.payload.customModel?.trim() || undefined);
 
       if (typeof event.payload.text === "string") {
         setSourceText(event.payload.text);
+        setRequestId(event.payload.requestId ?? Date.now());
       }
     }).then((cleanup) => {
       unlisten = cleanup;
@@ -57,21 +56,18 @@ export default function OptimizeWindow(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (!sourceText.trim()) {
+    if (!sourceText.trim() || requestId === 0 || requestId === lastStartedRequestId.current) {
       return;
     }
 
-    const triggerKey = `${title}|${customPrompt ?? ""}|${sourceText}`;
-    if (triggerKey === prevTrigger.current) {
-      return;
-    }
-    prevTrigger.current = triggerKey;
+    lastStartedRequestId.current = requestId;
 
     ai.startStream("optimize", sourceText, {
       customPrompt,
+      customModel,
       language: fw.language
     });
-  }, [ai, customPrompt, fw.language, sourceText, title]);
+  }, [customModel, customPrompt, fw.language, requestId, sourceText]);
 
   return (
     <main className="md2-window-shell" style={fw.shellStyle}>

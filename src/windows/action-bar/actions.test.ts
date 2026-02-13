@@ -24,15 +24,16 @@ describe("resolveActionBarActions", () => {
     expect(actions.map((item) => item.id)).not.toContain("copy");
   });
 
-  it("appends enabled custom actions when custom feature is on", () => {
+  it("appends enabled custom actions regardless of global toggle", () => {
     const settings = defaultSettings();
-    settings.features.customActionsEnabled = true;
+    settings.features.customActionsEnabled = false;
     settings.features.customActions = [
       {
         id: "custom-tone",
         name: "商务润色",
         icon: "briefcase",
         prompt: "请把下面内容改写为商务语气：\n{{text}}",
+        model: "gpt-4o-mini",
         enabled: true,
         order: 0
       }
@@ -41,5 +42,6 @@ describe("resolveActionBarActions", () => {
     const actions = resolveActionBarActions(settings);
     expect(actions.map((item) => item.id)).toContain("custom-tone");
     expect(actions.find((item) => item.id === "custom-tone")?.commandWindow).toBe("optimize");
+    expect(actions.find((item) => item.id === "custom-tone")?.model).toBe("gpt-4o-mini");
   });
 });

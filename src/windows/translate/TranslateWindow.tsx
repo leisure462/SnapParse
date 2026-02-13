@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
 import { useFeatureWindow } from "../common/useFeatureWindow";
@@ -10,9 +10,8 @@ interface ChangeTextPayload {
   text: string;
   source?: string;
   target?: "translate" | "summary" | "explain" | "optimize";
+  requestId?: number;
 }
-
-const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 
 const LANGUAGES: Array<{ code: string; label: string }> = [
   { code: "auto", label: "自动检测" },
@@ -28,22 +27,17 @@ function findLanguageLabel(code: string): string {
 
 export default function TranslateWindow(): JSX.Element {
   const [sourceText, setSourceText] = useState("");
+  const [requestId, setRequestId] = useState(0);
   const [fromLanguage, setFromLanguage] = useState("auto");
   const [toLanguage, setToLanguage] = useState("en");
   const fw = useFeatureWindow();
   const ai = useStreamingAI("翻译失败");
-  const prevTrigger = useRef<string>("");
 
   const subtitle = useMemo(() => {
     return `${findLanguageLabel(fromLanguage)} -> ${findLanguageLabel(toLanguage)}`;
   }, [fromLanguage, toLanguage]);
 
   useEffect(() => {
-    const cached = window.localStorage.getItem(LAST_SELECTED_TEXT_KEY);
-    if (cached?.trim()) {
-      setSourceText(cached);
-    }
-
     let unlisten: (() => void) | undefined;
 
     listen<ChangeTextPayload>("change-text", (event) => {
@@ -53,6 +47,7 @@ export default function TranslateWindow(): JSX.Element {
 
       if (typeof event.payload.text === "string") {
         setSourceText(event.payload.text);
+        setRequestId(event.payload.requestId ?? Date.now());
       }
     }).then((cleanup) => {
       unlisten = cleanup;
@@ -64,22 +59,15 @@ export default function TranslateWindow(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (!sourceText.trim()) {
+    if (!sourceText.trim() || requestId === 0) {
       return;
     }
-
-    // Build a trigger key so we re-run when source/from/to changes
-    const triggerKey = `${sourceText}|${fromLanguage}|${toLanguage}`;
-    if (triggerKey === prevTrigger.current) {
-      return;
-    }
-    prevTrigger.current = triggerKey;
 
     ai.startStream("translate", sourceText, {
       fromLanguage,
       toLanguage,
     });
-  }, [sourceText, fromLanguage, toLanguage]);
+  }, [fromLanguage, requestId, sourceText, toLanguage]);
 
   return (
     <main className="md2-window-shell" style={fw.shellStyle}>

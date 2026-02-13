@@ -286,6 +286,8 @@ pub struct CustomFeatureAction {
     pub name: String,
     pub icon: String,
     pub prompt: String,
+    #[serde(default)]
+    pub model: String,
     pub enabled: bool,
     pub order: u16,
 }

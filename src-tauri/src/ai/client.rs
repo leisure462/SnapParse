@@ -4,7 +4,15 @@ use serde::{Deserialize, Serialize};
 use crate::ai::prompts::{build_prompt, TaskKind, TaskOptions};
 use crate::settings::model::ApiSettings;
 
-fn model_for_task(api_settings: &ApiSettings, task_kind: TaskKind) -> String {
+fn model_for_task(api_settings: &ApiSettings, task_kind: TaskKind, options: Option<&TaskOptions>) -> String {
+    if let Some(custom_model) = options
+        .and_then(|item| item.custom_model.as_deref())
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+    {
+        return custom_model.to_owned();
+    }
+
     let preferred = match task_kind {
         TaskKind::Translate => api_settings.feature_models.translate.trim(),
         TaskKind::Summarize => api_settings.feature_models.summarize.trim(),
@@ -210,7 +218,7 @@ pub async fn process_text(
 
     let started = std::time::Instant::now();
     let prompt = build_prompt(task_kind, source_text, options);
-    let selected_model = model_for_task(api_settings, task_kind);
+    let selected_model = model_for_task(api_settings, task_kind, options);
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_millis(api_settings.timeout_ms))
         .build()?;
@@ -279,7 +287,7 @@ pub async fn process_text_stream(
 
     let started = std::time::Instant::now();
     let prompt = build_prompt(task_kind, source_text, options);
-    let selected_model = model_for_task(api_settings, task_kind);
+    let selected_model = model_for_task(api_settings, task_kind, options);
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_millis(api_settings.timeout_ms))
         .build()?;

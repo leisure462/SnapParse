@@ -9,6 +9,7 @@ export interface ActionBarAction {
   icon: string;
   commandWindow?: ActionBarWindowKind;
   prompt?: string;
+  model?: string;
 }
 
 const BUILTIN_META: Record<BuiltinActionId, Omit<ActionBarAction, "id">> = {
@@ -29,10 +30,6 @@ export function resolveActionBarActions(settings: AppSettings): ActionBarAction[
       ...BUILTIN_META[item.id]
     }));
 
-  if (!settings.features.customActionsEnabled) {
-    return builtin;
-  }
-
   const custom = [...settings.features.customActions]
     .filter((item) => item.enabled)
     .sort((a, b) => a.order - b.order)
@@ -41,7 +38,8 @@ export function resolveActionBarActions(settings: AppSettings): ActionBarAction[
       label: item.name,
       icon: item.icon,
       commandWindow: "optimize" as const,
-      prompt: item.prompt
+      prompt: item.prompt,
+      model: item.model
     }));
 
   return [...builtin, ...custom];

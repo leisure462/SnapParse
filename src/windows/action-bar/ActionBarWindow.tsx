@@ -5,10 +5,10 @@ import { resolveActionBarActions, type ActionBarAction } from "./actions";
 import "./actionBar.css";
 import { useThemeMode, type ThemeMode } from "../theme/themeStore";
 import { defaultSettings, resolveWindowSize, validateSettings, type AppSettings } from "../../shared/settings";
+import { renderActionIcon } from "../common/actionIcon";
 // The icon_transparent.png is copied to public/ for Vite to serve at runtime.
 const APP_ICON_URL = "/icon_transparent.png";
 
-const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 const FEATURE_WINDOW_GAP = 12;
 const FEATURE_WINDOW_PADDING = 8;
 const ACTION_BAR_ICON_ANIMATION_DELAY_MS = 50;
@@ -16,83 +16,6 @@ const ACTION_BAR_ICON_ANIMATION_DELAY_MS = 50;
 interface SelectionTextPayload {
   text: string;
   source?: string;
-}
-
-function iconForAction(icon: string): JSX.Element {
-  const common = { viewBox: "0 0 24 24", width: 16, height: 16, fill: "none", stroke: "currentColor" };
-
-  if (icon === "translate") {
-    return (
-      <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 5h10" />
-        <path d="M9 5c0 6-3 9-6 11" />
-        <path d="M9 11c1.5 2.2 3.3 4 5.2 5.4" />
-        <path d="M14 5h6" />
-        <path d="M18 5v10" />
-      </svg>
-    );
-  }
-
-  if (icon === "explain") {
-    return (
-      <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 18h.01" />
-        <path d="M9 9a3 3 0 1 1 6 0c0 2-3 2-3 5" />
-        <rect x="3" y="3" width="18" height="18" rx="3" />
-      </svg>
-    );
-  }
-
-  if (icon === "summarize") {
-    return (
-      <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 6h14" />
-        <path d="M5 12h10" />
-        <path d="M5 18h6" />
-      </svg>
-    );
-  }
-
-  if (icon === "optimize") {
-    return (
-      <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m7 16 4-9 6 10" />
-        <path d="M4 19h16" />
-        <path d="m14 5 1.5 1.5L17 5l-1.5-1.5z" />
-      </svg>
-    );
-  }
-
-  if (icon === "search") {
-    return (
-      <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-3.8-3.8" />
-      </svg>
-    );
-  }
-
-  if (icon === "copy") {
-    return (
-      <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="8" y="8" width="11" height="12" rx="2" />
-        <path d="M5 15V6a2 2 0 0 1 2-2h8" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...common} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 3v5" />
-      <path d="M12 16v5" />
-      <path d="m4.2 7.2 3.5 3.5" />
-      <path d="m16.3 13.3 3.5 3.5" />
-      <path d="M3 12h5" />
-      <path d="M16 12h5" />
-      <path d="m4.2 16.8 3.5-3.5" />
-      <path d="m16.3 10.7 3.5-3.5" />
-    </svg>
-  );
 }
 
 async function copyText(value: string): Promise<void> {
@@ -347,9 +270,7 @@ export default function ActionBarWindow(): JSX.Element {
         const fwSize = featureWindowSize.current;
         const anchor = computeFeatureWindowAnchor(actionBarRef.current, fwSize.width, fwSize.height);
 
-        if (selectedText.trim()) {
-          window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, selectedText);
-        }
+        const requestId = Date.now();
 
         try {
           await invoke("open_window", { kind: action.commandWindow });
@@ -367,17 +288,24 @@ export default function ActionBarWindow(): JSX.Element {
           console.error("[ActionBar] failed to open/move feature window:", err);
         }
 
-        // Delay event emission to give the target window time to mount and register listeners.
-        // The target window also reads from localStorage as a fallback.
+        const payload = {
+          text: selectedText,
+          source: "action-bar",
+          target: action.commandWindow,
+          title: action.label,
+          customPrompt: action.prompt,
+          customModel: action.model,
+          requestId
+        };
+
+        // Emit twice with same requestId to reduce first-open race conditions.
         setTimeout(() => {
-          void emit("change-text", {
-            text: selectedText,
-            source: "action-bar",
-            target: action.commandWindow,
-            title: action.label,
-            customPrompt: action.prompt
-          });
+          void emit("change-text", payload);
         }, 300);
+
+        setTimeout(() => {
+          void emit("change-text", payload);
+        }, 620);
 
         await closeActionBarWindow();
         return;
@@ -421,7 +349,7 @@ export default function ActionBarWindow(): JSX.Element {
             disabled={isBusy}
           >
             <span className="md2-action-icon" aria-hidden="true">
-              {iconForAction(action.icon)}
+              {renderActionIcon(action.icon, 16)}
             </span>
             <span className="md2-action-label">{action.label}</span>
           </button>

@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
 import { useFeatureWindow } from "../common/useFeatureWindow";
@@ -9,22 +9,16 @@ import "../common/windowChrome.css";
 interface ChangeTextPayload {
   text: string;
   target?: "translate" | "summary" | "explain" | "optimize";
+  requestId?: number;
 }
-
-const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 
 export default function ExplainWindow(): JSX.Element {
   const [sourceText, setSourceText] = useState("");
+  const [requestId, setRequestId] = useState(0);
   const fw = useFeatureWindow();
   const ai = useStreamingAI("解释失败");
-  const prevTrigger = useRef<string>("");
 
   useEffect(() => {
-    const cached = window.localStorage.getItem(LAST_SELECTED_TEXT_KEY);
-    if (cached?.trim()) {
-      setSourceText(cached);
-    }
-
     let unlisten: (() => void) | undefined;
 
     listen<ChangeTextPayload>("change-text", (event) => {
@@ -34,6 +28,7 @@ export default function ExplainWindow(): JSX.Element {
 
       if (typeof event.payload.text === "string") {
         setSourceText(event.payload.text);
+        setRequestId(event.payload.requestId ?? Date.now());
       }
     }).then((cleanup) => {
       unlisten = cleanup;
@@ -45,19 +40,14 @@ export default function ExplainWindow(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (!sourceText.trim()) {
+    if (!sourceText.trim() || requestId === 0) {
       return;
     }
-
-    if (sourceText === prevTrigger.current) {
-      return;
-    }
-    prevTrigger.current = sourceText;
 
     ai.startStream("explain", sourceText, {
       language: fw.language
     });
-  }, [fw.language, sourceText]);
+  }, [fw.language, requestId, sourceText]);
 
   return (
     <main className="md2-window-shell" style={fw.shellStyle}>

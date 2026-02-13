@@ -18,6 +18,7 @@ fn translate_task_includes_source_and_target_languages() {
             language: None,
             target_length: None,
             custom_prompt: None,
+            custom_model: None,
         }),
     );
 
@@ -50,6 +51,7 @@ fn custom_prompt_replaces_placeholders() {
             language: None,
             target_length: None,
             custom_prompt: Some(String::from("SRC={{language}} DST={{target_language}} TEXT={{text}}")),
+            custom_model: None,
         }),
     );
 
@@ -83,6 +85,7 @@ fn summarize_task_uses_requested_ui_language() {
             language: Some(String::from("en-US")),
             target_length: None,
             custom_prompt: None,
+            custom_model: None,
         }),
     );
 
