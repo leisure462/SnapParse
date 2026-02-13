@@ -440,7 +440,7 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
                   }}
                 />
                 <span className="settings-prompt-inline-tip" aria-hidden="true">
-                  占位符：{{"{{text}}"}} {{"{{target_language}}"}}
+                  占位符：{"{{text}}"} {"{{target_language}}"}
                 </span>
               </div>
             </div>
