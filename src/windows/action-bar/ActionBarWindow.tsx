@@ -11,6 +11,7 @@ const APP_ICON_URL = "/icon_transparent.png";
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 const FEATURE_WINDOW_GAP = 12;
 const FEATURE_WINDOW_PADDING = 8;
+const ACTION_BAR_ICON_ANIMATION_DELAY_MS = 220;
 
 interface SelectionTextPayload {
   text: string;
@@ -143,26 +144,39 @@ export default function ActionBarWindow(): JSX.Element {
   const [isBusy, setBusy] = useState(false);
   const [iconAnimationKey, setIconAnimationKey] = useState(0);
   const actionBarRef = useRef<HTMLDivElement | null>(null);
+  const iconAnimationTimerRef = useRef<number | null>(null);
   const featureWindowSize = useRef({ width: 680, height: 520 });
   const theme = useThemeMode();
 
-  useEffect(() => {
-    const replayIconAnimation = (): void => {
-      setIconAnimationKey((value) => value + 1);
-    };
+  const queueIconAnimation = (): void => {
+    if (iconAnimationTimerRef.current !== null) {
+      window.clearTimeout(iconAnimationTimerRef.current);
+    }
 
+    iconAnimationTimerRef.current = window.setTimeout(() => {
+      setIconAnimationKey((value) => value + 1);
+      iconAnimationTimerRef.current = null;
+    }, ACTION_BAR_ICON_ANIMATION_DELAY_MS);
+  };
+
+  useEffect(() => {
     const handleVisibilityChange = (): void => {
       if (document.visibilityState === "visible") {
-        replayIconAnimation();
+        queueIconAnimation();
       }
     };
 
-    window.addEventListener("focus", replayIconAnimation);
+    window.addEventListener("focus", queueIconAnimation);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.removeEventListener("focus", replayIconAnimation);
+      window.removeEventListener("focus", queueIconAnimation);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+
+      if (iconAnimationTimerRef.current !== null) {
+        window.clearTimeout(iconAnimationTimerRef.current);
+        iconAnimationTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -212,7 +226,7 @@ export default function ActionBarWindow(): JSX.Element {
     listen<SelectionTextPayload>("selection-text-changed", (event) => {
       if (typeof event.payload.text === "string") {
         setSelectedText(event.payload.text);
-        setIconAnimationKey((value) => value + 1);
+        queueIconAnimation();
       }
     }).then((cleanup) => {
       unlisten = cleanup;
@@ -341,9 +355,14 @@ export default function ActionBarWindow(): JSX.Element {
     }
   };
 
+  const iconClassName =
+    iconAnimationKey === 0
+      ? "md2-action-bar-icon"
+      : "md2-action-bar-icon md2-action-bar-icon--animated";
+
   return (
     <div ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
-      <img key={iconAnimationKey} src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
+      <img key={iconAnimationKey} src={APP_ICON_URL} alt="" className={iconClassName} draggable={false} />
       <div className="md2-action-list">
         {DEFAULT_ACTIONS.map((action) => (
           <button

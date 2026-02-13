@@ -58,6 +58,9 @@ body:has(.md2-action-bar),
   user-select: none;
   border-radius: var(--sp-radius-xs);
   transform-origin: 50% 50%;
+}
+
+.md2-action-bar-icon--animated {
   animation: sp-actionbar-clover-enter 760ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -84,7 +87,7 @@ body:has(.md2-action-bar),
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .md2-action-bar-icon {
+  .md2-action-bar-icon--animated {
     animation: none;
   }
 }
