@@ -11,7 +11,7 @@ const APP_ICON_URL = "/icon_transparent.png";
 const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 const FEATURE_WINDOW_GAP = 12;
 const FEATURE_WINDOW_PADDING = 8;
-const ACTION_BAR_ICON_ANIMATION_DELAY_MS = 120;
+const ACTION_BAR_ICON_ANIMATION_DELAY_MS = 50;
 
 interface SelectionTextPayload {
   text: string;

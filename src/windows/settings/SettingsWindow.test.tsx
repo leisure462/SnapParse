@@ -56,7 +56,7 @@ describe("SettingsWindow", () => {
     await renderWindow();
 
     const baseUrlInput = screen.getByLabelText("Base URL");
-    const modelInput = screen.getByLabelText("默认模型");
+    const modelInput = screen.getByLabelText("翻译模型");
 
     fireEvent.change(baseUrlInput, { target: { value: "" } });
     fireEvent.change(modelInput, { target: { value: "" } });

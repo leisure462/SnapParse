@@ -13,9 +13,20 @@ function patchApi(
   settings: AppSettings,
   updater: (api: AppSettings["api"]) => AppSettings["api"]
 ): AppSettings {
+  const nextApi = updater(settings.api);
+
+  const fallbackModel =
+    nextApi.featureModels.translate.trim() ||
+    nextApi.featureModels.summarize.trim() ||
+    nextApi.featureModels.explain.trim() ||
+    "gpt-4o-mini";
+
   return {
     ...settings,
-    api: updater(settings.api)
+    api: {
+      ...nextApi,
+      model: nextApi.model.trim() ? nextApi.model : fallbackModel
+    }
   };
 }
 
@@ -30,7 +41,14 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
 
     try {
       const result = await invoke<ApiConnectionTestResult>("test_api_connection", {
-        api: settings.api
+        api: {
+          ...settings.api,
+          model:
+            settings.api.featureModels.translate.trim() ||
+            settings.api.featureModels.summarize.trim() ||
+            settings.api.featureModels.explain.trim() ||
+            settings.api.model
+        }
       });
 
       setTestStatus("success");
@@ -45,7 +63,7 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
   return (
     <section className="settings-section" aria-label="API配置面板">
       <h2>API配置</h2>
-      <p className="settings-hint">OpenAI-Compatible: base_url + api_key + model</p>
+      <p className="settings-hint">OpenAI-Compatible: base_url + api_key + feature models</p>
 
       <label className="settings-field">
         <span>Base URL</span>
@@ -79,23 +97,8 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
         />
       </label>
 
-      <label className="settings-field">
-        <span>默认模型</span>
-        <input
-          type="text"
-          value={settings.api.model}
-          onChange={(event) => {
-            onChange(
-              patchApi(settings, (api) => ({
-                ...api,
-                model: event.target.value
-              }))
-            );
-          }}
-        />
-      </label>
-
       <div className="settings-inline-actions">
+        <span className={`settings-api-test-status ${testStatus}`}>{testMessage || "可先填写参数再测试"}</span>
         <button
           type="button"
           className="settings-api-test-btn"
@@ -106,7 +109,6 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
         >
           {testStatus === "testing" ? "测试中..." : "测试 API"}
         </button>
-        <span className={`settings-api-test-status ${testStatus}`}>{testMessage || "可先填写参数再测试"}</span>
       </div>
 
       <div className="settings-grid-3">
