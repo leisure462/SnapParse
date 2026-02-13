@@ -1,5 +1,0 @@
-index-DmmJhHua.js:41 [OptimizeWindow] useEffect skipped, sourceText empty: true requestId: 0
-index.html?window=optimize:1  Uncaught (in promise) Command plugin:event|listen not allowed by ACL
-index.html?window=optimize:1  Uncaught (in promise) Command plugin:event|listen not allowed by ACL
-index.html?window=optimize:1  Uncaught (in promise) Command plugin:event|listen not allowed by ACL
-index-DmmJhHua.js:41 [OptimizeWindow] consumePendingRequest result: null

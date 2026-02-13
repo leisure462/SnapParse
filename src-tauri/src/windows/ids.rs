@@ -58,7 +58,7 @@ impl WindowKind {
             WindowKind::Summary => (680.0, 520.0),
             WindowKind::Explain => (680.0, 520.0),
             WindowKind::Optimize => (680.0, 520.0),
-            WindowKind::Settings => (800.0, 600.0),
+            WindowKind::Settings => (780.0, 560.0),
         }
     }
 

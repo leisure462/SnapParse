@@ -624,6 +624,78 @@
   order: 1;
 }
 
+.settings-section-features {
+  padding: 12px;
+  gap: 10px;
+}
+
+.settings-section-features .settings-section-topbar {
+  gap: 10px;
+}
+
+.settings-section-features .settings-hint {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.settings-section-features .settings-api-test-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.settings-section-features .settings-feature-preview {
+  padding: 8px;
+  gap: 6px;
+}
+
+.settings-section-features .settings-feature-preview-bar {
+  min-height: 36px;
+  padding: 5px;
+  gap: 6px;
+}
+
+.settings-section-features .settings-feature-pill {
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.settings-section-features .settings-action-list {
+  gap: 7px;
+}
+
+.settings-section-features .settings-switch {
+  min-height: 36px;
+}
+
+.settings-section-features .settings-custom-list {
+  gap: 6px;
+}
+
+.settings-section-features .settings-custom-item {
+  min-height: 50px;
+  padding: 7px 10px;
+}
+
+.settings-section-features .settings-custom-name {
+  font-size: 12px;
+}
+
+.settings-section-features .settings-custom-meta {
+  font-size: 11px;
+}
+
+.settings-section-features .settings-inline-btn {
+  min-height: 32px;
+}
+
+.settings-section-features .settings-custom-item-toggle {
+  width: 32px;
+  height: 32px;
+}
+
 .settings-feature-preview {
   border: 1px solid var(--sp-settings-input-border);
   border-radius: 9px;

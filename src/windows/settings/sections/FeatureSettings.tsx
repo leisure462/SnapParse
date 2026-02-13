@@ -253,7 +253,7 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
   const saveDisabled = !newName.trim() || !newPrompt.trim() || nameCharCount > MAX_CUSTOM_ACTION_NAME_LENGTH || reachedCreateLimit;
 
   return (
-    <section className="settings-section" aria-label="功能配置面板">
+    <section className="settings-section settings-section-features" aria-label="功能配置面板">
       <div className="settings-section-topbar">
         <div>
           <h2>功能</h2>
