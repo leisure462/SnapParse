@@ -212,6 +212,7 @@ export default function ActionBarWindow(): JSX.Element {
     listen<SelectionTextPayload>("selection-text-changed", (event) => {
       if (typeof event.payload.text === "string") {
         setSelectedText(event.payload.text);
+        setIconAnimationKey((value) => value + 1);
       }
     }).then((cleanup) => {
       unlisten = cleanup;
