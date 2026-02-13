@@ -7,7 +7,7 @@ export type AppFilterMode = "off" | "whitelist" | "blacklist";
 export type LogLevel = "error" | "warn" | "info" | "debug";
 export type WindowSizePreset = "large" | "medium" | "small";
 
-export const MAX_CUSTOM_ACTION_COUNT = 3;
+export const MAX_CUSTOM_ACTION_COUNT = 2;
 export const MAX_CUSTOM_ACTION_NAME_LENGTH = 8;
 
 export interface GeneralSettings {
