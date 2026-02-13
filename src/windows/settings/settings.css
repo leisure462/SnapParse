@@ -1,68 +1,180 @@
 /* ── Settings Window ─────────────────────────────────────────── */
 
+:root,
+:root[data-theme="light"] {
+  --sp-settings-bg-top: #ecf3ff;
+  --sp-settings-bg-bottom: #dfe8f6;
+  --sp-settings-bg-glow: rgba(83, 136, 227, 0.22);
+  --sp-settings-frame-bg: #f7faff;
+  --sp-settings-frame-border: #cfdced;
+  --sp-settings-frame-shadow:
+    0 26px 52px rgba(15, 34, 68, 0.16),
+    0 10px 22px rgba(15, 34, 68, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+
+  --sp-settings-sidebar-bg:
+    linear-gradient(180deg, #f6f9ff 0%, #eaf1fc 100%);
+  --sp-settings-sidebar-border: #c8d6ea;
+
+  --sp-settings-main-bg:
+    linear-gradient(180deg, #f9fbff 0%, #f0f5fd 100%);
+  --sp-settings-main-border: #d9e3f1;
+
+  --sp-settings-card-bg: #ffffff;
+  --sp-settings-card-border: #d6e1f2;
+  --sp-settings-card-shadow:
+    0 18px 30px rgba(33, 62, 112, 0.10),
+    0 6px 14px rgba(33, 62, 112, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+
+  --sp-settings-tab-bg: rgba(255, 255, 255, 0.78);
+  --sp-settings-tab-border: #d5e0ef;
+  --sp-settings-tab-hover: #f5f8ff;
+  --sp-settings-tab-active-bg: linear-gradient(180deg, #eaf2ff 0%, #dce8ff 100%);
+  --sp-settings-tab-active-border: #9eb8e8;
+
+  --sp-settings-status-bg: #eef4ff;
+  --sp-settings-status-border: #c7d7f0;
+
+  --sp-settings-input-bg: #f8fbff;
+  --sp-settings-input-border: #cad9ee;
+  --sp-settings-input-shadow:
+    0 6px 14px rgba(42, 74, 130, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88);
+
+  --sp-settings-switch-bg: #f7faff;
+  --sp-settings-switch-border: #ccdaec;
+  --sp-settings-switch-hover: #f1f6ff;
+
+  --sp-settings-reset-bg: #eef4ff;
+  --sp-settings-reset-border: #c9d8ef;
+}
+
+:root[data-theme="dark"] {
+  --sp-settings-bg-top: #111c31;
+  --sp-settings-bg-bottom: #0a1220;
+  --sp-settings-bg-glow: rgba(68, 120, 207, 0.24);
+  --sp-settings-frame-bg: #0e1a2f;
+  --sp-settings-frame-border: #273a56;
+  --sp-settings-frame-shadow:
+    0 26px 56px rgba(0, 0, 0, 0.44),
+    0 10px 22px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(165, 198, 255, 0.10);
+
+  --sp-settings-sidebar-bg:
+    linear-gradient(180deg, #12213b 0%, #0e1b32 100%);
+  --sp-settings-sidebar-border: #263a58;
+
+  --sp-settings-main-bg:
+    linear-gradient(180deg, #111f37 0%, #0d182d 100%);
+  --sp-settings-main-border: #2a3d5e;
+
+  --sp-settings-card-bg: #152440;
+  --sp-settings-card-border: #2d4368;
+  --sp-settings-card-shadow:
+    0 16px 28px rgba(0, 0, 0, 0.36),
+    0 8px 18px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(178, 203, 246, 0.10);
+
+  --sp-settings-tab-bg: rgba(17, 31, 54, 0.86);
+  --sp-settings-tab-border: #2b446a;
+  --sp-settings-tab-hover: #1a3154;
+  --sp-settings-tab-active-bg: linear-gradient(180deg, #1f3a64 0%, #183359 100%);
+  --sp-settings-tab-active-border: #5e86bd;
+
+  --sp-settings-status-bg: #172b49;
+  --sp-settings-status-border: #35527d;
+
+  --sp-settings-input-bg: #1a2e4e;
+  --sp-settings-input-border: #36547f;
+  --sp-settings-input-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.20),
+    inset 0 1px 0 rgba(197, 219, 255, 0.10);
+
+  --sp-settings-switch-bg: #182b48;
+  --sp-settings-switch-border: #345177;
+  --sp-settings-switch-hover: #1e3558;
+
+  --sp-settings-reset-bg: #162949;
+  --sp-settings-reset-border: #35527e;
+}
+
 .settings-shell {
   min-height: 100vh;
-  background: var(--sp-bg);
   color: var(--sp-text);
-  padding: 0;
+  padding: 12px;
+  background:
+    radial-gradient(900px 440px at 8% -8%, var(--sp-settings-bg-glow) 0%, transparent 62%),
+    linear-gradient(180deg, var(--sp-settings-bg-top) 0%, var(--sp-settings-bg-bottom) 100%);
 }
 
 .settings-layout {
-  min-height: 100vh;
-  background: var(--sp-surface);
+  min-height: calc(100vh - 24px);
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr);
+  border-radius: 20px;
+  border: 1px solid var(--sp-settings-frame-border);
+  background: var(--sp-settings-frame-bg);
   overflow: hidden;
+  box-shadow: var(--sp-settings-frame-shadow);
 }
 
 /* ── Sidebar ────────────────────────────────────────────────── */
 
 .settings-sidebar {
-  background: var(--sp-surface-raised);
-  border-right: 1px solid var(--sp-border);
+  background: var(--sp-settings-sidebar-bg);
+  border-right: 1px solid var(--sp-settings-sidebar-border);
   display: flex;
   flex-direction: column;
-  padding: 12px 10px;
-  gap: 2px;
+  padding: 16px 12px;
+  gap: 8px;
 }
 
 .settings-sidebar-header {
-  padding: 10px 10px 16px;
+  padding: 6px 10px 14px;
 }
 
-.settings-sidebar-header h1 {
+.settings-brand {
   margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   color: var(--sp-text);
+  text-wrap: balance;
 }
 
 .settings-tab {
-  height: 36px;
-  border: 0;
-  border-radius: var(--sp-radius-sm);
-  background: transparent;
+  min-height: 42px;
+  border: 1px solid var(--sp-settings-tab-border);
+  border-radius: 12px;
+  background: var(--sp-settings-tab-bg);
   color: var(--sp-text-secondary);
   text-align: left;
-  padding: 0 12px;
+  padding: 0 14px;
   font: inherit;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color var(--sp-duration-fast) var(--sp-ease-out),
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: transform var(--sp-duration-fast) var(--sp-ease-out),
+              background var(--sp-duration-fast) var(--sp-ease-out),
+              border-color var(--sp-duration-fast) var(--sp-ease-out),
               color var(--sp-duration-fast) var(--sp-ease-out);
 }
 
 .settings-tab:hover {
-  background: var(--sp-surface-hover);
+  background: var(--sp-settings-tab-hover);
   color: var(--sp-text);
+  transform: translateY(-1px);
 }
 
 .settings-tab[aria-selected="true"] {
-  background: var(--sp-primary-soft);
+  background: var(--sp-settings-tab-active-bg);
+  border-color: var(--sp-settings-tab-active-border);
   color: var(--sp-primary);
-  font-weight: 600;
+  box-shadow:
+    0 8px 16px rgba(24, 51, 92, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 /* ── Main panel ─────────────────────────────────────────────── */
@@ -71,77 +183,80 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  background: var(--sp-settings-main-bg);
 }
 
 .settings-main-header {
-  height: 52px;
+  min-height: 64px;
   flex-shrink: 0;
-  border-bottom: 1px solid var(--sp-border);
-  padding: 0 16px;
+  border-bottom: 1px solid var(--sp-settings-main-border);
+  padding: 0 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
 }
 
 .settings-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border-radius: var(--sp-radius-full);
+  border: 1px solid var(--sp-settings-status-border);
+  background: var(--sp-settings-status-bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20);
+  padding: 0 14px;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--sp-text-muted);
+  font-weight: 600;
+  color: var(--sp-text-secondary);
+}
+
+.settings-status.loading,
+.settings-status.saving {
+  color: var(--sp-primary);
 }
 
 .settings-status.error {
   color: var(--sp-error);
+  border-color: rgba(220, 38, 38, 0.55);
 }
 
 .settings-status.saved {
   color: var(--sp-success);
+  border-color: rgba(22, 163, 74, 0.48);
 }
 
 .settings-content {
   min-height: 0;
   overflow: auto;
-  padding: 20px;
+  padding: 22px;
+  display: grid;
+  align-content: start;
 }
 
-/* ── Actions ────────────────────────────────────────────────── */
+/* ── Section ────────────────────────────────────────────────── */
 
-.settings-actions {
-  display: inline-flex;
-  gap: 8px;
+.settings-section {
+  display: grid;
+  gap: 16px;
+  max-width: 980px;
+  background: var(--sp-settings-card-bg);
+  border: 1px solid var(--sp-settings-card-border);
+  border-radius: 16px;
+  box-shadow: var(--sp-settings-card-shadow);
+  padding: 22px;
 }
 
-.settings-actions button {
-  height: 32px;
-  border-radius: var(--sp-radius-sm);
-  border: 1px solid var(--sp-border);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0 14px;
-  transition: all var(--sp-duration-fast) var(--sp-ease-out);
-}
-
-.settings-actions button.ghost {
-  background: var(--sp-surface);
-  color: var(--sp-text-secondary);
-}
-
-.settings-actions button.ghost:hover {
-  background: var(--sp-surface-hover);
+.settings-section h2 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--sp-text);
-  border-color: var(--sp-border-strong);
 }
 
-.settings-actions button.primary {
-  border-color: var(--sp-primary);
-  background: var(--sp-primary);
-  color: var(--sp-on-primary);
-}
-
-.settings-actions button.primary:hover {
-  background: var(--sp-primary-hover);
-  border-color: var(--sp-primary-hover);
+.settings-hint {
+  margin: 0;
+  color: var(--sp-text-muted);
+  font-size: 13px;
 }
 
 /* ── API Test ───────────────────────────────────────────────── */
@@ -149,36 +264,41 @@
 .settings-inline-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .settings-api-test-btn {
-  height: 34px;
-  border-radius: var(--sp-radius-sm);
+  min-height: 38px;
+  border-radius: 11px;
   border: 1px solid var(--sp-primary);
   background: var(--sp-primary);
   color: var(--sp-on-primary);
   font: inherit;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  padding: 0 16px;
-  transition: all var(--sp-duration-fast) var(--sp-ease-out);
+  padding: 0 18px;
+  box-shadow: 0 8px 14px rgba(37, 99, 235, 0.24);
+  transition: transform var(--sp-duration-fast) var(--sp-ease-out),
+              filter var(--sp-duration-fast) var(--sp-ease-out),
+              background var(--sp-duration-fast) var(--sp-ease-out);
 }
 
 .settings-api-test-btn:hover {
   background: var(--sp-primary-hover);
-  border-color: var(--sp-primary-hover);
+  transform: translateY(-1px);
 }
 
 .settings-api-test-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: wait;
+  transform: none;
+  box-shadow: none;
 }
 
 .settings-api-test-status {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--sp-text-muted);
 }
 
@@ -190,77 +310,53 @@
   color: var(--sp-error);
 }
 
-/* ── Section ────────────────────────────────────────────────── */
-
-.settings-section {
-  display: grid;
-  gap: 16px;
-}
-
-.settings-section h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--sp-text);
-}
-
-.settings-hint {
-  margin: 0;
-  color: var(--sp-text-muted);
-  font-size: 13px;
-}
-
-.settings-warning {
-  margin: 0;
-  color: var(--sp-warning);
-  background: var(--sp-warning-soft);
-  border: 1px solid var(--sp-warning);
-  border-radius: var(--sp-radius-sm);
-  padding: 10px 12px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
 /* ── Fields ─────────────────────────────────────────────────── */
 
 .settings-field {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .settings-field > span {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 700;
   color: var(--sp-text-secondary);
 }
 
-.settings-field input[type="text"],
-.settings-field input[type="password"],
-.settings-field input[type="url"],
+.settings-field input:not([type="range"]):not([type="checkbox"]),
 .settings-field select,
 .settings-field textarea {
-  border: 1px solid var(--sp-border);
-  border-radius: var(--sp-radius-sm);
-  background: var(--sp-surface-raised);
+  border: 1px solid var(--sp-settings-input-border);
+  border-radius: 12px;
+  background: var(--sp-settings-input-bg);
   color: var(--sp-text);
+  box-shadow: var(--sp-settings-input-shadow);
   font: inherit;
   font-size: 13px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   transition: border-color var(--sp-duration-fast) var(--sp-ease-out),
-              box-shadow var(--sp-duration-fast) var(--sp-ease-out);
+              box-shadow var(--sp-duration-fast) var(--sp-ease-out),
+              transform var(--sp-duration-fast) var(--sp-ease-out);
+}
+
+.settings-field input:not([type="range"]):not([type="checkbox"]),
+.settings-field select {
+  min-height: 42px;
 }
 
 .settings-field input:focus,
 .settings-field select:focus,
 .settings-field textarea:focus {
   border-color: var(--sp-primary);
-  box-shadow: 0 0 0 3px var(--sp-ring-focus);
+  box-shadow:
+    0 0 0 3px var(--sp-ring-focus),
+    0 10px 18px rgba(30, 64, 124, 0.18);
   outline: none;
+  transform: translateY(-1px);
 }
 
 .settings-field textarea {
-  min-height: 100px;
+  min-height: 122px;
   resize: vertical;
   line-height: 1.5;
 }
@@ -270,9 +366,9 @@
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
+  height: 8px;
   border-radius: var(--sp-radius-full);
-  background: var(--sp-border);
+  background: var(--sp-settings-input-border);
   outline: none;
   cursor: pointer;
   border: none;
@@ -282,8 +378,8 @@
 .settings-field input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: var(--sp-primary);
   border: 2px solid var(--sp-surface);
@@ -301,7 +397,7 @@
 .settings-grid-2,
 .settings-grid-3 {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .settings-grid-2 {
@@ -318,19 +414,22 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 38px;
-  border: 1px solid var(--sp-border);
-  border-radius: var(--sp-radius-sm);
+  min-height: 44px;
+  border: 1px solid var(--sp-settings-switch-border);
+  border-radius: 12px;
   padding: 0 12px;
-  background: var(--sp-surface-raised);
+  background: var(--sp-settings-switch-bg);
   cursor: pointer;
-  transition: border-color var(--sp-duration-fast) var(--sp-ease-out),
+  box-shadow: var(--sp-settings-input-shadow);
+  transition: transform var(--sp-duration-fast) var(--sp-ease-out),
+              border-color var(--sp-duration-fast) var(--sp-ease-out),
               background var(--sp-duration-fast) var(--sp-ease-out);
 }
 
 .settings-switch:hover {
   border-color: var(--sp-border-strong);
-  background: var(--sp-surface-hover);
+  background: var(--sp-settings-switch-hover);
+  transform: translateY(-1px);
 }
 
 .settings-switch input[type="checkbox"] {
@@ -343,55 +442,54 @@
 
 .settings-switch span {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--sp-text);
-}
-
-.settings-switch.action-item {
-  /* no additional styles needed */
 }
 
 /* ── Size presets ───────────────────────────────────────────── */
 
 .settings-size-presets {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .settings-size-btn {
   flex: 1;
-  height: 60px;
-  border: 1.5px solid var(--sp-border);
-  border-radius: var(--sp-radius-md);
-  background: var(--sp-surface-raised);
+  min-height: 72px;
+  border: 1px solid var(--sp-settings-input-border);
+  border-radius: 12px;
+  background: var(--sp-settings-input-bg);
   color: var(--sp-text);
   font: inherit;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  transition: all var(--sp-duration-fast) var(--sp-ease-out);
+  box-shadow: var(--sp-settings-input-shadow);
+  transition: transform var(--sp-duration-fast) var(--sp-ease-out),
+              border-color var(--sp-duration-fast) var(--sp-ease-out),
+              background var(--sp-duration-fast) var(--sp-ease-out);
 }
 
 .settings-size-btn .settings-size-label {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   color: inherit;
 }
 
 .settings-size-btn .settings-size-desc {
   font-size: 11px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--sp-text-muted);
 }
 
 .settings-size-btn:hover {
   border-color: var(--sp-border-strong);
-  background: var(--sp-surface-hover);
+  transform: translateY(-1px);
 }
 
 .settings-size-btn.active {
@@ -402,30 +500,79 @@
 
 .settings-size-btn.active .settings-size-desc {
   color: var(--sp-primary);
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 /* ── Action list ────────────────────────────────────────────── */
 
 .settings-action-list {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+}
+
+/* ── Reset block ────────────────────────────────────────────── */
+
+.settings-reset-block {
+  margin-top: 8px;
+  border: 1px solid var(--sp-settings-reset-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--sp-settings-reset-bg);
+  display: grid;
+  gap: 10px;
+}
+
+.settings-reset-btn {
+  justify-self: start;
+  min-height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--sp-primary);
+  background: var(--sp-primary);
+  color: var(--sp-on-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 16px;
+  cursor: pointer;
+  box-shadow: 0 8px 14px rgba(37, 99, 235, 0.20);
+  transition: transform var(--sp-duration-fast) var(--sp-ease-out),
+              filter var(--sp-duration-fast) var(--sp-ease-out),
+              opacity var(--sp-duration-fast) var(--sp-ease-out);
+}
+
+.settings-reset-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.settings-reset-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ── Responsive ─────────────────────────────────────────────── */
 
 @media (max-width: 700px) {
+  .settings-shell {
+    padding: 0;
+  }
+
   .settings-layout {
+    min-height: 100vh;
+    border-radius: 0;
     grid-template-columns: 1fr;
   }
 
   .settings-sidebar {
     border-right: 0;
-    border-bottom: 1px solid var(--sp-border);
+    border-bottom: 1px solid var(--sp-settings-sidebar-border);
     overflow-x: auto;
     flex-direction: row;
     align-items: center;
-    padding: 8px 10px;
+    padding: 10px;
+    gap: 10px;
   }
 
   .settings-sidebar-header {
@@ -434,6 +581,24 @@
 
   .settings-tab {
     white-space: nowrap;
+    min-height: 38px;
+  }
+
+  .settings-main-header {
+    min-height: 56px;
+    padding: 0 14px;
+  }
+
+  .settings-content {
+    padding: 14px;
+  }
+
+  .settings-section {
+    padding: 16px;
+  }
+
+  .settings-section h2 {
+    font-size: 22px;
   }
 
   .settings-grid-2,
@@ -441,8 +606,17 @@
     grid-template-columns: 1fr;
   }
 
+  .settings-size-presets {
+    flex-direction: column;
+  }
+
   .settings-inline-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .settings-reset-btn {
+    width: 100%;
+    justify-self: stretch;
   }
 }

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   defaultSettings,
   mergeSettings,
@@ -32,8 +32,13 @@ function persistThemeFromSettings(settings: AppSettings): void {
 export default function SettingsWindow(): JSX.Element {
   const [activeSection, setActiveSection] = useState<SectionKey>("api");
   const [settings, setSettings] = useState<AppSettings>(() => defaultSettings());
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [statusText, setStatusText] = useState("");
+  const [status, setStatus] = useState<"loading" | "saving" | "saved" | "error">("loading");
+  const [statusText, setStatusText] = useState("正在加载设置...");
+  const [isResettingDefaults, setIsResettingDefaults] = useState(false);
+  const hasHydratedRef = useRef(false);
+  const skipNextAutoSaveRef = useRef(true);
+  const saveTimerRef = useRef<number | null>(null);
+  const latestSaveJobRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,12 +53,19 @@ export default function SettingsWindow(): JSX.Element {
         const normalized = mergeSettings(value as Partial<AppSettings>);
         setSettings(normalized);
         persistThemeFromSettings(normalized);
+        setStatus("saved");
+        setStatusText("自动保存已开启");
       } catch {
         if (!cancelled) {
           const defaults = defaultSettings();
           setSettings(defaults);
           persistThemeFromSettings(defaults);
+          setStatus("saved");
+          setStatusText("已载入默认配置，自动保存已开启");
         }
+      } finally {
+        hasHydratedRef.current = true;
+        skipNextAutoSaveRef.current = true;
       }
     };
 
@@ -71,40 +83,75 @@ export default function SettingsWindow(): JSX.Element {
     if (normalized.toolbar.themeMode !== settings.toolbar.themeMode) {
       persistThemeFromSettings(normalized);
     }
-
-    setStatus("idle");
-    setStatusText("");
   };
 
-  const save = async (): Promise<void> => {
-    setStatus("saving");
-    setStatusText("保存中...");
-
-    try {
-      const validated = validateSettings(settings);
-      await invoke("save_settings", { settings: validated });
-      setSettings(validated);
-      setStatus("saved");
-      setStatusText("配置已保存");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setStatus("error");
-      setStatusText(`保存失败：${message}`);
+  useEffect(() => {
+    if (!hasHydratedRef.current) {
+      return;
     }
-  };
 
-  const reset = async (): Promise<void> => {
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return;
+    }
+
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+
+    setStatus("saving");
+    setStatusText("自动保存中...");
+
+    const saveJob = ++latestSaveJobRef.current;
+
+    saveTimerRef.current = window.setTimeout(() => {
+      void (async (): Promise<void> => {
+        try {
+          const validated = validateSettings(settings);
+          await invoke("save_settings", { settings: validated });
+
+          if (saveJob !== latestSaveJobRef.current) {
+            return;
+          }
+
+          setStatus("saved");
+          setStatusText("已自动保存");
+        } catch (error) {
+          if (saveJob !== latestSaveJobRef.current) {
+            return;
+          }
+
+          const message = error instanceof Error ? error.message : String(error);
+          setStatus("error");
+          setStatusText(`保存失败：${message}`);
+        }
+      })();
+    }, 260);
+
+    return () => {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, [settings]);
+
+  const resetAllDefaults = async (): Promise<void> => {
+    setIsResettingDefaults(true);
     try {
       const value = await invoke<AppSettings>("reset_settings");
       const normalized = validateSettings(value as Partial<AppSettings>);
+      skipNextAutoSaveRef.current = true;
       setSettings(normalized);
       persistThemeFromSettings(normalized);
       setStatus("saved");
-      setStatusText("已恢复默认配置");
+      setStatusText("已恢复全部默认设置");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setStatus("error");
-      setStatusText(`重置失败：${message}`);
+      setStatusText(`恢复默认失败：${message}`);
+    } finally {
+      setIsResettingDefaults(false);
     }
   };
 
@@ -125,15 +172,24 @@ export default function SettingsWindow(): JSX.Element {
       return <FeatureSettingsSection settings={settings} onChange={onSettingsChange} />;
     }
 
-    return <AdvancedSettingsSection settings={settings} onChange={onSettingsChange} />;
-  }, [activeSection, onSettingsChange, settings]);
+    return (
+      <AdvancedSettingsSection
+        settings={settings}
+        onChange={onSettingsChange}
+        onResetAllDefaults={() => {
+          void resetAllDefaults();
+        }}
+        isResettingDefaults={isResettingDefaults}
+      />
+    );
+  }, [activeSection, isResettingDefaults, onSettingsChange, settings]);
 
   return (
     <main className="settings-shell">
       <section className="settings-layout">
         <aside className="settings-sidebar" role="tablist" aria-label="设置分组">
           <header className="settings-sidebar-header">
-            <h1>SnapParse 设置</h1>
+            <h1 className="settings-brand">SnapParse</h1>
           </header>
 
           {SECTIONS.map((item) => (
@@ -153,28 +209,7 @@ export default function SettingsWindow(): JSX.Element {
 
         <section className="settings-main">
           <header className="settings-main-header">
-            <div className={`settings-status ${status}`}>{statusText || "未保存更改"}</div>
-
-            <div className="settings-actions">
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => {
-                  void reset();
-                }}
-              >
-                恢复默认
-              </button>
-              <button
-                type="button"
-                className="primary"
-                onClick={() => {
-                  void save();
-                }}
-              >
-                保存
-              </button>
-            </div>
+            <div className={`settings-status ${status}`}>{statusText}</div>
           </header>
 
           <div className="settings-content">{sectionPanel}</div>

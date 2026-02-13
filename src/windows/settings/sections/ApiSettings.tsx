@@ -50,6 +50,7 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
       <label className="settings-field">
         <span>Base URL</span>
         <input
+          type="text"
           value={settings.api.baseUrl}
           onChange={(event) => {
             onChange(
@@ -78,11 +79,10 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
         />
       </label>
 
-      <p className="settings-warning">当前按你的要求：API Key 明文存储在 settings.json，请注意本机安全。</p>
-
       <label className="settings-field">
         <span>默认模型</span>
         <input
+          type="text"
           value={settings.api.model}
           onChange={(event) => {
             onChange(
@@ -113,6 +113,7 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
         <label className="settings-field">
           <span>翻译模型</span>
           <input
+            type="text"
             value={settings.api.featureModels.translate}
             onChange={(event) => {
               onChange(
@@ -131,6 +132,7 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
         <label className="settings-field">
           <span>总结模型</span>
           <input
+            type="text"
             value={settings.api.featureModels.summarize}
             onChange={(event) => {
               onChange(
@@ -149,6 +151,7 @@ export default function ApiSettingsSection(props: SettingsSectionProps): JSX.Ele
         <label className="settings-field">
           <span>解释模型</span>
           <input
+            type="text"
             value={settings.api.featureModels.explain}
             onChange={(event) => {
               onChange(

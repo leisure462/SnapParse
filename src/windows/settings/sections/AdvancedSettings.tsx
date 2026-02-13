@@ -15,7 +15,7 @@ function patchAdvanced(
 }
 
 export default function AdvancedSettingsSection(props: SettingsSectionProps): JSX.Element {
-  const { settings, onChange } = props;
+  const { settings, onChange, onResetAllDefaults, isResettingDefaults } = props;
 
   return (
     <section className="settings-section" aria-label="高级设置面板">
@@ -84,6 +84,20 @@ export default function AdvancedSettingsSection(props: SettingsSectionProps): JS
           }}
         />
       </label>
+
+      <div className="settings-reset-block">
+        <p className="settings-hint">如需回到初始状态，可在此恢复全部默认设置。</p>
+        <button
+          type="button"
+          className="settings-reset-btn"
+          onClick={() => {
+            onResetAllDefaults?.();
+          }}
+          disabled={!onResetAllDefaults || isResettingDefaults}
+        >
+          {isResettingDefaults ? "恢复中..." : "恢复所有默认设置"}
+        </button>
+      </div>
     </section>
   );
 }
