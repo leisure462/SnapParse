@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useState } from "react";
 import ResultPanel from "../common/ResultPanel";
 import WindowHeader from "../common/WindowHeader";
@@ -80,6 +81,7 @@ export default function OptimizeWindow(): JSX.Element {
 
     let unlistenText: (() => void) | undefined;
     let unlistenPending: (() => void) | undefined;
+    let unlistenFocus: (() => void) | undefined;
 
     listen<ChangeTextPayload>("change-text", (event) => {
       applyPayload(event.payload);
@@ -93,9 +95,19 @@ export default function OptimizeWindow(): JSX.Element {
       unlistenPending = cleanup;
     });
 
+    getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (focused) {
+        console.log("[OptimizeWindow] window focused, trying to consume pending request");
+        void consumePendingRequest();
+      }
+    }).then((cleanup) => {
+      unlistenFocus = cleanup;
+    }).catch(() => {});
+
     return () => {
       unlistenText?.();
       unlistenPending?.();
+      unlistenFocus?.();
     };
   }, []);
 
