@@ -3,21 +3,22 @@ export interface ActionIconPreset {
   label: string;
 }
 
-const LUCIDE_ICON_MODULES = import.meta.glob("../../../lucide-common-100-pack/icons/*.svg", {
+const LUCIDE_ICON_RAW_MODULES = import.meta.glob("../../../lucide-common-100-pack/icons/*.svg?raw", {
   eager: true,
   import: "default"
 }) as Record<string, string>;
 
-const LUCIDE_ICON_URL_MAP = new Map<string, string>();
+const LUCIDE_ICON_RAW_MAP = new Map<string, string>();
 
-for (const [path, url] of Object.entries(LUCIDE_ICON_MODULES)) {
+for (const [path, rawSvg] of Object.entries(LUCIDE_ICON_RAW_MODULES)) {
   const filename = path.split("/").pop();
   if (!filename) {
     continue;
   }
 
-  const iconId = filename.replace(/\.svg$/i, "");
-  LUCIDE_ICON_URL_MAP.set(iconId, url);
+  const cleanFilename = filename.replace(/\?raw$/i, "");
+  const iconId = cleanFilename.replace(/\.svg$/i, "");
+  LUCIDE_ICON_RAW_MAP.set(iconId, rawSvg);
 }
 
 function formatLucideLabel(iconId: string): string {
@@ -28,7 +29,7 @@ function formatLucideLabel(iconId: string): string {
     .join(" ");
 }
 
-export const CUSTOM_ACTION_ICON_PRESETS: ActionIconPreset[] = Array.from(LUCIDE_ICON_URL_MAP.keys())
+export const CUSTOM_ACTION_ICON_PRESETS: ActionIconPreset[] = Array.from(LUCIDE_ICON_RAW_MAP.keys())
   .sort((a, b) => a.localeCompare(b))
   .map((id) => ({
     id,
@@ -104,12 +105,19 @@ function renderBuiltinIcon(icon: string, size: number): JSX.Element | null {
 }
 
 function renderLucidePackIcon(icon: string, size: number): JSX.Element | null {
-  const url = LUCIDE_ICON_URL_MAP.get(icon);
-  if (!url) {
+  const rawSvg = LUCIDE_ICON_RAW_MAP.get(icon);
+  if (!rawSvg) {
     return null;
   }
 
-  return <img src={url} alt="" width={size} height={size} draggable={false} loading="lazy" decoding="async" />;
+  return (
+    <span
+      className="sp-lucide-inline"
+      style={{ width: size, height: size }}
+      dangerouslySetInnerHTML={{ __html: rawSvg }}
+      aria-hidden="true"
+    />
+  );
 }
 
 export function resolveCustomIconLabel(iconId: string): string {

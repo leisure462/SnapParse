@@ -43,7 +43,6 @@ body:has(.md2-action-bar),
   background: var(--sp-actionbar-bg);
   padding: 2px 4px;
   overflow: hidden;
-  max-width: min(92vw, 1080px);
 }
 
 .md2-action-bar-icon {
@@ -94,13 +93,10 @@ body:has(.md2-action-bar),
 .md2-action-list {
   position: relative;
   z-index: 1;
-  display: flex;
-  min-width: 0;
+  display: inline-flex;
   align-items: center;
   gap: 0;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: thin;
 }
 
 .md2-action-btn {
@@ -150,14 +146,10 @@ body:has(.md2-action-bar),
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
+  color: #ffffff;
 }
 
 .md2-action-icon svg {
-  width: 14px;
-  height: 14px;
-}
-
-.md2-action-icon img {
   width: 14px;
   height: 14px;
 }

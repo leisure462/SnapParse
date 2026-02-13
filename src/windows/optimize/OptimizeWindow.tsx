@@ -64,10 +64,9 @@ export default function OptimizeWindow(): JSX.Element {
 
     ai.startStream("optimize", sourceText, {
       customPrompt,
-      customModel,
-      language: fw.language
+      customModel
     });
-  }, [customModel, customPrompt, fw.language, requestId, sourceText]);
+  }, [customModel, customPrompt, requestId, sourceText]);
 
   return (
     <main className="md2-window-shell" style={fw.shellStyle}>

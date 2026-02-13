@@ -620,11 +620,6 @@
   order: 1;
 }
 
-.settings-feature-section {
-  max-height: calc(100vh - 132px);
-  overflow-y: auto;
-}
-
 .settings-feature-preview {
   border: 1px solid var(--sp-settings-input-border);
   border-radius: 9px;
@@ -714,9 +709,6 @@
 .settings-custom-list {
   display: grid;
   gap: 8px;
-  max-height: 280px;
-  overflow-y: auto;
-  padding-right: 2px;
 }
 
 .settings-custom-item {
@@ -873,11 +865,6 @@
   font-weight: 600;
 }
 
-.settings-dialog-footer {
-  display: grid;
-  gap: 10px;
-}
-
 .settings-icon-grid {
   border: 1px solid var(--sp-settings-input-border);
   border-radius: 9px;
@@ -948,38 +935,28 @@
 .settings-prompt-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 8px;
 }
 
-.settings-placeholder-guide {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  user-select: none;
-  pointer-events: none;
+.settings-prompt-editor {
+  position: relative;
 }
 
-.settings-placeholder-chip {
-  min-height: 22px;
-  border-radius: 999px;
-  border: 1px solid var(--sp-settings-input-border);
-  background: var(--sp-settings-input-bg);
-  box-shadow: var(--sp-settings-input-shadow);
-  padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
-  color: var(--sp-text-secondary);
-  font-size: 11px;
-  font-weight: 700;
+.settings-prompt-editor textarea {
+  padding-top: 28px;
 }
 
-.settings-placeholder-note {
-  margin: 0;
+.settings-prompt-inline-tip {
+  position: absolute;
+  top: 8px;
+  right: 10px;
   color: var(--sp-text-muted);
   font-size: 11px;
-  user-select: none;
+  font-weight: 600;
+  line-height: 1;
   pointer-events: none;
+  user-select: none;
 }
 
 /* ── Reset block ────────────────────────────────────────────── */
@@ -1109,7 +1086,7 @@
   }
 
   .settings-prompt-head {
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
   }
 

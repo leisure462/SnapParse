@@ -219,12 +219,11 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
   const saveDisabled = !newName.trim() || !newPrompt.trim() || nameCharCount > MAX_CUSTOM_ACTION_NAME_LENGTH || reachedCreateLimit;
 
   return (
-    <section className="settings-section settings-feature-section" aria-label="功能配置面板">
+    <section className="settings-section" aria-label="功能配置面板">
       <div className="settings-section-topbar">
         <div>
           <h2>功能</h2>
           <p className="settings-hint">右侧开关控制功能是否出现在条形栏，顶部预览会实时更新。</p>
-          <p className="settings-hint">自定义agent最多 {MAX_CUSTOM_ACTION_COUNT} 个，名称最多 {MAX_CUSTOM_ACTION_NAME_LENGTH} 字。</p>
         </div>
 
         <button
@@ -431,21 +430,19 @@ export default function FeatureSettingsSection(props: SettingsSectionProps): JSX
             <div className="settings-field">
               <div className="settings-prompt-head">
                 <span>Prompt 模板</span>
-                <div className="settings-placeholder-guide" aria-hidden="true">
-                  <span className="settings-placeholder-chip">{"{{text}}"}</span>
-                  <span className="settings-placeholder-chip">{"{{language}}"}</span>
-                  <span className="settings-placeholder-chip">{"{{target_language}}"}</span>
-                </div>
               </div>
-              <p className="settings-placeholder-note" aria-hidden="true">
-                使用说明：text=选中文本，language=界面语言，target_language=目标语言。
-              </p>
-              <textarea
-                value={newPrompt}
-                onChange={(event) => {
-                  setNewPrompt(event.target.value);
-                }}
-              />
+              <div className="settings-prompt-editor">
+                <textarea
+                  value={newPrompt}
+                  placeholder={"请输入自定义提示词\n可使用占位符 {{text}} 或 {{target_language}}"}
+                  onChange={(event) => {
+                    setNewPrompt(event.target.value);
+                  }}
+                />
+                <span className="settings-prompt-inline-tip" aria-hidden="true">
+                  占位符：{{"{{text}}"}} {{"{{target_language}}"}}
+                </span>
+              </div>
             </div>
 
             <div className="settings-dialog-actions settings-dialog-actions-right">

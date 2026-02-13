@@ -8,6 +8,7 @@ import { defaultSettings, resolveWindowSize, validateSettings, type AppSettings 
 import { renderActionIcon } from "../common/actionIcon";
 // The icon_transparent.png is copied to public/ for Vite to serve at runtime.
 const APP_ICON_URL = "/icon_transparent.png";
+const LAST_SELECTED_TEXT_KEY = "snapparse:selected-text";
 
 const FEATURE_WINDOW_GAP = 12;
 const FEATURE_WINDOW_PADDING = 8;
@@ -92,6 +93,7 @@ export default function ActionBarWindow(): JSX.Element {
   const [isBusy, setBusy] = useState(false);
   const [actions, setActions] = useState<ActionBarAction[]>(() => resolveActionBarActions(defaultSettings()));
   const actionBarRef = useRef<HTMLDivElement | null>(null);
+  const selectedTextRef = useRef("");
   const iconRef = useRef<HTMLImageElement | null>(null);
   const iconAnimationTimerRef = useRef<number | null>(null);
   const featureWindowSize = useRef({ width: 680, height: 520 });
@@ -186,6 +188,10 @@ export default function ActionBarWindow(): JSX.Element {
     listen<SelectionTextPayload>("selection-text-changed", (event) => {
       if (typeof event.payload.text === "string") {
         setSelectedText(event.payload.text);
+        selectedTextRef.current = event.payload.text;
+        if (event.payload.text.trim()) {
+          window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, event.payload.text);
+        }
         queueIconAnimation();
       }
     }).then((cleanup) => {
@@ -257,7 +263,18 @@ export default function ActionBarWindow(): JSX.Element {
     setBusy(true);
 
     try {
+      const textForAction =
+        selectedTextRef.current.trim() ||
+        selectedText.trim() ||
+        window.localStorage.getItem(LAST_SELECTED_TEXT_KEY)?.trim() ||
+        "";
+
       if (action.commandWindow) {
+        if (!textForAction) {
+          await closeActionBarWindow();
+          return;
+        }
+
         // Re-read settings every time so the latest window-size preset is used
         try {
           const freshSettings = await invoke<AppSettings>("get_settings");
@@ -289,7 +306,7 @@ export default function ActionBarWindow(): JSX.Element {
         }
 
         const payload = {
-          text: selectedText,
+          text: textForAction,
           source: "action-bar",
           target: action.commandWindow,
           title: action.label,
@@ -298,7 +315,9 @@ export default function ActionBarWindow(): JSX.Element {
           requestId
         };
 
-        // Emit twice with same requestId to reduce first-open race conditions.
+        // Emit multiple times with same requestId to reduce first-open race conditions.
+        void emit("change-text", payload);
+
         setTimeout(() => {
           void emit("change-text", payload);
         }, 300);
@@ -312,8 +331,8 @@ export default function ActionBarWindow(): JSX.Element {
       }
 
       if (action.id === "search") {
-        if (selectedText.trim()) {
-          const query = encodeURIComponent(selectedText);
+        if (textForAction) {
+          const query = encodeURIComponent(textForAction);
           const searchUrl = `https://www.google.com/search?q=${query}`;
           try {
             await invoke("open_external_url", { url: searchUrl });
@@ -326,7 +345,7 @@ export default function ActionBarWindow(): JSX.Element {
       }
 
       if (action.id === "copy") {
-        await copyText(selectedText);
+        await copyText(textForAction);
         await closeActionBarWindow();
       }
     } finally {
