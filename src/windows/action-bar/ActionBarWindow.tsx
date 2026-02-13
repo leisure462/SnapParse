@@ -325,27 +325,25 @@ export default function ActionBarWindow(): JSX.Element {
   };
 
   return (
-    <div ref={actionBarRef} className="md2-action-root">
-      <div className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
-        <img src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
-        <div className="md2-action-list">
-          {DEFAULT_ACTIONS.map((action) => (
-            <button
-              key={action.id}
-              type="button"
-              className="md2-action-btn"
-              onClick={() => {
-                void runAction(action);
-              }}
-              disabled={isBusy}
-            >
-              <span className="md2-action-icon" aria-hidden="true">
-                {iconForAction(action.id)}
-              </span>
-              <span className="md2-action-label">{action.label}</span>
-            </button>
-          ))}
-        </div>
+    <div ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">
+      <img src={APP_ICON_URL} alt="" className="md2-action-bar-icon" draggable={false} />
+      <div className="md2-action-list">
+        {DEFAULT_ACTIONS.map((action) => (
+          <button
+            key={action.id}
+            type="button"
+            className="md2-action-btn"
+            onClick={() => {
+              void runAction(action);
+            }}
+            disabled={isBusy}
+          >
+            <span className="md2-action-icon" aria-hidden="true">
+              {iconForAction(action.id)}
+            </span>
+            <span className="md2-action-label">{action.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
