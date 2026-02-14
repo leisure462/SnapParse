@@ -1,5 +1,6 @@
 use std::io::Cursor;
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 use base64::Engine as _;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
@@ -9,7 +10,7 @@ use tauri::{
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
-use crate::settings::model::{AppSettings, OcrPostActionMode, OcrProvider, OcrSettings};
+use crate::settings::model::{AppSettings, OcrProvider, OcrSettings};
 use crate::settings::store;
 use crate::windows::ids::WindowKind;
 use crate::windows::manager;
@@ -188,36 +189,37 @@ pub fn open_capture_overlay(app: &AppHandle) -> Result<(), String> {
 }
 
 pub async fn run_ocr_capture(app: &AppHandle, region: OcrCaptureRegion) -> Result<(), String> {
+    let result = run_ocr_capture_inner(app, region).await;
+    let _ = manager::hide_window(app, WindowKind::OcrCapture);
+    result.map_err(|error| error.to_string())
+}
+
+async fn run_ocr_capture_inner(app: &AppHandle, region: OcrCaptureRegion) -> Result<(), OcrError> {
     let config_root = app
         .path()
         .app_config_dir()
-        .map_err(|error| format!("failed to resolve app config dir: {error}"))?;
+        .map_err(|error| OcrError::Settings(format!("failed to resolve app config dir: {error}")))?;
 
     let settings = store::load_settings(&config_root)
-        .map_err(|error| OcrError::Settings(error.to_string()).to_string())?;
+        .map_err(|error| OcrError::Settings(error.to_string()))?;
 
     if !settings.ocr.enabled {
-        return Err(OcrError::Disabled.to_string());
+        return Err(OcrError::Disabled);
     }
 
     let capture_window = app
         .get_webview_window(WindowKind::OcrCapture.label())
-        .ok_or_else(|| OcrError::CaptureWindowUnavailable.to_string())?;
+        .ok_or(OcrError::CaptureWindowUnavailable)?;
 
-    let physical_rect =
-        logical_region_to_physical(&capture_window, &region).map_err(|error| error.to_string())?;
-
-    let image_data_url =
-        capture_region_data_url(physical_rect).map_err(|error| error.to_string())?;
-
-    let text = request_ocr_text(&settings.ocr, &image_data_url)
-        .await
-        .map_err(|error| error.to_string())?;
-
-    dispatch_ocr_result(app, &settings, text, physical_rect)
-        .map_err(|error| error.to_string())?;
+    let physical_rect = logical_region_to_physical(&capture_window, &region)?;
 
     let _ = manager::hide_window(app, WindowKind::OcrCapture);
+    std::thread::sleep(Duration::from_millis(90));
+
+    let image_data_url = capture_region_data_url(physical_rect)?;
+    let text = request_ocr_text(&settings.ocr, &image_data_url).await?;
+    dispatch_ocr_result(app, &settings, text, physical_rect)?;
+
     Ok(())
 }
 
@@ -435,15 +437,11 @@ fn dispatch_ocr_result(
     let _ = manager::position_window_physical(app, WindowKind::ActionBar, target_x, target_y);
     let _ = manager::show_window(app, WindowKind::ActionBar);
 
-    let auto_action_id = if settings.ocr.post_action_mode == OcrPostActionMode::Auto {
-        let trimmed = settings.ocr.post_action_id.trim();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed.to_owned())
-        }
-    } else {
+    let trimmed = settings.ocr.post_action_id.trim();
+    let auto_action_id = if trimmed.is_empty() {
         None
+    } else {
+        Some(trimmed.to_owned())
     };
 
     app.emit(

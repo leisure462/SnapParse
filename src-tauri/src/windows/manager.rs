@@ -7,13 +7,12 @@ use tauri::{
 use crate::windows::ids::WindowKind;
 
 /// All window kinds that should be pre-created at startup.
-const PRECREATE_KINDS: [WindowKind; 7] = [
+const PRECREATE_KINDS: [WindowKind; 6] = [
     WindowKind::ActionBar,
     WindowKind::Translate,
     WindowKind::Summary,
     WindowKind::Explain,
     WindowKind::Optimize,
-    WindowKind::OcrCapture,
     WindowKind::Settings,
 ];
 
@@ -26,6 +25,12 @@ fn app_url_from_kind(kind: WindowKind) -> WebviewUrl {
 }
 
 fn init_script_for_kind(kind: WindowKind) -> String {
+    if kind == WindowKind::OcrCapture {
+        return String::from(
+            "window.__SNAPPARSE_WINDOW_KIND='ocr-capture';window.addEventListener('DOMContentLoaded',()=>{document.documentElement.style.background='transparent';if(document.body){document.body.style.background='transparent';document.body.style.margin='0';}});",
+        );
+    }
+
     format!(
         "window.__SNAPPARSE_WINDOW_KIND = '{}';",
         kind.query_value()

@@ -3,6 +3,7 @@ import type { AppSettings } from "../../../shared/settings";
 import type { SettingsSectionProps } from "./sectionTypes";
 
 const DEFAULT_TRIGGER_HOTKEY = "Ctrl+Shift+Space";
+const DEFAULT_OCR_HOTKEY = "Ctrl+Shift+O";
 
 function normalizeKey(key: string): string | null {
   if (key === " ") {
@@ -72,6 +73,16 @@ function patchToolbar(
   };
 }
 
+function patchOcr(
+  settings: AppSettings,
+  updater: (ocr: AppSettings["ocr"]) => AppSettings["ocr"]
+): AppSettings {
+  return {
+    ...settings,
+    ocr: updater(settings.ocr)
+  };
+}
+
 export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.Element {
   const { settings, onChange } = props;
 
@@ -115,6 +126,41 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
         />
       </label>
 
+      <label className="settings-field">
+        <span>OCR 划屏快捷键</span>
+        <input
+          type="text"
+          readOnly
+          value={settings.ocr.captureHotkey}
+          placeholder={DEFAULT_OCR_HOTKEY}
+          onKeyDown={(event) => {
+            event.preventDefault();
+
+            if (event.key === "Backspace" || event.key === "Delete") {
+              onChange(
+                patchOcr(settings, (ocr) => ({
+                  ...ocr,
+                  captureHotkey: DEFAULT_OCR_HOTKEY
+                }))
+              );
+              return;
+            }
+
+            const hotkey = formatHotkey(event);
+            if (!hotkey) {
+              return;
+            }
+
+            onChange(
+              patchOcr(settings, (ocr) => ({
+                ...ocr,
+                captureHotkey: hotkey
+              }))
+            );
+          }}
+        />
+      </label>
+
       <div className="settings-inline-actions">
         <span className="settings-hint">点击输入框后按下组合键即可修改。按 Delete 可恢复默认值。</span>
         <button
@@ -130,6 +176,20 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
           }}
         >
           恢复默认快捷键
+        </button>
+        <button
+          type="button"
+          className="settings-api-test-btn"
+          onClick={() => {
+            onChange(
+              patchOcr(settings, (ocr) => ({
+                ...ocr,
+                captureHotkey: DEFAULT_OCR_HOTKEY
+              }))
+            );
+          }}
+        >
+          恢复 OCR 快捷键
         </button>
       </div>
 

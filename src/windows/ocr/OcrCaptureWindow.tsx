@@ -44,7 +44,6 @@ export default function OcrCaptureWindow(): JSX.Element {
   const [endPoint, setEndPoint] = useState<Point | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [errorText, setErrorText] = useState<string | null>(null);
 
   const rect = useMemo(() => {
     if (!startPoint || !endPoint) {
@@ -70,7 +69,6 @@ export default function OcrCaptureWindow(): JSX.Element {
     if (processing) {
       return;
     }
-    setErrorText(null);
     setStartPoint({ x, y });
     setEndPoint({ x, y });
     setIsDragging(true);
@@ -93,7 +91,8 @@ export default function OcrCaptureWindow(): JSX.Element {
     setEndPoint({ x, y });
 
     if (finalRect.width < MIN_CAPTURE_SIZE || finalRect.height < MIN_CAPTURE_SIZE) {
-      setErrorText("选区太小，请重新框选。按 Esc 退出。");
+      setStartPoint(null);
+      setEndPoint(null);
       return;
     }
 
@@ -106,15 +105,13 @@ export default function OcrCaptureWindow(): JSX.Element {
     };
 
     setProcessing(true);
-    setErrorText(null);
 
     try {
       await invoke("run_ocr_capture", { region: payload });
+    } catch {
+      // Ignore here to avoid leaving overlay in an unusable state.
+    } finally {
       await closeCaptureWindow();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setErrorText(`OCR 失败：${message}`);
-      setProcessing(false);
     }
   };
 
@@ -160,7 +157,6 @@ export default function OcrCaptureWindow(): JSX.Element {
         />
       ) : null}
 
-      {errorText ? <div className="ocr-capture-error">{errorText}</div> : null}
     </main>
   );
 }

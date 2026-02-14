@@ -1,10 +1,8 @@
 import { useEffect, useMemo } from "react";
-import type { KeyboardEvent } from "react";
 import type { AppSettings, OcrProvider } from "../../../shared/settings";
 import { resolveActionBarActions } from "../../action-bar/actions";
 import type { SettingsSectionProps } from "./sectionTypes";
 
-const DEFAULT_OCR_HOTKEY = "Ctrl+Shift+O";
 const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_GLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4";
 
@@ -16,64 +14,6 @@ function patchOcr(
     ...settings,
     ocr: updater(settings.ocr)
   };
-}
-
-function normalizeKey(key: string): string | null {
-  if (key === " ") {
-    return "Space";
-  }
-
-  if (key.length === 1) {
-    return key.toUpperCase();
-  }
-
-  const keyMap: Record<string, string> = {
-    Escape: "Esc",
-    Enter: "Enter",
-    Backspace: "Backspace",
-    Delete: "Delete",
-    ArrowUp: "Up",
-    ArrowDown: "Down",
-    ArrowLeft: "Left",
-    ArrowRight: "Right"
-  };
-
-  if (keyMap[key]) {
-    return keyMap[key];
-  }
-
-  if (/^F\d{1,2}$/.test(key)) {
-    return key;
-  }
-
-  return null;
-}
-
-function formatHotkey(event: KeyboardEvent<HTMLInputElement>): string | null {
-  const key = normalizeKey(event.key);
-  if (!key) {
-    return null;
-  }
-
-  const parts: string[] = [];
-  if (event.ctrlKey) {
-    parts.push("Ctrl");
-  }
-  if (event.shiftKey) {
-    parts.push("Shift");
-  }
-  if (event.altKey) {
-    parts.push("Alt");
-  }
-  if (event.metaKey) {
-    parts.push("Meta");
-  }
-
-  if (["Ctrl", "Shift", "Alt", "Meta"].includes(key)) {
-    return parts.length ? parts.join("+") : null;
-  }
-
-  return [...parts, key].join("+");
 }
 
 export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Element {
@@ -157,38 +97,25 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
         </label>
 
         <label className="settings-field">
-          <span>OCR 快捷键</span>
-          <input
-            type="text"
-            readOnly
-            value={settings.ocr.captureHotkey}
-            placeholder={DEFAULT_OCR_HOTKEY}
-            onKeyDown={(event) => {
-              event.preventDefault();
-
-              if (event.key === "Backspace" || event.key === "Delete") {
-                onChange(
-                  patchOcr(settings, (ocr) => ({
-                    ...ocr,
-                    captureHotkey: DEFAULT_OCR_HOTKEY
-                  }))
-                );
-                return;
-              }
-
-              const hotkey = formatHotkey(event);
-              if (!hotkey) {
-                return;
-              }
-
+          <span>自动执行功能</span>
+          <select
+            value={selectedActionId}
+            disabled={actionOptions.length === 0}
+            onChange={(event) => {
               onChange(
                 patchOcr(settings, (ocr) => ({
                   ...ocr,
-                  captureHotkey: hotkey
+                  postActionId: event.target.value
                 }))
               );
             }}
-          />
+          >
+            {actionOptions.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="settings-field">
@@ -273,48 +200,6 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
           }}
         />
       </label>
-
-      <div className="settings-grid-2">
-        <label className="settings-field">
-          <span>OCR 后处理方式</span>
-          <select
-            value={settings.ocr.postActionMode}
-            onChange={(event) => {
-              onChange(
-                patchOcr(settings, (ocr) => ({
-                  ...ocr,
-                  postActionMode: event.target.value as AppSettings["ocr"]["postActionMode"]
-                }))
-              );
-            }}
-          >
-            <option value="auto">自动执行功能</option>
-            <option value="manual">仅弹出条形栏</option>
-          </select>
-        </label>
-
-        <label className="settings-field">
-          <span>自动执行功能</span>
-          <select
-            value={selectedActionId}
-            disabled={settings.ocr.postActionMode !== "auto" || actionOptions.length === 0}
-            onChange={(event) => {
-              onChange(
-                patchOcr(settings, (ocr) => ({
-                  ...ocr,
-                  postActionId: event.target.value
-                }))
-              );
-            }}
-          >
-            {actionOptions.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
     </section>
   );
 }

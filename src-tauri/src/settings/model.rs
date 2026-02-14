@@ -114,8 +114,6 @@ pub struct OcrSettings {
     pub timeout_ms: u64,
     #[serde(default = "default_ocr_prompt")]
     pub prompt: String,
-    #[serde(default)]
-    pub post_action_mode: OcrPostActionMode,
     #[serde(default = "default_ocr_post_action_id")]
     pub post_action_id: String,
 }
@@ -131,7 +129,6 @@ impl Default for OcrSettings {
             model: default_ocr_model(),
             timeout_ms: default_ocr_timeout_ms(),
             prompt: default_ocr_prompt(),
-            post_action_mode: OcrPostActionMode::default(),
             post_action_id: default_ocr_post_action_id(),
         }
     }
@@ -171,19 +168,6 @@ pub enum OcrProvider {
 impl Default for OcrProvider {
     fn default() -> Self {
         OcrProvider::OpenaiVision
-    }
-}
-
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum OcrPostActionMode {
-    Auto,
-    Manual,
-}
-
-impl Default for OcrPostActionMode {
-    fn default() -> Self {
-        OcrPostActionMode::Auto
     }
 }
 

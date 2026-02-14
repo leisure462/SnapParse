@@ -94,5 +94,12 @@ describe("SettingsWindow", () => {
     fireEvent.click(screen.getByRole("tab", { name: "OCR配置" }));
     expect(screen.getByLabelText("OCR 服务类型")).toBeInTheDocument();
     expect(screen.getByLabelText("自动执行功能")).toBeInTheDocument();
+    expect(screen.queryByLabelText("OCR 快捷键")).not.toBeInTheDocument();
+  });
+
+  it("shows OCR hotkey input in 快捷键设置 section", async () => {
+    await renderWindow();
+    fireEvent.click(screen.getByRole("tab", { name: "快捷键设置" }));
+    expect(screen.getByLabelText("OCR 划屏快捷键")).toBeInTheDocument();
   });
 });
