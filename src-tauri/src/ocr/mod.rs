@@ -10,10 +10,13 @@ use tauri::{
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
-use crate::settings::model::{AppSettings, OcrProvider, OcrSettings};
+use crate::settings::model::{AppSettings, OcrProvider, OcrSettings, WindowSizePreset};
 use crate::settings::store;
 use crate::windows::ids::WindowKind;
 use crate::windows::manager;
+
+const GLM_OCR_LAYOUT_URL: &str = "https://open.bigmodel.cn/api/paas/v4/layout_parsing";
+const GLM_OCR_FIXED_MODEL: &str = "glm-ocr";
 
 fn ocr_hotkey_store() -> &'static Mutex<Option<String>> {
     static STORE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
@@ -109,6 +112,12 @@ enum VisionContent {
 #[derive(Debug, Serialize)]
 struct VisionImageUrl {
     url: String,
+}
+
+#[derive(Debug, Serialize)]
+struct GlmLayoutRequest {
+    model: &'static str,
+    file: String,
 }
 
 pub fn sync_ocr_hotkey(app: &AppHandle, settings: &AppSettings) -> Result<(), String> {
@@ -230,6 +239,10 @@ async fn run_ocr_capture_inner(app: &AppHandle, region: OcrCaptureRegion) -> Res
 
     let image_data_url = capture_region_data_url(physical_rect)?;
 
+    let (feature_width, feature_height) = resolve_feature_window_size(settings.window.window_size);
+    manager::resize_window(app, route.target_window, feature_width, feature_height)
+        .map_err(|error| OcrError::CaptureFailure(error.to_string()))?;
+
     manager::show_window(app, route.target_window)
         .map_err(|error| OcrError::CaptureFailure(error.to_string()))?;
     emit_change_text(app, &route, String::new(), Some("ocring"), None)?;
@@ -337,48 +350,43 @@ async fn request_ocr_text(ocr: &OcrSettings, image_data_url: &str) -> Result<Str
         return Err(OcrError::EmptyApiKey);
     }
 
+    let timeout_ms = ocr.timeout_ms.clamp(1_000, 120_000);
+    match ocr.provider {
+        OcrProvider::OpenaiVision => request_openai_ocr_text(ocr, image_data_url, timeout_ms).await,
+        OcrProvider::GlmOcr => request_glm_ocr_text(ocr, image_data_url, timeout_ms).await,
+    }
+}
+
+async fn request_openai_ocr_text(
+    ocr: &OcrSettings,
+    image_data_url: &str,
+    timeout_ms: u64,
+) -> Result<String, OcrError> {
     if ocr.model.trim().is_empty() {
         return Err(OcrError::EmptyModel);
     }
 
-    let timeout_ms = ocr.timeout_ms.clamp(1_000, 120_000);
-    let prompt = if ocr.prompt.trim().is_empty() {
-        String::from("请提取图片中的全部文字，按原有顺序输出，不要添加解释。")
-    } else {
-        ocr.prompt.trim().to_owned()
-    };
+    let mut user_content = Vec::with_capacity(2);
+    let prompt = ocr.prompt.trim();
+    if !prompt.is_empty() {
+        user_content.push(VisionContent::Text {
+            text: prompt.to_owned(),
+        });
+    }
 
-    let system_prompt = match ocr.provider {
-        OcrProvider::OpenaiVision => {
-            "You are an OCR engine. Extract all visible text from the image and return plain text only."
-        }
-        OcrProvider::GlmOcr => {
-            "你是OCR引擎。请识别图片中的所有文字并按阅读顺序输出纯文本，不要添加解释。"
-        }
-    };
+    user_content.push(VisionContent::ImageUrl {
+        image_url: VisionImageUrl {
+            url: image_data_url.to_owned(),
+        },
+    });
 
     let request_body = VisionChatRequest {
         model: ocr.model.trim().to_owned(),
         temperature: 0.0,
-        messages: vec![
-            VisionMessage {
-                role: "system",
-                content: vec![VisionContent::Text {
-                    text: system_prompt.to_owned(),
-                }],
-            },
-            VisionMessage {
-                role: "user",
-                content: vec![
-                    VisionContent::Text { text: prompt },
-                    VisionContent::ImageUrl {
-                        image_url: VisionImageUrl {
-                            url: image_data_url.to_owned(),
-                        },
-                    },
-                ],
-            },
-        ],
+        messages: vec![VisionMessage {
+            role: "user",
+            content: user_content,
+        }],
     };
 
     let client = reqwest::Client::builder()
@@ -386,7 +394,7 @@ async fn request_ocr_text(ocr: &OcrSettings, image_data_url: &str) -> Result<Str
         .build()?;
 
     let response = client
-        .post(build_ocr_chat_url(ocr))
+        .post(build_openai_chat_url(ocr))
         .header(CONTENT_TYPE, "application/json")
         .header(AUTHORIZATION, format!("Bearer {}", ocr.api_key.trim()))
         .json(&request_body)
@@ -396,9 +404,8 @@ async fn request_ocr_text(ocr: &OcrSettings, image_data_url: &str) -> Result<Str
         .json::<serde_json::Value>()
         .await?;
 
-    let text = extract_ocr_text_from_response(&response).ok_or(OcrError::EmptyResponse)?;
+    let text = extract_ocr_text_from_openai_response(&response).ok_or(OcrError::EmptyResponse)?;
     let trimmed = text.trim();
-
     if trimmed.is_empty() {
         return Err(OcrError::EmptyResponse);
     }
@@ -406,26 +413,54 @@ async fn request_ocr_text(ocr: &OcrSettings, image_data_url: &str) -> Result<Str
     Ok(trimmed.to_owned())
 }
 
-fn build_ocr_chat_url(ocr: &OcrSettings) -> String {
-    let trimmed = ocr.base_url.trim().trim_end_matches('/');
+async fn request_glm_ocr_text(
+    ocr: &OcrSettings,
+    image_data_url: &str,
+    timeout_ms: u64,
+) -> Result<String, OcrError> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(timeout_ms))
+        .build()?;
 
-    if trimmed.ends_with("/chat/completions") {
-        return trimmed.to_owned();
+    let response = client
+        .post(GLM_OCR_LAYOUT_URL)
+        .header(CONTENT_TYPE, "application/json")
+        .header(AUTHORIZATION, ocr.api_key.trim())
+        .json(&GlmLayoutRequest {
+            model: GLM_OCR_FIXED_MODEL,
+            file: image_data_url.to_owned(),
+        })
+        .send()
+        .await?
+        .error_for_status()?
+        .json::<serde_json::Value>()
+        .await?;
+
+    let text = extract_text_from_glm_layout_response(&response).ok_or(OcrError::EmptyResponse)?;
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return Err(OcrError::EmptyResponse);
     }
 
-    if matches!(ocr.provider, OcrProvider::GlmOcr) {
-        if trimmed == "https://open.bigmodel.cn" {
-            return String::from("https://open.bigmodel.cn/api/paas/v4/chat/completions");
-        }
-        if trimmed.ends_with("/api/paas/v4") {
-            return format!("{trimmed}/chat/completions");
-        }
-    }
-
-    format!("{trimmed}/chat/completions")
+    Ok(trimmed.to_owned())
 }
 
-fn extract_ocr_text_from_response(payload: &serde_json::Value) -> Option<String> {
+fn build_openai_chat_url(ocr: &OcrSettings) -> String {
+    let trimmed = ocr.base_url.trim().trim_end_matches('/');
+    let base = if trimmed.is_empty() {
+        "https://api.openai.com/v1"
+    } else {
+        trimmed
+    };
+
+    if base.ends_with("/chat/completions") {
+        return base.to_owned();
+    }
+
+    format!("{base}/chat/completions")
+}
+
+fn extract_ocr_text_from_openai_response(payload: &serde_json::Value) -> Option<String> {
     let content = payload
         .get("choices")?
         .as_array()?
@@ -455,6 +490,54 @@ fn extract_ocr_text_from_response(payload: &serde_json::Value) -> Option<String>
     }
 
     None
+}
+
+fn extract_text_from_glm_layout_response(payload: &serde_json::Value) -> Option<String> {
+    if let Some(text) = payload.get("text").and_then(|value| value.as_str()) {
+        if !text.trim().is_empty() {
+            return Some(text.trim().to_owned());
+        }
+    }
+
+    let mut fragments = Vec::new();
+    collect_text_fragments(payload, &mut fragments);
+    if !fragments.is_empty() {
+        let merged = fragments.join("\n");
+        if !merged.trim().is_empty() {
+            return Some(merged.trim().to_owned());
+        }
+    }
+
+    extract_ocr_text_from_openai_response(payload)
+}
+
+fn collect_text_fragments(value: &serde_json::Value, fragments: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, child) in map {
+                if matches!(
+                    key.as_str(),
+                    "text" | "content" | "ocr_text" | "result_text" | "line_text" | "word"
+                ) {
+                    if let Some(text) = child.as_str() {
+                        let trimmed = text.trim();
+                        if !trimmed.is_empty() {
+                            fragments.push(trimmed.to_owned());
+                            continue;
+                        }
+                    }
+                }
+
+                collect_text_fragments(child, fragments);
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_text_fragments(item, fragments);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn resolve_ocr_action_route(settings: &AppSettings) -> OcrActionRoute {
@@ -552,6 +635,14 @@ fn emit_change_text(
         },
     )
     .map_err(|error| OcrError::CaptureFailure(error.to_string()))
+}
+
+fn resolve_feature_window_size(preset: WindowSizePreset) -> (f64, f64) {
+    match preset {
+        WindowSizePreset::Large => (520.0, 400.0),
+        WindowSizePreset::Medium => (460.0, 360.0),
+        WindowSizePreset::Small => (400.0, 320.0),
+    }
 }
 
 fn current_request_id() -> u64 {

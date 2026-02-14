@@ -1,10 +1,15 @@
 import { useEffect, useMemo } from "react";
-import type { AppSettings, OcrProvider } from "../../../shared/settings";
+import {
+  DEFAULT_OCR_PROMPT,
+  DEFAULT_OPENAI_OCR_BASE_URL,
+  DEFAULT_OPENAI_OCR_MODEL,
+  GLM_OCR_LOCKED_BASE_URL,
+  GLM_OCR_LOCKED_MODEL,
+  type AppSettings,
+  type OcrProvider
+} from "../../../shared/settings";
 import { resolveActionBarActions } from "../../action-bar/actions";
 import type { SettingsSectionProps } from "./sectionTypes";
-
-const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
-const DEFAULT_GLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4";
 
 function patchOcr(
   settings: AppSettings,
@@ -18,10 +23,32 @@ function patchOcr(
 
 export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Element {
   const { settings, onChange } = props;
+  const isGlmProvider = settings.ocr.provider === "glm-ocr";
 
   const actionOptions = useMemo(() => {
     return resolveActionBarActions(settings).filter((item) => item.commandWindow);
   }, [settings]);
+
+  useEffect(() => {
+    if (!isGlmProvider) {
+      return;
+    }
+
+    if (
+      settings.ocr.baseUrl === GLM_OCR_LOCKED_BASE_URL &&
+      settings.ocr.model === GLM_OCR_LOCKED_MODEL
+    ) {
+      return;
+    }
+
+    onChange(
+      patchOcr(settings, (ocr) => ({
+        ...ocr,
+        baseUrl: GLM_OCR_LOCKED_BASE_URL,
+        model: GLM_OCR_LOCKED_MODEL
+      }))
+    );
+  }, [isGlmProvider, onChange, settings]);
 
   useEffect(() => {
     if (actionOptions.length === 0) {
@@ -75,17 +102,25 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
               onChange(
                 patchOcr(settings, (ocr) => {
                   let baseUrl = ocr.baseUrl;
-                  if (provider === "glm-ocr" && ocr.baseUrl.trim() === DEFAULT_OPENAI_BASE_URL) {
-                    baseUrl = DEFAULT_GLM_BASE_URL;
-                  }
-                  if (provider === "openai-vision" && ocr.baseUrl.trim() === DEFAULT_GLM_BASE_URL) {
-                    baseUrl = DEFAULT_OPENAI_BASE_URL;
+                  let model = ocr.model;
+
+                  if (provider === "glm-ocr") {
+                    baseUrl = GLM_OCR_LOCKED_BASE_URL;
+                    model = GLM_OCR_LOCKED_MODEL;
+                  } else if (
+                    ocr.provider === "glm-ocr" &&
+                    ocr.baseUrl.trim() === GLM_OCR_LOCKED_BASE_URL &&
+                    ocr.model.trim() === GLM_OCR_LOCKED_MODEL
+                  ) {
+                    baseUrl = DEFAULT_OPENAI_OCR_BASE_URL;
+                    model = DEFAULT_OPENAI_OCR_MODEL;
                   }
 
                   return {
                     ...ocr,
                     provider,
-                    baseUrl
+                    baseUrl,
+                    model
                   };
                 })
               );
@@ -123,6 +158,7 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
           <input
             type="text"
             value={settings.ocr.baseUrl}
+            disabled={isGlmProvider}
             onChange={(event) => {
               onChange(
                 patchOcr(settings, (ocr) => ({
@@ -155,6 +191,7 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
           <input
             type="text"
             value={settings.ocr.model}
+            disabled={isGlmProvider}
             onChange={(event) => {
               onChange(
                 patchOcr(settings, (ocr) => ({
@@ -186,6 +223,10 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
         </label>
       </div>
 
+      {isGlmProvider ? (
+        <p className="settings-hint">GLM OCR 使用固定接口与模型：layout_parsing + glm-ocr。</p>
+      ) : null}
+
       <label className="settings-field">
         <span>OCR 提示词</span>
         <textarea
@@ -200,6 +241,24 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
           }}
         />
       </label>
+
+      <div className="settings-inline-actions">
+        <span className="settings-hint">可留空提示词（适配只需图片输入的 OCR 模型）。</span>
+        <button
+          type="button"
+          className="settings-api-test-btn"
+          onClick={() => {
+            onChange(
+              patchOcr(settings, (ocr) => ({
+                ...ocr,
+                prompt: DEFAULT_OCR_PROMPT
+              }))
+            );
+          }}
+        >
+          恢复默认提示词
+        </button>
+      </div>
     </section>
   );
 }

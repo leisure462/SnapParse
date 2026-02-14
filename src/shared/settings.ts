@@ -10,6 +10,12 @@ export type OcrProvider = "openai-vision" | "glm-ocr";
 
 export const MAX_CUSTOM_ACTION_COUNT = 2;
 export const MAX_CUSTOM_ACTION_NAME_LENGTH = 8;
+export const DEFAULT_OCR_PROMPT =
+  "You are an OCR engine. Extract all visible text from the image in natural reading order. Return plain text only, preserve line breaks when meaningful, and do not add explanations.";
+export const DEFAULT_OPENAI_OCR_BASE_URL = "https://api.openai.com/v1";
+export const DEFAULT_OPENAI_OCR_MODEL = "gpt-4o-mini";
+export const GLM_OCR_LOCKED_BASE_URL = "https://open.bigmodel.cn/api/paas/v4/layout_parsing";
+export const GLM_OCR_LOCKED_MODEL = "glm-ocr";
 
 export interface GeneralSettings {
   launchAtStartup: boolean;
@@ -174,11 +180,11 @@ export function defaultSettings(): AppSettings {
       enabled: false,
       captureHotkey: "Ctrl+Shift+O",
       provider: "openai-vision",
-      baseUrl: "https://api.openai.com/v1",
+      baseUrl: DEFAULT_OPENAI_OCR_BASE_URL,
       apiKey: "",
-      model: "gpt-4o-mini",
+      model: DEFAULT_OPENAI_OCR_MODEL,
       timeoutMs: 45000,
-      prompt: "请提取图片中的全部文字，按原有顺序输出，不要添加解释。",
+      prompt: DEFAULT_OCR_PROMPT,
       postActionId: "translate"
     },
     toolbar: {
@@ -456,10 +462,6 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
 
   if (!merged.ocr.model.trim()) {
     throw new Error("ocr.model must not be empty");
-  }
-
-  if (!merged.ocr.prompt.trim()) {
-    throw new Error("ocr.prompt must not be empty");
   }
 
   if (!merged.ocr.postActionId.trim()) {

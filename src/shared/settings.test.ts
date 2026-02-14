@@ -23,6 +23,16 @@ describe("settings schema", () => {
     expect(() => validateSettings({ api: { baseUrl: "abc" } as any })).toThrow();
   });
 
+  it("allows empty OCR prompt", () => {
+    const settings = validateSettings({
+      ocr: {
+        prompt: ""
+      } as any
+    });
+
+    expect(settings.ocr.prompt).toBe("");
+  });
+
   it("rejects duplicate custom action ids", () => {
     expect(() =>
       validateSettings({

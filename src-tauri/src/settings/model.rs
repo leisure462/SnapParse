@@ -151,7 +151,7 @@ fn default_ocr_timeout_ms() -> u64 {
 }
 
 fn default_ocr_prompt() -> String {
-    String::from("请提取图片中的全部文字，按原有顺序输出，不要添加解释。")
+    String::from("You are an OCR engine. Extract all visible text from the image in natural reading order. Return plain text only, preserve line breaks when meaningful, and do not add explanations.")
 }
 
 fn default_ocr_post_action_id() -> String {
