@@ -24,3 +24,4 @@ tauri-plugin-global-shortcut = "2"
 get-selected-text = "0.1.6"
 mouce = "0.3.0"
 screenshots = "0.8"
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading"] }

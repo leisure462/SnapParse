@@ -36,6 +36,32 @@
   z-index: 5;
 }
 
+.ocr-capture-mode-pill {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(10, 14, 20, 0.6);
+  color: rgba(241, 247, 255, 0.92);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.ocr-capture-preview-image {
+  position: absolute;
+  object-fit: cover;
+  box-shadow: 0 12px 28px rgba(5, 11, 23, 0.45);
+  z-index: 3;
+  pointer-events: none;
+}
+
 .ocr-capture-rect {
   position: absolute;
   border: 2px solid rgba(132, 185, 255, 0.96);
@@ -45,6 +71,77 @@
   background: rgba(132, 185, 255, 0.08);
   z-index: 4;
   pointer-events: none;
+}
+
+.ocr-capture-rect.window-hint {
+  border-style: dashed;
+  border-color: rgba(136, 205, 255, 0.95);
+  background: rgba(109, 179, 255, 0.06);
+}
+
+.ocr-capture-shortcuts {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(200, 221, 255, 0.2);
+  background: rgba(9, 13, 19, 0.64);
+  color: rgba(235, 244, 255, 0.88);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  backdrop-filter: blur(8px);
+  z-index: 6;
+  pointer-events: none;
+}
+
+.ocr-capture-actions {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 7;
+}
+
+.ocr-capture-action-btn {
+  height: 32px;
+  min-width: 70px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(171, 211, 255, 0.42);
+  background: rgba(14, 23, 35, 0.82);
+  color: rgba(240, 247, 255, 0.94);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+.ocr-capture-action-btn.icon-btn {
+  min-width: 56px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.ocr-capture-action-btn.ghost {
+  border-color: rgba(255, 181, 181, 0.5);
+}
+
+.ocr-capture-action-btn:hover:not(:disabled) {
+  background: rgba(31, 48, 73, 0.92);
+}
+
+.ocr-capture-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .ocr-capture-error {

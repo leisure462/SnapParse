@@ -3,7 +3,10 @@ import type { AppSettings } from "../../../shared/settings";
 import type { SettingsSectionProps } from "./sectionTypes";
 
 const DEFAULT_TRIGGER_HOTKEY = "Ctrl+Shift+Space";
-const DEFAULT_OCR_HOTKEY = "Ctrl+Shift+O";
+const DEFAULT_SCREENSHOT_HOTKEY = "Ctrl+Shift+O";
+const DEFAULT_REGION_MODE_HOTKEY = "Ctrl+R";
+const DEFAULT_FULLSCREEN_MODE_HOTKEY = "Ctrl+A";
+const DEFAULT_WINDOW_MODE_HOTKEY = "Ctrl+W";
 
 function normalizeKey(key: string): string | null {
   if (key === " ") {
@@ -127,12 +130,12 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
       </label>
 
       <label className="settings-field">
-        <span>OCR 划屏快捷键</span>
+        <span>截屏快捷键</span>
         <input
           type="text"
           readOnly
           value={settings.ocr.captureHotkey}
-          placeholder={DEFAULT_OCR_HOTKEY}
+          placeholder={DEFAULT_SCREENSHOT_HOTKEY}
           onKeyDown={(event) => {
             event.preventDefault();
 
@@ -140,7 +143,7 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
               onChange(
                 patchOcr(settings, (ocr) => ({
                   ...ocr,
-                  captureHotkey: DEFAULT_OCR_HOTKEY
+                  captureHotkey: DEFAULT_SCREENSHOT_HOTKEY
                 }))
               );
               return;
@@ -160,6 +163,131 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
           }}
         />
       </label>
+
+      <div className="settings-grid-3">
+        <label className="settings-field">
+          <span>区域模式快捷键</span>
+          <input
+            type="text"
+            readOnly
+            value={settings.ocr.modeHotkeys.region}
+            placeholder={DEFAULT_REGION_MODE_HOTKEY}
+            onKeyDown={(event) => {
+              event.preventDefault();
+
+              if (event.key === "Backspace" || event.key === "Delete") {
+                onChange(
+                  patchOcr(settings, (ocr) => ({
+                    ...ocr,
+                    modeHotkeys: {
+                      ...ocr.modeHotkeys,
+                      region: DEFAULT_REGION_MODE_HOTKEY
+                    }
+                  }))
+                );
+                return;
+              }
+
+              const hotkey = formatHotkey(event);
+              if (!hotkey) {
+                return;
+              }
+
+              onChange(
+                patchOcr(settings, (ocr) => ({
+                  ...ocr,
+                  modeHotkeys: {
+                    ...ocr.modeHotkeys,
+                    region: hotkey
+                  }
+                }))
+              );
+            }}
+          />
+        </label>
+
+        <label className="settings-field">
+          <span>全屏模式快捷键</span>
+          <input
+            type="text"
+            readOnly
+            value={settings.ocr.modeHotkeys.fullscreen}
+            placeholder={DEFAULT_FULLSCREEN_MODE_HOTKEY}
+            onKeyDown={(event) => {
+              event.preventDefault();
+
+              if (event.key === "Backspace" || event.key === "Delete") {
+                onChange(
+                  patchOcr(settings, (ocr) => ({
+                    ...ocr,
+                    modeHotkeys: {
+                      ...ocr.modeHotkeys,
+                      fullscreen: DEFAULT_FULLSCREEN_MODE_HOTKEY
+                    }
+                  }))
+                );
+                return;
+              }
+
+              const hotkey = formatHotkey(event);
+              if (!hotkey) {
+                return;
+              }
+
+              onChange(
+                patchOcr(settings, (ocr) => ({
+                  ...ocr,
+                  modeHotkeys: {
+                    ...ocr.modeHotkeys,
+                    fullscreen: hotkey
+                  }
+                }))
+              );
+            }}
+          />
+        </label>
+
+        <label className="settings-field">
+          <span>窗口模式快捷键</span>
+          <input
+            type="text"
+            readOnly
+            value={settings.ocr.modeHotkeys.window}
+            placeholder={DEFAULT_WINDOW_MODE_HOTKEY}
+            onKeyDown={(event) => {
+              event.preventDefault();
+
+              if (event.key === "Backspace" || event.key === "Delete") {
+                onChange(
+                  patchOcr(settings, (ocr) => ({
+                    ...ocr,
+                    modeHotkeys: {
+                      ...ocr.modeHotkeys,
+                      window: DEFAULT_WINDOW_MODE_HOTKEY
+                    }
+                  }))
+                );
+                return;
+              }
+
+              const hotkey = formatHotkey(event);
+              if (!hotkey) {
+                return;
+              }
+
+              onChange(
+                patchOcr(settings, (ocr) => ({
+                  ...ocr,
+                  modeHotkeys: {
+                    ...ocr.modeHotkeys,
+                    window: hotkey
+                  }
+                }))
+              );
+            }}
+          />
+        </label>
+      </div>
 
       <div className="settings-inline-actions">
         <span className="settings-hint">点击输入框后按下组合键即可修改。按 Delete 可恢复默认值。</span>
@@ -184,12 +312,17 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
             onChange(
               patchOcr(settings, (ocr) => ({
                 ...ocr,
-                captureHotkey: DEFAULT_OCR_HOTKEY
+                captureHotkey: DEFAULT_SCREENSHOT_HOTKEY,
+                modeHotkeys: {
+                  region: DEFAULT_REGION_MODE_HOTKEY,
+                  fullscreen: DEFAULT_FULLSCREEN_MODE_HOTKEY,
+                  window: DEFAULT_WINDOW_MODE_HOTKEY
+                }
               }))
             );
           }}
         >
-          恢复 OCR 快捷键
+          恢复截屏快捷键
         </button>
       </div>
 

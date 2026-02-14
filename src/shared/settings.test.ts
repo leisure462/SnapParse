@@ -15,6 +15,8 @@ describe("settings schema", () => {
     expect(settings.general.language).toBe("zh-CN");
     expect(settings.api.featureModels.optimize).toBe("gpt-4o-mini");
     expect(settings.ocr.captureHotkey).toBe("Ctrl+Shift+O");
+    expect(settings.ocr.modeHotkeys.fullscreen).toBe("Ctrl+A");
+    expect(settings.ocr.captureDefaultMode).toBe("region");
     expect(settings.ocr.postActionId).toBe("translate");
     expect(settings.features.enabledActions).toContain("optimize");
   });

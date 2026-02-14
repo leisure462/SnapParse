@@ -7,6 +7,7 @@ export type AppFilterMode = "off" | "whitelist" | "blacklist";
 export type LogLevel = "error" | "warn" | "info" | "debug";
 export type WindowSizePreset = "large" | "medium" | "small";
 export type OcrProvider = "openai-vision" | "glm-ocr";
+export type CaptureMode = "region" | "fullscreen" | "window";
 
 export const MAX_CUSTOM_ACTION_COUNT = 2;
 export const MAX_CUSTOM_ACTION_NAME_LENGTH = 8;
@@ -40,6 +41,13 @@ export interface ApiSettings {
 export interface OcrSettings {
   enabled: boolean;
   captureHotkey: string;
+  captureDefaultMode: CaptureMode;
+  showShortcutHints: boolean;
+  modeHotkeys: {
+    region: string;
+    fullscreen: string;
+    window: string;
+  };
   provider: OcrProvider;
   baseUrl: string;
   apiKey: string;
@@ -109,6 +117,7 @@ export interface AppSettings {
 export const SETTINGS_SECTION_ORDER = [
   "general",
   "api",
+  "screenshot",
   "ocr",
   "features",
   "toolbar",
@@ -179,6 +188,13 @@ export function defaultSettings(): AppSettings {
     ocr: {
       enabled: false,
       captureHotkey: "Ctrl+Shift+O",
+      captureDefaultMode: "region",
+      showShortcutHints: true,
+      modeHotkeys: {
+        region: "Ctrl+R",
+        fullscreen: "Ctrl+A",
+        window: "Ctrl+W"
+      },
       provider: "openai-vision",
       baseUrl: DEFAULT_OPENAI_OCR_BASE_URL,
       apiKey: "",
@@ -220,7 +236,18 @@ function mergeOcr(
   defaults: OcrSettings,
   incoming: DeepPartial<OcrSettings> | undefined
 ): OcrSettings {
-  return incoming ? { ...defaults, ...incoming } : defaults;
+  if (!incoming) {
+    return defaults;
+  }
+
+  return {
+    ...defaults,
+    ...incoming,
+    modeHotkeys: {
+      ...defaults.modeHotkeys,
+      ...incoming.modeHotkeys
+    }
+  };
 }
 
 function mergeApi(
@@ -452,6 +479,22 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
 
   if (!merged.ocr.captureHotkey.trim()) {
     throw new Error("ocr.captureHotkey must not be empty");
+  }
+
+  if (!merged.ocr.modeHotkeys.region.trim()) {
+    throw new Error("ocr.modeHotkeys.region must not be empty");
+  }
+
+  if (!merged.ocr.modeHotkeys.fullscreen.trim()) {
+    throw new Error("ocr.modeHotkeys.fullscreen must not be empty");
+  }
+
+  if (!merged.ocr.modeHotkeys.window.trim()) {
+    throw new Error("ocr.modeHotkeys.window must not be empty");
+  }
+
+  if (!["region", "fullscreen", "window"].includes(merged.ocr.captureDefaultMode)) {
+    throw new Error("ocr.captureDefaultMode must be region, fullscreen, or window");
   }
 
   if (!["openai-vision", "glm-ocr"].includes(merged.ocr.provider)) {

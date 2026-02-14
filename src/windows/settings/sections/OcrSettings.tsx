@@ -89,7 +89,7 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
             );
           }}
         />
-        <span>启用 OCR 划屏快捷键</span>
+        <span>启用截屏快捷键</span>
       </label>
 
       <div className="settings-grid-2">

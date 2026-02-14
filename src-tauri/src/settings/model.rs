@@ -103,6 +103,12 @@ pub struct OcrSettings {
     #[serde(default = "default_ocr_capture_hotkey")]
     pub capture_hotkey: String,
     #[serde(default)]
+    pub capture_default_mode: CaptureMode,
+    #[serde(default = "default_ocr_show_shortcut_hints")]
+    pub show_shortcut_hints: bool,
+    #[serde(default)]
+    pub mode_hotkeys: OcrModeHotkeys,
+    #[serde(default)]
     pub provider: OcrProvider,
     #[serde(default = "default_ocr_base_url")]
     pub base_url: String,
@@ -123,6 +129,9 @@ impl Default for OcrSettings {
         Self {
             enabled: false,
             capture_hotkey: default_ocr_capture_hotkey(),
+            capture_default_mode: CaptureMode::default(),
+            show_shortcut_hints: default_ocr_show_shortcut_hints(),
+            mode_hotkeys: OcrModeHotkeys::default(),
             provider: OcrProvider::default(),
             base_url: default_ocr_base_url(),
             api_key: String::new(),
@@ -136,6 +145,10 @@ impl Default for OcrSettings {
 
 fn default_ocr_capture_hotkey() -> String {
     String::from("Ctrl+Shift+O")
+}
+
+fn default_ocr_show_shortcut_hints() -> bool {
+    true
 }
 
 fn default_ocr_base_url() -> String {
@@ -169,6 +182,53 @@ impl Default for OcrProvider {
     fn default() -> Self {
         OcrProvider::OpenaiVision
     }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum CaptureMode {
+    Region,
+    Fullscreen,
+    Window,
+}
+
+impl Default for CaptureMode {
+    fn default() -> Self {
+        CaptureMode::Region
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OcrModeHotkeys {
+    #[serde(default = "default_mode_hotkey_region")]
+    pub region: String,
+    #[serde(default = "default_mode_hotkey_fullscreen")]
+    pub fullscreen: String,
+    #[serde(default = "default_mode_hotkey_window")]
+    pub window: String,
+}
+
+impl Default for OcrModeHotkeys {
+    fn default() -> Self {
+        Self {
+            region: default_mode_hotkey_region(),
+            fullscreen: default_mode_hotkey_fullscreen(),
+            window: default_mode_hotkey_window(),
+        }
+    }
+}
+
+fn default_mode_hotkey_region() -> String {
+    String::from("Ctrl+R")
+}
+
+fn default_mode_hotkey_fullscreen() -> String {
+    String::from("Ctrl+A")
+}
+
+fn default_mode_hotkey_window() -> String {
+    String::from("Ctrl+W")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

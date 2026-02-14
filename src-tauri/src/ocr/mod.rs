@@ -33,6 +33,38 @@ pub struct OcrCaptureRegion {
     pub scale_factor: f64,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CapturePoint {
+    pub x: f64,
+    pub y: f64,
+    pub scale_factor: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScreenshotCaptureRequest {
+    pub mode: String,
+    pub region: Option<OcrCaptureRegion>,
+    pub point: Option<CapturePoint>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LogicalRectPayload {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScreenshotPreviewPayload {
+    pub data_url: String,
+    pub logical_rect: LogicalRectPayload,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct PhysicalCaptureRect {
     x: i32,
@@ -73,6 +105,10 @@ enum OcrError {
     EmptyModel,
     #[error("OCR 选区无效")]
     InvalidRegion,
+    #[error("截屏模式不支持：{0}")]
+    UnsupportedMode(String),
+    #[error("未找到可截取窗口")]
+    WindowNotFound,
     #[error("OCR 截图窗口不可用")]
     CaptureWindowUnavailable,
     #[error("当前未找到可用显示器")]
@@ -207,6 +243,91 @@ pub fn open_capture_overlay(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+pub fn capture_screenshot_preview(
+    app: &AppHandle,
+    request: ScreenshotCaptureRequest,
+) -> Result<ScreenshotPreviewPayload, String> {
+    let (_, monitor_position, monitor_size, monitor_scale) =
+        capture_window_and_monitor(app).map_err(|error| error.to_string())?;
+
+    let mut physical_rect = match request.mode.as_str() {
+        "region" => {
+            let region = request.region.ok_or_else(|| OcrError::InvalidRegion.to_string())?;
+            logical_region_to_physical_from_monitor(
+                monitor_position,
+                monitor_size,
+                monitor_scale,
+                &region,
+            )
+                .map_err(|error| error.to_string())?
+        }
+        "fullscreen" => PhysicalCaptureRect {
+            x: monitor_position.x,
+            y: monitor_position.y,
+            width: monitor_size.width,
+            height: monitor_size.height,
+        },
+        "window" => {
+            let point = request.point.ok_or_else(|| OcrError::InvalidRegion.to_string())?;
+            let scale = if point.scale_factor.is_finite() && point.scale_factor > 0.0 {
+                point.scale_factor
+            } else {
+                monitor_scale
+            };
+            let physical_x = monitor_position.x + (point.x.max(0.0) * scale).round() as i32;
+            let physical_y = monitor_position.y + (point.y.max(0.0) * scale).round() as i32;
+
+            resolve_window_rect_at_point(physical_x, physical_y).ok_or_else(|| OcrError::WindowNotFound.to_string())?
+        }
+        other => return Err(OcrError::UnsupportedMode(other.to_owned()).to_string()),
+    };
+
+    physical_rect = clamp_rect_to_monitor(physical_rect, monitor_position, monitor_size);
+    if physical_rect.width == 0 || physical_rect.height == 0 {
+        return Err(OcrError::InvalidRegion.to_string());
+    }
+
+    let data_url = capture_region_data_url(physical_rect).map_err(|error| error.to_string())?;
+    let logical_rect = physical_to_logical_rect(physical_rect, monitor_position, monitor_scale);
+
+    Ok(ScreenshotPreviewPayload {
+        data_url,
+        logical_rect,
+    })
+}
+
+pub fn resolve_window_capture_hint(
+    app: &AppHandle,
+    point: CapturePoint,
+) -> Result<Option<LogicalRectPayload>, String> {
+    let (_, monitor_position, monitor_size, monitor_scale) =
+        capture_window_and_monitor(app).map_err(|error| error.to_string())?;
+
+    let scale = if point.scale_factor.is_finite() && point.scale_factor > 0.0 {
+        point.scale_factor
+    } else {
+        monitor_scale
+    };
+
+    let physical_x = monitor_position.x + (point.x.max(0.0) * scale).round() as i32;
+    let physical_y = monitor_position.y + (point.y.max(0.0) * scale).round() as i32;
+
+    let Some(window_rect) = resolve_window_rect_at_point(physical_x, physical_y) else {
+        return Ok(None);
+    };
+
+    let clamped = clamp_rect_to_monitor(window_rect, monitor_position, monitor_size);
+    if clamped.width == 0 || clamped.height == 0 {
+        return Ok(None);
+    }
+
+    Ok(Some(physical_to_logical_rect(
+        clamped,
+        monitor_position,
+        monitor_scale,
+    )))
+}
+
 pub async fn run_ocr_capture(app: &AppHandle, region: OcrCaptureRegion) -> Result<(), String> {
     let result = run_ocr_capture_inner(app, region).await;
     let _ = manager::hide_window(app, WindowKind::OcrCapture);
@@ -270,6 +391,25 @@ fn logical_region_to_physical(
     window: &tauri::WebviewWindow,
     region: &OcrCaptureRegion,
 ) -> Result<PhysicalCaptureRect, OcrError> {
+    let monitor = window
+        .current_monitor()
+        .map_err(|error| OcrError::CaptureFailure(error.to_string()))?
+        .ok_or(OcrError::MonitorUnavailable)?;
+
+    logical_region_to_physical_from_monitor(
+        monitor.position(),
+        monitor.size(),
+        monitor.scale_factor(),
+        region,
+    )
+}
+
+fn logical_region_to_physical_from_monitor(
+    monitor_position: PhysicalPosition<i32>,
+    monitor_size: PhysicalSize<u32>,
+    monitor_scale: f64,
+    region: &OcrCaptureRegion,
+) -> Result<PhysicalCaptureRect, OcrError> {
     if !region.width.is_finite()
         || !region.height.is_finite()
         || region.width <= 0.0
@@ -278,17 +418,10 @@ fn logical_region_to_physical(
         return Err(OcrError::InvalidRegion);
     }
 
-    let monitor = window
-        .current_monitor()
-        .map_err(|error| OcrError::CaptureFailure(error.to_string()))?
-        .ok_or(OcrError::MonitorUnavailable)?;
-
-    let monitor_position = monitor.position();
-    let monitor_size = monitor.size();
     let scale = if region.scale_factor.is_finite() && region.scale_factor > 0.0 {
         region.scale_factor
     } else {
-        monitor.scale_factor()
+        monitor_scale
     };
 
     let monitor_width = i32::try_from(monitor_size.width).unwrap_or(i32::MAX);
@@ -643,6 +776,126 @@ fn resolve_feature_window_size(preset: WindowSizePreset) -> (f64, f64) {
         WindowSizePreset::Medium => (460.0, 360.0),
         WindowSizePreset::Small => (400.0, 320.0),
     }
+}
+
+fn capture_window_and_monitor(
+    app: &AppHandle,
+) -> Result<(tauri::WebviewWindow, PhysicalPosition<i32>, PhysicalSize<u32>, f64), OcrError> {
+    let capture_window = app
+        .get_webview_window(WindowKind::OcrCapture.label())
+        .ok_or(OcrError::CaptureWindowUnavailable)?;
+
+    let monitor = capture_window
+        .current_monitor()
+        .map_err(|error| OcrError::CaptureFailure(error.to_string()))?
+        .ok_or(OcrError::MonitorUnavailable)?;
+
+    Ok((
+        capture_window,
+        monitor.position(),
+        monitor.size(),
+        monitor.scale_factor(),
+    ))
+}
+
+fn clamp_rect_to_monitor(
+    rect: PhysicalCaptureRect,
+    monitor_position: PhysicalPosition<i32>,
+    monitor_size: PhysicalSize<u32>,
+) -> PhysicalCaptureRect {
+    let monitor_left = monitor_position.x;
+    let monitor_top = monitor_position.y;
+    let monitor_right = monitor_left + i32::try_from(monitor_size.width).unwrap_or(i32::MAX);
+    let monitor_bottom = monitor_top + i32::try_from(monitor_size.height).unwrap_or(i32::MAX);
+
+    let rect_left = rect.x.max(monitor_left);
+    let rect_top = rect.y.max(monitor_top);
+    let rect_right = (rect.x + i32::try_from(rect.width).unwrap_or(i32::MAX)).min(monitor_right);
+    let rect_bottom = (rect.y + i32::try_from(rect.height).unwrap_or(i32::MAX)).min(monitor_bottom);
+
+    let width = rect_right.saturating_sub(rect_left).max(0) as u32;
+    let height = rect_bottom.saturating_sub(rect_top).max(0) as u32;
+
+    PhysicalCaptureRect {
+        x: rect_left,
+        y: rect_top,
+        width,
+        height,
+    }
+}
+
+fn physical_to_logical_rect(
+    rect: PhysicalCaptureRect,
+    monitor_position: PhysicalPosition<i32>,
+    monitor_scale: f64,
+) -> LogicalRectPayload {
+    let scale = if monitor_scale.is_finite() && monitor_scale > 0.0 {
+        monitor_scale
+    } else {
+        1.0
+    };
+
+    LogicalRectPayload {
+        x: f64::from(rect.x - monitor_position.x) / scale,
+        y: f64::from(rect.y - monitor_position.y) / scale,
+        width: f64::from(rect.width) / scale,
+        height: f64::from(rect.height) / scale,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_window_rect_at_point(x: i32, y: i32) -> Option<PhysicalCaptureRect> {
+    use windows_sys::Win32::Foundation::{POINT, RECT};
+    use windows_sys::Win32::System::Threading::GetCurrentProcessId;
+    use windows_sys::Win32::UI::WindowsAndMessaging::{
+        GetAncestor, GetWindow, GetWindowRect, GetWindowThreadProcessId, IsIconic, IsWindowVisible,
+        WindowFromPoint, GA_ROOT, GW_HWNDNEXT,
+    };
+
+    unsafe {
+        let mut hwnd = WindowFromPoint(POINT { x, y });
+        let current_pid = GetCurrentProcessId();
+
+        while hwnd != 0 {
+            let mut pid = 0;
+            GetWindowThreadProcessId(hwnd, &mut pid);
+
+            let root = {
+                let candidate = GetAncestor(hwnd, GA_ROOT);
+                if candidate != 0 {
+                    candidate
+                } else {
+                    hwnd
+                }
+            };
+
+            if pid != current_pid && IsWindowVisible(root) != 0 && IsIconic(root) == 0 {
+                let mut rect = RECT::default();
+                if GetWindowRect(root, &mut rect) != 0 {
+                    let width = rect.right.saturating_sub(rect.left);
+                    let height = rect.bottom.saturating_sub(rect.top);
+
+                    if width > 2 && height > 2 {
+                        return Some(PhysicalCaptureRect {
+                            x: rect.left,
+                            y: rect.top,
+                            width: width as u32,
+                            height: height as u32,
+                        });
+                    }
+                }
+            }
+
+            hwnd = GetWindow(hwnd, GW_HWNDNEXT);
+        }
+    }
+
+    None
+}
+
+#[cfg(not(target_os = "windows"))]
+fn resolve_window_rect_at_point(_x: i32, _y: i32) -> Option<PhysicalCaptureRect> {
+    None
 }
 
 fn current_request_id() -> u64 {

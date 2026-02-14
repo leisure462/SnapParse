@@ -1,8 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OcrCaptureWindow from "./OcrCaptureWindow";
+import { defaultSettings } from "../../shared/settings";
 
-type CaptureEventHandler = () => void;
+type CaptureEventHandler = (event: { payload: any }) => void;
 
 const mocks = vi.hoisted(() => ({
   invokeMock: vi.fn(),
@@ -34,11 +35,29 @@ describe("OcrCaptureWindow", () => {
     mocks.invokeMock.mockReset();
     mocks.hideMock.mockReset();
     mocks.listenHandlers.clear();
-    mocks.invokeMock.mockResolvedValue(undefined);
+    mocks.invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_settings") {
+        return defaultSettings();
+      }
+
+      if (command === "capture_screenshot_preview") {
+        return {
+          dataUrl: "data:image/png;base64,ZmFrZQ==",
+          logicalRect: {
+            x: 10,
+            y: 10,
+            width: 110,
+            height: 80
+          }
+        };
+      }
+
+      return undefined;
+    });
   });
 
   async function dragSelect(x1: number, y1: number, x2: number, y2: number): Promise<void> {
-    const shell = screen.getByRole("application", { name: "OCR截图窗口" });
+    const shell = screen.getByRole("application", { name: "截屏窗口" });
 
     await act(async () => {
       fireEvent.mouseDown(shell, { button: 0, clientX: x1, clientY: y1 });
@@ -53,10 +72,30 @@ describe("OcrCaptureWindow", () => {
     });
   }
 
-  it("allows running capture repeatedly without stale locked state", async () => {
+  it("captures region first then can trigger OCR action", async () => {
     render(<OcrCaptureWindow />);
 
     await dragSelect(10, 10, 120, 90);
+
+    await waitFor(() => {
+      expect(mocks.invokeMock).toHaveBeenCalledWith(
+        "capture_screenshot_preview",
+        expect.objectContaining({
+          request: expect.objectContaining({
+            mode: "region",
+            region: expect.objectContaining({
+              x: 10,
+              y: 10,
+              width: 110,
+              height: 80
+            })
+          })
+        })
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "OCR识别" }));
+
     await waitFor(() => {
       expect(mocks.invokeMock).toHaveBeenCalledWith(
         "run_ocr_capture",
@@ -69,12 +108,6 @@ describe("OcrCaptureWindow", () => {
           })
         })
       );
-    });
-
-    await dragSelect(30, 40, 180, 150);
-    await waitFor(() => {
-      const runCalls = mocks.invokeMock.mock.calls.filter((item) => item[0] === "run_ocr_capture");
-      expect(runCalls.length).toBe(2);
     });
   });
 });

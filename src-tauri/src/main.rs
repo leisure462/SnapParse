@@ -110,6 +110,8 @@ fn main() {
             commands::ai::test_api_connection,
             commands::ocr::start_ocr_capture,
             commands::ocr::run_ocr_capture,
+            commands::ocr::capture_screenshot_preview,
+            commands::ocr::resolve_window_capture_hint,
             commands::windows::open_window,
             commands::windows::close_window,
             commands::windows::move_window,

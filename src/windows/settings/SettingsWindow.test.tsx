@@ -97,9 +97,17 @@ describe("SettingsWindow", () => {
     expect(screen.queryByLabelText("OCR 快捷键")).not.toBeInTheDocument();
   });
 
+  it("shows screenshot section", async () => {
+    await renderWindow();
+    fireEvent.click(screen.getByRole("tab", { name: "截屏设置" }));
+    expect(screen.getByText("默认截屏模式")).toBeInTheDocument();
+    expect(screen.getByLabelText("显示左下角快捷键提示")).toBeInTheDocument();
+  });
+
   it("shows OCR hotkey input in 快捷键设置 section", async () => {
     await renderWindow();
     fireEvent.click(screen.getByRole("tab", { name: "快捷键设置" }));
-    expect(screen.getByLabelText("OCR 划屏快捷键")).toBeInTheDocument();
+    expect(screen.getByLabelText("截屏快捷键")).toBeInTheDocument();
+    expect(screen.getByLabelText("全屏模式快捷键")).toBeInTheDocument();
   });
 });

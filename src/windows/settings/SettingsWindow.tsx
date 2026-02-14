@@ -10,6 +10,7 @@ import {
 import { saveThemeMode } from "../theme/themeStore";
 import ApiSettingsSection from "./sections/ApiSettings";
 import OcrSettingsSection from "./sections/OcrSettings";
+import ScreenshotSettingsSection from "./sections/ScreenshotSettings";
 import GeneralSettingsSection from "./sections/GeneralSettings";
 import ToolbarSettingsSection from "./sections/ToolbarSettings";
 import HotkeySettingsSection from "./sections/HotkeySettings";
@@ -18,11 +19,12 @@ import FeatureSettingsSection from "./sections/FeatureSettings";
 import AdvancedSettingsSection from "./sections/AdvancedSettings";
 import "./settings.css";
 
-type SectionKey = "api" | "ocr" | "general" | "toolbar" | "hotkeys" | "window" | "features" | "advanced";
+type SectionKey = "api" | "ocr" | "screenshot" | "general" | "toolbar" | "hotkeys" | "window" | "features" | "advanced";
 
 const SECTIONS: Array<{ key: SectionKey; label: string }> = [
   { key: "general", label: "通用设置" },
   { key: "api", label: "API配置" },
+  { key: "screenshot", label: "截屏设置" },
   { key: "ocr", label: "OCR配置" },
   { key: "features", label: "功能" },
   { key: "toolbar", label: "工具栏" },
@@ -156,6 +158,10 @@ export default function SettingsWindow(): JSX.Element {
 
     if (activeSection === "ocr") {
       return <OcrSettingsSection settings={settings} onChange={onSettingsChange} />;
+    }
+
+    if (activeSection === "screenshot") {
+      return <ScreenshotSettingsSection settings={settings} onChange={onSettingsChange} />;
     }
 
     if (activeSection === "toolbar") {

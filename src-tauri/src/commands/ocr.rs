@@ -12,3 +12,19 @@ pub async fn run_ocr_capture(
 ) -> Result<(), String> {
     ocr::run_ocr_capture(&app, region).await
 }
+
+#[tauri::command]
+pub fn capture_screenshot_preview(
+    app: tauri::AppHandle,
+    request: ScreenshotCaptureRequest,
+) -> Result<ScreenshotPreviewPayload, String> {
+    ocr::capture_screenshot_preview(&app, request)
+}
+
+#[tauri::command]
+pub fn resolve_window_capture_hint(
+    app: tauri::AppHandle,
+    point: CapturePoint,
+) -> Result<Option<ocr::LogicalRectPayload>, String> {
+    ocr::resolve_window_capture_hint(&app, point)
+}
