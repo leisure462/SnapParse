@@ -62,14 +62,29 @@ export default function ResultPanel(props: ResultPanelProps): JSX.Element {
       {canCopy ? (
         <button
           type="button"
-          className="md2-result-copy-btn"
+          className={`md2-result-copy-btn ${copied ? "is-copied" : ""}`}
+          aria-label={copied ? "已复制" : "复制结果"}
+          title={copied ? "已复制" : "复制结果"}
           onClick={() => {
             void copyToClipboard(props.resultText).then(() => {
               setCopied(true);
             });
           }}
         >
-          {copied ? "已复制" : "复制"}
+          <svg
+            viewBox="0 0 24 24"
+            width="12"
+            height="12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="8" y="8" width="11" height="12" rx="2" />
+            <path d="M5 15V6a2 2 0 0 1 2-2h8" />
+          </svg>
         </button>
       ) : null}
 
@@ -87,7 +102,7 @@ export default function ResultPanel(props: ResultPanelProps): JSX.Element {
       ) : null}
 
       {showContent && !props.error ? (
-        <div className={`md2-result-content ${canCopy ? "with-copy" : ""}`}>
+        <div className="md2-result-content">
           {props.streaming ? (
             <div className="md2-result-streaming-text">
               {props.resultText}

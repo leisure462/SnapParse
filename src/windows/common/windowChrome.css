@@ -263,40 +263,46 @@
   color: var(--sp-text);
 }
 
-.md2-result-content.with-copy {
-  padding-top: 42px;
-}
-
 .md2-result-copy-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  right: 6px;
   z-index: 3;
-  height: 24px;
-  min-width: 52px;
-  border-radius: 6px;
-  border: 1px solid var(--sp-border);
-  background: var(--sp-surface-active);
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 0;
+  background: transparent;
   color: var(--sp-text-secondary);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 0 8px;
+  opacity: 0.5;
+  padding: 0;
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  transition: background var(--sp-duration-fast) var(--sp-ease-out),
+  transition: opacity var(--sp-duration-fast) var(--sp-ease-out),
+              background var(--sp-duration-fast) var(--sp-ease-out),
               color var(--sp-duration-fast) var(--sp-ease-out),
-              border-color var(--sp-duration-fast) var(--sp-ease-out);
+              transform var(--sp-duration-fast) var(--sp-ease-out);
 }
 
 .md2-result-copy-btn:hover {
-  background: var(--sp-primary-soft);
-  color: var(--sp-primary);
-  border-color: var(--sp-primary);
+  opacity: 0.92;
+  color: var(--sp-text);
+  background: var(--sp-surface-active);
+}
+
+.md2-result-copy-btn:active {
+  transform: scale(0.96);
 }
 
 .md2-result-copy-btn:focus-visible {
   outline: 2px solid var(--sp-ring-focus);
   outline-offset: 1px;
+}
+
+.md2-result-copy-btn.is-copied {
+  opacity: 0.95;
+  color: var(--sp-primary);
 }
 
 .md2-result-streaming-text {
