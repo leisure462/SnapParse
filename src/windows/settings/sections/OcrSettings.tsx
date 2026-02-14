@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from "react";
 import {
-  DEFAULT_OCR_PROMPT,
   DEFAULT_OPENAI_OCR_BASE_URL,
   DEFAULT_OPENAI_OCR_MODEL,
   GLM_OCR_LOCKED_BASE_URL,
@@ -242,23 +241,7 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
         />
       </label>
 
-      <div className="settings-inline-actions">
-        <span className="settings-hint">可留空提示词（适配只需图片输入的 OCR 模型）。</span>
-        <button
-          type="button"
-          className="settings-api-test-btn"
-          onClick={() => {
-            onChange(
-              patchOcr(settings, (ocr) => ({
-                ...ocr,
-                prompt: DEFAULT_OCR_PROMPT
-              }))
-            );
-          }}
-        >
-          恢复默认提示词
-        </button>
-      </div>
+      <p className="settings-hint">可留空提示词（适配只需图片输入的 OCR 模型）。</p>
     </section>
   );
 }

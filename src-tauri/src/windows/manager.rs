@@ -79,6 +79,11 @@ pub fn ensure_window(app: &AppHandle, kind: WindowKind) -> tauri::Result<Webview
 
     let window = builder.build()?;
 
+    #[cfg(target_os = "windows")]
+    if kind == WindowKind::OcrCapture {
+        let _ = window.set_shadow(false);
+    }
+
     eprintln!("[window] created OK: {}", kind.label());
     Ok(window)
 }

@@ -151,7 +151,7 @@ fn default_ocr_capture_hotkey() -> String {
 }
 
 fn default_ocr_quick_hotkey() -> String {
-    String::from("Alt+S")
+    String::from("Ctrl+Shift+O")
 }
 
 fn default_ocr_show_shortcut_hints() -> bool {
@@ -227,15 +227,15 @@ impl Default for OcrModeHotkeys {
 }
 
 fn default_mode_hotkey_region() -> String {
-    String::from("Ctrl+R")
+    String::from("Ctrl+Shift+X")
 }
 
 fn default_mode_hotkey_fullscreen() -> String {
-    String::from("Ctrl+A")
+    String::from("Ctrl+Shift+A")
 }
 
 fn default_mode_hotkey_window() -> String {
-    String::from("Ctrl+M")
+    String::from("Ctrl+Shift+M")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

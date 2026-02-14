@@ -38,6 +38,7 @@ interface ScreenshotPreviewPayload {
 
 interface CaptureOpenedPayload {
   entryKind?: "screenshot" | "ocr";
+  initialMode?: CaptureMode;
 }
 
 interface CaptureSettings {
@@ -55,9 +56,9 @@ const DEFAULT_CAPTURE_SETTINGS: CaptureSettings = {
   defaultMode: "region",
   showShortcutHints: true,
   modeHotkeys: {
-    region: "Ctrl+R",
-    fullscreen: "Ctrl+A",
-    window: "Ctrl+M"
+    region: "Ctrl+Shift+X",
+    fullscreen: "Ctrl+Shift+A",
+    window: "Ctrl+Shift+M"
   }
 };
 
@@ -205,33 +206,34 @@ export default function OcrCaptureWindow(): JSX.Element {
     return toRect(startPoint, endPoint);
   }, [endPoint, startPoint]);
 
-  const activeRect = captured?.logicalRect ?? (mode === "window" ? windowHintRect : rect);
+  const selectionRect = mode === "window" ? windowHintRect : rect;
+  const actionAnchorRect = captured?.logicalRect ?? selectionRect;
 
   const actionsStyle = useMemo(() => {
-    if (!activeRect) {
+    if (!actionAnchorRect) {
       return undefined;
     }
 
-    const panelWidth = 172;
-    const panelHeight = 36;
+    const panelWidth = 140;
+    const panelHeight = 30;
     const gap = 8;
 
-    let left = activeRect.x;
-    let top = activeRect.y + activeRect.height + gap;
+    let left = actionAnchorRect.x;
+    let top = actionAnchorRect.y + actionAnchorRect.height + gap;
 
     if (left + panelWidth > window.innerWidth - gap) {
       left = Math.max(gap, window.innerWidth - panelWidth - gap);
     }
 
     if (top + panelHeight > window.innerHeight - gap) {
-      top = Math.max(gap, activeRect.y - panelHeight - gap);
+      top = Math.max(gap, actionAnchorRect.y - panelHeight - gap);
     }
 
     return {
       left: `${Math.round(left)}px`,
       top: `${Math.round(top)}px`
     };
-  }, [activeRect]);
+  }, [actionAnchorRect]);
 
   const capturePreview = useCallback(async (request: {
     mode: CaptureMode;
@@ -320,13 +322,35 @@ export default function OcrCaptureWindow(): JSX.Element {
   }, [capturePreview, captured, processing]);
 
   useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const prevRootBackground = root.style.background;
+    const prevRootMargin = root.style.margin;
+    const prevBodyBackground = body.style.background;
+    const prevBodyMargin = body.style.margin;
+
+    root.style.background = "transparent";
+    root.style.margin = "0";
+    body.style.background = "transparent";
+    body.style.margin = "0";
+
+    return () => {
+      root.style.background = prevRootBackground;
+      root.style.margin = prevRootMargin;
+      body.style.background = prevBodyBackground;
+      body.style.margin = prevBodyMargin;
+    };
+  }, []);
+
+  useEffect(() => {
     let unlisten: (() => void) | undefined;
 
     listen<CaptureOpenedPayload>("ocr-capture-opened", (event) => {
       resetCaptureState();
       const incoming = event.payload?.entryKind === "ocr" ? "ocr" : "screenshot";
       setEntryKind(incoming);
-      setMode(incoming === "ocr" ? "region" : settingsRef.current.defaultMode);
+      const fallbackMode = incoming === "ocr" ? "region" : settingsRef.current.defaultMode;
+      setMode(event.payload?.initialMode ?? fallbackMode);
     }).then((cleanup) => {
       unlisten = cleanup;
     });
@@ -585,14 +609,14 @@ export default function OcrCaptureWindow(): JSX.Element {
         />
       ) : null}
 
-      {activeRect ? (
+      {!captured && selectionRect ? (
         <div
           className={`ocr-capture-rect ${mode === "window" ? "window-hint" : ""}`}
           style={{
-            left: `${activeRect.x}px`,
-            top: `${activeRect.y}px`,
-            width: `${activeRect.width}px`,
-            height: `${activeRect.height}px`
+            left: `${selectionRect.x}px`,
+            top: `${selectionRect.y}px`,
+            width: `${selectionRect.width}px`,
+            height: `${selectionRect.height}px`
           }}
         />
       ) : null}

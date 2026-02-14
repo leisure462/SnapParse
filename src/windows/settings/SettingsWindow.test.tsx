@@ -107,7 +107,7 @@ describe("SettingsWindow", () => {
   it("shows OCR hotkey input in 快捷键设置 section", async () => {
     await renderWindow();
     fireEvent.click(screen.getByRole("tab", { name: "快捷键设置" }));
-    expect(screen.getByLabelText("截屏快捷键")).toBeInTheDocument();
+    expect(screen.getByLabelText("截屏快捷键（区域）")).toBeInTheDocument();
     expect(screen.getByLabelText("OCR 快捷键")).toBeInTheDocument();
     expect(screen.getByLabelText("全屏模式快捷键")).toBeInTheDocument();
   });

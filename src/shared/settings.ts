@@ -189,13 +189,13 @@ export function defaultSettings(): AppSettings {
     ocr: {
       enabled: false,
       captureHotkey: "Ctrl+Shift+X",
-      quickOcrHotkey: "Alt+S",
+      quickOcrHotkey: "Ctrl+Shift+O",
       captureDefaultMode: "region",
       showShortcutHints: true,
       modeHotkeys: {
-        region: "Ctrl+R",
-        fullscreen: "Ctrl+A",
-        window: "Ctrl+M"
+        region: "Ctrl+Shift+X",
+        fullscreen: "Ctrl+Shift+A",
+        window: "Ctrl+Shift+M"
       },
       provider: "openai-vision",
       baseUrl: DEFAULT_OPENAI_OCR_BASE_URL,

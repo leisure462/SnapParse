@@ -4,10 +4,9 @@ import type { SettingsSectionProps } from "./sectionTypes";
 
 const DEFAULT_TRIGGER_HOTKEY = "Ctrl+Shift+Space";
 const DEFAULT_SCREENSHOT_HOTKEY = "Ctrl+Shift+X";
-const DEFAULT_QUICK_OCR_HOTKEY = "Alt+S";
-const DEFAULT_REGION_MODE_HOTKEY = "Ctrl+R";
-const DEFAULT_FULLSCREEN_MODE_HOTKEY = "Ctrl+A";
-const DEFAULT_WINDOW_MODE_HOTKEY = "Ctrl+M";
+const DEFAULT_QUICK_OCR_HOTKEY = "Ctrl+Shift+O";
+const DEFAULT_FULLSCREEN_MODE_HOTKEY = "Ctrl+Shift+A";
+const DEFAULT_WINDOW_MODE_HOTKEY = "Ctrl+Shift+M";
 
 function normalizeKey(key: string): string | null {
   if (key === " ") {
@@ -87,158 +86,83 @@ function patchOcr(
   };
 }
 
+function bindHotkeyInput(
+  onChange: (hotkey: string) => void
+): (event: KeyboardEvent<HTMLInputElement>) => void {
+  return (event) => {
+    event.preventDefault();
+    const hotkey = formatHotkey(event);
+    if (!hotkey) {
+      return;
+    }
+    onChange(hotkey);
+  };
+}
+
 export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.Element {
   const { settings, onChange } = props;
 
   return (
     <section className="settings-section" aria-label="快捷键设置面板">
       <h2>快捷键设置</h2>
-      <p className="settings-hint">自定义触发工具栏的快捷键组合。</p>
+      <p className="settings-hint">快捷键统一管理。点击输入框后按组合键即可修改。</p>
 
-      <label className="settings-field">
-        <span>触发快捷键</span>
-        <input
-          type="text"
-          readOnly
-          value={settings.toolbar.triggerHotkey}
-          placeholder={DEFAULT_TRIGGER_HOTKEY}
-          onKeyDown={(event) => {
-            event.preventDefault();
-
-            if (event.key === "Backspace" || event.key === "Delete") {
-              onChange(
-                patchToolbar(settings, (toolbar) => ({
-                  ...toolbar,
-                  triggerHotkey: DEFAULT_TRIGGER_HOTKEY
-                }))
-              );
-              return;
-            }
-
-            const hotkey = formatHotkey(event);
-            if (!hotkey) {
-              return;
-            }
-
-            onChange(
-              patchToolbar(settings, (toolbar) => ({
-                ...toolbar,
-                triggerHotkey: hotkey
-              }))
-            );
-          }}
-        />
-      </label>
-
-      <label className="settings-field">
-        <span>截屏快捷键</span>
-        <input
-          type="text"
-          readOnly
-          value={settings.ocr.captureHotkey}
-          placeholder={DEFAULT_SCREENSHOT_HOTKEY}
-          onKeyDown={(event) => {
-            event.preventDefault();
-
-            if (event.key === "Backspace" || event.key === "Delete") {
-              onChange(
-                patchOcr(settings, (ocr) => ({
-                  ...ocr,
-                  captureHotkey: DEFAULT_SCREENSHOT_HOTKEY
-                }))
-              );
-              return;
-            }
-
-            const hotkey = formatHotkey(event);
-            if (!hotkey) {
-              return;
-            }
-
-            onChange(
-              patchOcr(settings, (ocr) => ({
-                ...ocr,
-                captureHotkey: hotkey
-              }))
-            );
-          }}
-        />
-      </label>
-
-      <label className="settings-field">
-        <span>OCR 快捷键</span>
-        <input
-          type="text"
-          readOnly
-          value={settings.ocr.quickOcrHotkey}
-          placeholder={DEFAULT_QUICK_OCR_HOTKEY}
-          onKeyDown={(event) => {
-            event.preventDefault();
-
-            if (event.key === "Backspace" || event.key === "Delete") {
-              onChange(
-                patchOcr(settings, (ocr) => ({
-                  ...ocr,
-                  quickOcrHotkey: DEFAULT_QUICK_OCR_HOTKEY
-                }))
-              );
-              return;
-            }
-
-            const hotkey = formatHotkey(event);
-            if (!hotkey) {
-              return;
-            }
-
-            onChange(
-              patchOcr(settings, (ocr) => ({
-                ...ocr,
-                quickOcrHotkey: hotkey
-              }))
-            );
-          }}
-        />
-      </label>
-
-      <div className="settings-grid-3">
+      <div className="settings-grid-2">
         <label className="settings-field">
-          <span>区域模式快捷键</span>
+          <span>触发快捷键</span>
           <input
             type="text"
             readOnly
-            value={settings.ocr.modeHotkeys.region}
-            placeholder={DEFAULT_REGION_MODE_HOTKEY}
-            onKeyDown={(event) => {
-              event.preventDefault();
+            value={settings.toolbar.triggerHotkey}
+            placeholder={DEFAULT_TRIGGER_HOTKEY}
+            onKeyDown={bindHotkeyInput((hotkey) => {
+              onChange(
+                patchToolbar(settings, (toolbar) => ({
+                  ...toolbar,
+                  triggerHotkey: hotkey
+                }))
+              );
+            })}
+          />
+        </label>
 
-              if (event.key === "Backspace" || event.key === "Delete") {
-                onChange(
-                  patchOcr(settings, (ocr) => ({
-                    ...ocr,
-                    modeHotkeys: {
-                      ...ocr.modeHotkeys,
-                      region: DEFAULT_REGION_MODE_HOTKEY
-                    }
-                  }))
-                );
-                return;
-              }
-
-              const hotkey = formatHotkey(event);
-              if (!hotkey) {
-                return;
-              }
-
+        <label className="settings-field">
+          <span>截屏快捷键（区域）</span>
+          <input
+            type="text"
+            readOnly
+            value={settings.ocr.captureHotkey}
+            placeholder={DEFAULT_SCREENSHOT_HOTKEY}
+            onKeyDown={bindHotkeyInput((hotkey) => {
               onChange(
                 patchOcr(settings, (ocr) => ({
                   ...ocr,
+                  captureHotkey: hotkey,
                   modeHotkeys: {
                     ...ocr.modeHotkeys,
                     region: hotkey
                   }
                 }))
               );
-            }}
+            })}
+          />
+        </label>
+
+        <label className="settings-field">
+          <span>OCR 快捷键</span>
+          <input
+            type="text"
+            readOnly
+            value={settings.ocr.quickOcrHotkey}
+            placeholder={DEFAULT_QUICK_OCR_HOTKEY}
+            onKeyDown={bindHotkeyInput((hotkey) => {
+              onChange(
+                patchOcr(settings, (ocr) => ({
+                  ...ocr,
+                  quickOcrHotkey: hotkey
+                }))
+              );
+            })}
           />
         </label>
 
@@ -249,27 +173,7 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
             readOnly
             value={settings.ocr.modeHotkeys.fullscreen}
             placeholder={DEFAULT_FULLSCREEN_MODE_HOTKEY}
-            onKeyDown={(event) => {
-              event.preventDefault();
-
-              if (event.key === "Backspace" || event.key === "Delete") {
-                onChange(
-                  patchOcr(settings, (ocr) => ({
-                    ...ocr,
-                    modeHotkeys: {
-                      ...ocr.modeHotkeys,
-                      fullscreen: DEFAULT_FULLSCREEN_MODE_HOTKEY
-                    }
-                  }))
-                );
-                return;
-              }
-
-              const hotkey = formatHotkey(event);
-              if (!hotkey) {
-                return;
-              }
-
+            onKeyDown={bindHotkeyInput((hotkey) => {
               onChange(
                 patchOcr(settings, (ocr) => ({
                   ...ocr,
@@ -279,7 +183,7 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
                   }
                 }))
               );
-            }}
+            })}
           />
         </label>
 
@@ -290,27 +194,7 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
             readOnly
             value={settings.ocr.modeHotkeys.window}
             placeholder={DEFAULT_WINDOW_MODE_HOTKEY}
-            onKeyDown={(event) => {
-              event.preventDefault();
-
-              if (event.key === "Backspace" || event.key === "Delete") {
-                onChange(
-                  patchOcr(settings, (ocr) => ({
-                    ...ocr,
-                    modeHotkeys: {
-                      ...ocr.modeHotkeys,
-                      window: DEFAULT_WINDOW_MODE_HOTKEY
-                    }
-                  }))
-                );
-                return;
-              }
-
-              const hotkey = formatHotkey(event);
-              if (!hotkey) {
-                return;
-              }
-
+            onKeyDown={bindHotkeyInput((hotkey) => {
               onChange(
                 patchOcr(settings, (ocr) => ({
                   ...ocr,
@@ -320,49 +204,11 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
                   }
                 }))
               );
-            }}
+            })}
           />
         </label>
-      </div>
 
-      <div className="settings-inline-actions">
-        <span className="settings-hint">点击输入框后按下组合键即可修改。按 Delete 可恢复默认值。</span>
-        <button
-          type="button"
-          className="settings-api-test-btn"
-          onClick={() => {
-            onChange(
-              patchToolbar(settings, (toolbar) => ({
-                ...toolbar,
-                triggerHotkey: DEFAULT_TRIGGER_HOTKEY
-              }))
-            );
-          }}
-        >
-          恢复默认快捷键
-        </button>
-        <button
-          type="button"
-          className="settings-api-test-btn"
-          onClick={() => {
-            onChange(
-              patchOcr(settings, (ocr) => ({
-                ...ocr,
-                captureHotkey: DEFAULT_SCREENSHOT_HOTKEY,
-                quickOcrHotkey: DEFAULT_QUICK_OCR_HOTKEY,
-                modeHotkeys: {
-                  region: DEFAULT_REGION_MODE_HOTKEY,
-                  fullscreen: DEFAULT_FULLSCREEN_MODE_HOTKEY,
-                  window: DEFAULT_WINDOW_MODE_HOTKEY
-                }
-              }))
-            );
-          }}
-        >
-          恢复截屏/OCR快捷键
-        </button>
       </div>
-
     </section>
   );
 }
