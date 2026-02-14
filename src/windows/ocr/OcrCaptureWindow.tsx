@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "./ocrCapture.css";
 
 interface Point {
@@ -45,6 +46,13 @@ export default function OcrCaptureWindow(): JSX.Element {
   const [isDragging, setIsDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
 
+  const resetCaptureState = useCallback((): void => {
+    setProcessing(false);
+    setIsDragging(false);
+    setStartPoint(null);
+    setEndPoint(null);
+  }, []);
+
   const rect = useMemo(() => {
     if (!startPoint || !endPoint) {
       return null;
@@ -53,8 +61,23 @@ export default function OcrCaptureWindow(): JSX.Element {
   }, [endPoint, startPoint]);
 
   useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    listen("ocr-capture-opened", () => {
+      resetCaptureState();
+    }).then((cleanup) => {
+      unlisten = cleanup;
+    });
+
+    return () => {
+      unlisten?.();
+    };
+  }, [resetCaptureState]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape" && !processing) {
+        resetCaptureState();
         void closeCaptureWindow();
       }
     };
@@ -63,7 +86,7 @@ export default function OcrCaptureWindow(): JSX.Element {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [processing]);
+  }, [processing, resetCaptureState]);
 
   const startDrag = (x: number, y: number): void => {
     if (processing) {
@@ -111,6 +134,7 @@ export default function OcrCaptureWindow(): JSX.Element {
     } catch {
       // Ignore here to avoid leaving overlay in an unusable state.
     } finally {
+      resetCaptureState();
       await closeCaptureWindow();
     }
   };

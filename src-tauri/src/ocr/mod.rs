@@ -182,6 +182,8 @@ pub fn open_capture_overlay(app: &AppHandle) -> Result<(), String> {
         .show()
         .map_err(|error| format!("failed to show OCR capture window: {error}"))?;
 
+    let _ = app.emit_to(WindowKind::OcrCapture.label(), "ocr-capture-opened", ());
+
     let _ = window.unminimize();
     let _ = window.set_focus();
 
