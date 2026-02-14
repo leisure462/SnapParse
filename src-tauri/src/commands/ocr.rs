@@ -1,4 +1,6 @@
-use crate::ocr::{self, OcrCaptureRegion};
+use crate::ocr::{
+    self, CapturePoint, OcrCaptureRegion, ScreenshotCaptureRequest, ScreenshotPreviewPayload,
+};
 
 #[tauri::command]
 pub fn start_ocr_capture(app: tauri::AppHandle) -> Result<(), String> {

@@ -397,8 +397,8 @@ fn logical_region_to_physical(
         .ok_or(OcrError::MonitorUnavailable)?;
 
     logical_region_to_physical_from_monitor(
-        monitor.position(),
-        monitor.size(),
+        *monitor.position(),
+        *monitor.size(),
         monitor.scale_factor(),
         region,
     )
@@ -792,8 +792,8 @@ fn capture_window_and_monitor(
 
     Ok((
         capture_window,
-        monitor.position(),
-        monitor.size(),
+        *monitor.position(),
+        *monitor.size(),
         monitor.scale_factor(),
     ))
 }
@@ -845,6 +845,8 @@ fn physical_to_logical_rect(
 
 #[cfg(target_os = "windows")]
 fn resolve_window_rect_at_point(x: i32, y: i32) -> Option<PhysicalCaptureRect> {
+    use std::ptr;
+
     use windows_sys::Win32::Foundation::{POINT, RECT};
     use windows_sys::Win32::System::Threading::GetCurrentProcessId;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -856,13 +858,13 @@ fn resolve_window_rect_at_point(x: i32, y: i32) -> Option<PhysicalCaptureRect> {
         let mut hwnd = WindowFromPoint(POINT { x, y });
         let current_pid = GetCurrentProcessId();
 
-        while hwnd != 0 {
+        while !hwnd.is_null() {
             let mut pid = 0;
             GetWindowThreadProcessId(hwnd, &mut pid);
 
             let root = {
                 let candidate = GetAncestor(hwnd, GA_ROOT);
-                if candidate != 0 {
+                if !candidate.is_null() {
                     candidate
                 } else {
                     hwnd
@@ -870,7 +872,12 @@ fn resolve_window_rect_at_point(x: i32, y: i32) -> Option<PhysicalCaptureRect> {
             };
 
             if pid != current_pid && IsWindowVisible(root) != 0 && IsIconic(root) == 0 {
-                let mut rect = RECT::default();
+                let mut rect = RECT {
+                    left: 0,
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                };
                 if GetWindowRect(root, &mut rect) != 0 {
                     let width = rect.right.saturating_sub(rect.left);
                     let height = rect.bottom.saturating_sub(rect.top);
@@ -887,6 +894,9 @@ fn resolve_window_rect_at_point(x: i32, y: i32) -> Option<PhysicalCaptureRect> {
             }
 
             hwnd = GetWindow(hwnd, GW_HWNDNEXT);
+            if hwnd == ptr::null_mut() {
+                break;
+            }
         }
     }
 
