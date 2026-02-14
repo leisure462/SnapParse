@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use tauri::{Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt;
 
+use crate::ocr;
 use crate::settings::model::AppSettings;
 use crate::settings::store;
 
@@ -44,6 +45,7 @@ pub fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<App
     let config_root = resolve_config_root(&app)?;
     store::save_settings(&config_root, &settings).map_err(|error| error.to_string())?;
     sync_autostart_state(&app, settings.general.launch_at_startup)?;
+    ocr::sync_ocr_hotkey(&app, &settings)?;
 
     // Notify all windows that settings have changed so they can re-apply
     // font size, theme, and other runtime-configurable values.
@@ -57,6 +59,7 @@ pub fn reset_settings(app: tauri::AppHandle) -> Result<AppSettings, String> {
     let config_root = resolve_config_root(&app)?;
     let defaults = store::reset_settings(&config_root).map_err(|error| error.to_string())?;
     sync_autostart_state(&app, defaults.general.launch_at_startup)?;
+    ocr::sync_ocr_hotkey(&app, &defaults)?;
 
     let _ = app.emit("settings-changed", &defaults);
 

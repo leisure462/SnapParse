@@ -2,6 +2,7 @@
 
 mod commands;
 mod ai;
+mod ocr;
 mod selection;
 mod settings;
 mod windows;
@@ -69,6 +70,7 @@ fn main() {
             MacosLauncher::LaunchAgent,
             Some(vec!["--autostart"]),
         ))
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             if let Some(main_window) = app.get_webview_window("main") {
                 let _ = main_window.hide();
@@ -89,6 +91,9 @@ fn main() {
 
             let settings = load_startup_settings(&app.handle());
             sync_autostart_at_startup(&app.handle(), settings.general.launch_at_startup);
+            if let Err(error) = ocr::sync_ocr_hotkey(&app.handle(), &settings) {
+                eprintln!("failed to sync OCR hotkey: {error}");
+            }
 
             if !is_autostart_launch() && !settings.general.silent_startup {
                 let _ = windows::manager::show_window(&app.handle(), windows::ids::WindowKind::Settings);
@@ -103,6 +108,8 @@ fn main() {
             commands::ai::process_selected_text,
             commands::ai::stream_process_text,
             commands::ai::test_api_connection,
+            commands::ocr::start_ocr_capture,
+            commands::ocr::run_ocr_capture,
             commands::windows::open_window,
             commands::windows::close_window,
             commands::windows::move_window,

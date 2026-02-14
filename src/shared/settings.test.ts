@@ -14,6 +14,8 @@ describe("settings schema", () => {
     expect(settings.toolbar.triggerHotkey).toBe("Ctrl+Shift+Space");
     expect(settings.general.language).toBe("zh-CN");
     expect(settings.api.featureModels.optimize).toBe("gpt-4o-mini");
+    expect(settings.ocr.captureHotkey).toBe("Ctrl+Shift+O");
+    expect(settings.ocr.postActionId).toBe("translate");
     expect(settings.features.enabledActions).toContain("optimize");
   });
 

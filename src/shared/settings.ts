@@ -6,6 +6,8 @@ export type AppLanguage = "zh-CN" | "en-US";
 export type AppFilterMode = "off" | "whitelist" | "blacklist";
 export type LogLevel = "error" | "warn" | "info" | "debug";
 export type WindowSizePreset = "large" | "medium" | "small";
+export type OcrProvider = "openai-vision" | "glm-ocr";
+export type OcrPostActionMode = "auto" | "manual";
 
 export const MAX_CUSTOM_ACTION_COUNT = 2;
 export const MAX_CUSTOM_ACTION_NAME_LENGTH = 8;
@@ -28,6 +30,19 @@ export interface ApiSettings {
     explain: string;
     optimize: string;
   };
+}
+
+export interface OcrSettings {
+  enabled: boolean;
+  captureHotkey: string;
+  provider: OcrProvider;
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  timeoutMs: number;
+  prompt: string;
+  postActionMode: OcrPostActionMode;
+  postActionId: string;
 }
 
 export interface ToolbarAction {
@@ -80,6 +95,7 @@ export interface AdvancedSettings {
 export interface AppSettings {
   general: GeneralSettings;
   api: ApiSettings;
+  ocr: OcrSettings;
   toolbar: ToolbarSettings;
   window: WindowSettings;
   features: FeaturesSettings;
@@ -87,13 +103,14 @@ export interface AppSettings {
 }
 
 export const SETTINGS_SECTION_ORDER = [
-  "api",
   "general",
-  "toolbar",
-  "hotkeys",
-  "window",
+  "api",
+  "ocr",
   "features",
-  "advanced"
+  "toolbar",
+  "window",
+  "advanced",
+  "hotkeys"
 ] as const;
 
 /** Resolve a window size preset to pixel dimensions. */
@@ -155,6 +172,18 @@ export function defaultSettings(): AppSettings {
         optimize: model
       }
     },
+    ocr: {
+      enabled: false,
+      captureHotkey: "Ctrl+Shift+O",
+      provider: "openai-vision",
+      baseUrl: "https://api.openai.com/v1",
+      apiKey: "",
+      model: "gpt-4o-mini",
+      timeoutMs: 45000,
+      prompt: "请提取图片中的全部文字，按原有顺序输出，不要添加解释。",
+      postActionMode: "auto",
+      postActionId: "translate"
+    },
     toolbar: {
       triggerMode: "selection",
       triggerHotkey: "Ctrl+Shift+Space",
@@ -182,6 +211,13 @@ export function defaultSettings(): AppSettings {
       logLevel: "info"
     }
   };
+}
+
+function mergeOcr(
+  defaults: OcrSettings,
+  incoming: DeepPartial<OcrSettings> | undefined
+): OcrSettings {
+  return incoming ? { ...defaults, ...incoming } : defaults;
 }
 
 function mergeApi(
@@ -307,6 +343,7 @@ export function mergeSettings(partial: DeepPartial<AppSettings> = {}): AppSettin
   return {
     general: mergeGeneral(defaults.general, partial.general),
     api: mergeApi(defaults.api, partial.api),
+    ocr: mergeOcr(defaults.ocr, partial.ocr),
     toolbar: mergeToolbar(defaults.toolbar, partial.toolbar),
     window: mergeWindow(defaults.window, partial.window),
     features: mergeFeatures(defaults.features, partial.features),
@@ -407,7 +444,34 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
 
   assertNumberRange("api.timeoutMs", merged.api.timeoutMs, 1000, 120000);
   assertNumberRange("api.temperature", merged.api.temperature, 0, 2);
+  assertNumberRange("ocr.timeoutMs", merged.ocr.timeoutMs, 1000, 120000);
   assertNumberRange("window.fontSize", merged.window.fontSize, 10, 24);
+
+  if (!merged.ocr.captureHotkey.trim()) {
+    throw new Error("ocr.captureHotkey must not be empty");
+  }
+
+  if (!["openai-vision", "glm-ocr"].includes(merged.ocr.provider)) {
+    throw new Error("ocr.provider must be openai-vision or glm-ocr");
+  }
+
+  if (!["auto", "manual"].includes(merged.ocr.postActionMode)) {
+    throw new Error("ocr.postActionMode must be auto or manual");
+  }
+
+  assertUrl(merged.ocr.baseUrl);
+
+  if (!merged.ocr.model.trim()) {
+    throw new Error("ocr.model must not be empty");
+  }
+
+  if (!merged.ocr.prompt.trim()) {
+    throw new Error("ocr.prompt must not be empty");
+  }
+
+  if (merged.ocr.postActionMode === "auto" && !merged.ocr.postActionId.trim()) {
+    throw new Error("ocr.postActionId must not be empty when auto mode is enabled");
+  }
 
   if (!["large", "medium", "small"].includes(merged.window.windowSize)) {
     throw new Error("window.windowSize must be large, medium, or small");

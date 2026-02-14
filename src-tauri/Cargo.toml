@@ -17,7 +17,10 @@ thiserror = "2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 uuid = { version = "1", features = ["v4"] }
 single-instance = "0.3"
+base64 = "0.22"
+tauri-plugin-global-shortcut = "2"
 
 [target.'cfg(windows)'.dependencies]
 get-selected-text = "0.1.6"
 mouce = "0.3.0"
+screenshots = "0.8"

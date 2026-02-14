@@ -1,0 +1,68 @@
+.ocr-capture-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  cursor: crosshair;
+  user-select: none;
+  background: rgba(9, 11, 16, 0.34);
+  overflow: hidden;
+}
+
+.ocr-capture-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(1200px 500px at 50% -12%, rgba(167, 199, 255, 0.18) 0%, transparent 55%);
+  pointer-events: none;
+}
+
+.ocr-capture-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(15, 19, 27, 0.68);
+  color: rgba(245, 248, 255, 0.94);
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.ocr-capture-rect {
+  position: absolute;
+  border: 2px solid rgba(132, 185, 255, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(8, 20, 42, 0.9) inset,
+    0 10px 22px rgba(6, 14, 31, 0.38);
+  background: rgba(132, 185, 255, 0.08);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.ocr-capture-error {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: min(680px, calc(100vw - 32px));
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 161, 161, 0.54);
+  background: rgba(72, 13, 13, 0.82);
+  color: #ffe2e2;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  display: inline-flex;
+  align-items: center;
+  z-index: 6;
+}

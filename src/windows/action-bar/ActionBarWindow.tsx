@@ -17,6 +17,7 @@ const ACTION_BAR_ICON_ANIMATION_DELAY_MS = 50;
 interface SelectionTextPayload {
   text: string;
   source?: string;
+  autoActionId?: string;
 }
 
 async function copyText(value: string): Promise<void> {
@@ -92,6 +93,7 @@ export default function ActionBarWindow(): JSX.Element {
   const [selectedText, setSelectedText] = useState("");
   const [isBusy, setBusy] = useState(false);
   const [actions, setActions] = useState<ActionBarAction[]>(() => resolveActionBarActions(defaultSettings()));
+  const [autoActionRequest, setAutoActionRequest] = useState<{ text: string; actionId: string } | null>(null);
   const actionBarRef = useRef<HTMLDivElement | null>(null);
   const selectedTextRef = useRef("");
   const iconRef = useRef<HTMLImageElement | null>(null);
@@ -193,6 +195,14 @@ export default function ActionBarWindow(): JSX.Element {
           window.localStorage.setItem(LAST_SELECTED_TEXT_KEY, event.payload.text);
         }
         queueIconAnimation();
+
+        const autoActionId = event.payload.autoActionId?.trim();
+        if (event.payload.source === "ocr" && autoActionId) {
+          setAutoActionRequest({
+            text: event.payload.text,
+            actionId: autoActionId
+          });
+        }
       }
     }).then((cleanup) => {
       unlisten = cleanup;
@@ -255,7 +265,7 @@ export default function ActionBarWindow(): JSX.Element {
     };
   }, []);
 
-  const runAction = async (action: ActionBarAction): Promise<void> => {
+  const runAction = async (action: ActionBarAction, directText?: string): Promise<void> => {
     if (isBusy) {
       return;
     }
@@ -263,7 +273,9 @@ export default function ActionBarWindow(): JSX.Element {
     setBusy(true);
 
     try {
+      const direct = directText?.trim() ?? "";
       const textForAction =
+        direct ||
         selectedTextRef.current.trim() ||
         selectedText.trim() ||
         window.localStorage.getItem(LAST_SELECTED_TEXT_KEY)?.trim() ||
@@ -363,6 +375,21 @@ export default function ActionBarWindow(): JSX.Element {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!autoActionRequest || isBusy) {
+      return;
+    }
+
+    const targetAction = actions.find((item) => item.id === autoActionRequest.actionId);
+    setAutoActionRequest(null);
+
+    if (!targetAction) {
+      return;
+    }
+
+    void runAction(targetAction, autoActionRequest.text);
+  }, [actions, autoActionRequest, isBusy]);
 
   return (
     <div ref={actionBarRef} className="md2-action-bar" role="toolbar" aria-label="划词工具栏">

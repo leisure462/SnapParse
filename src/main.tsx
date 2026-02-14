@@ -10,6 +10,7 @@ import SummaryWindow from "./windows/summary/SummaryWindow";
 import SettingsWindow from "./windows/settings/SettingsWindow";
 import ExplainWindow from "./windows/explain/ExplainWindow";
 import OptimizeWindow from "./windows/optimize/OptimizeWindow";
+import OcrCaptureWindow from "./windows/ocr/OcrCaptureWindow";
 
 function WindowPlaceholder(props: { windowKey: string }): JSX.Element {
   return (
@@ -47,6 +48,10 @@ function resolveAppEntry(): JSX.Element {
 
   if (key === "optimize") {
     return <OptimizeWindow />;
+  }
+
+  if (key === "ocr-capture") {
+    return <OcrCaptureWindow />;
   }
 
   if (key === "settings") {

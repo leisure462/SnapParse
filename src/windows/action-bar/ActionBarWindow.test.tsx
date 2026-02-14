@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import ActionBarWindow from "./ActionBarWindow";
 import { defaultSettings } from "../../shared/settings";
 
-type EventHandler = (event: { payload: { text: string } }) => void;
+type EventHandler = (event: { payload: { text: string; source?: string; autoActionId?: string } }) => void;
 
 const mocks = vi.hoisted(() => ({
   listeners: new Map<string, EventHandler>(),
@@ -110,6 +110,27 @@ describe("ActionBarWindow", () => {
         "open_external_url",
         expect.objectContaining({
           url: expect.stringContaining("google.com/search")
+        })
+      );
+    });
+  });
+
+  it("auto-runs configured action when OCR payload provides autoActionId", async () => {
+    await renderWindow();
+    mocks.emitMock.mockClear();
+
+    await act(async () => {
+      listeners.get("selection-text-changed")?.({
+        payload: { text: "from ocr", source: "ocr", autoActionId: "summarize" }
+      });
+    });
+
+    await waitFor(() => {
+      expect(mocks.emitMock).toHaveBeenCalledWith(
+        "change-text",
+        expect.objectContaining({
+          text: "from ocr",
+          target: "summary"
         })
       );
     });

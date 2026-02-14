@@ -88,4 +88,11 @@ describe("SettingsWindow", () => {
     fireEvent.click(screen.getByRole("tab", { name: "API配置" }));
     expect(screen.getByLabelText("优化模型")).toBeInTheDocument();
   });
+
+  it("shows ocr section fields", async () => {
+    await renderWindow();
+    fireEvent.click(screen.getByRole("tab", { name: "OCR配置" }));
+    expect(screen.getByLabelText("OCR 服务类型")).toBeInTheDocument();
+    expect(screen.getByLabelText("自动执行功能")).toBeInTheDocument();
+  });
 });

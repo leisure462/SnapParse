@@ -21,6 +21,7 @@ fn window_labels_are_unique() {
         WindowKind::Summary.label(),
         WindowKind::Explain.label(),
         WindowKind::Optimize.label(),
+        WindowKind::OcrCapture.label(),
         WindowKind::Settings.label(),
     ];
 

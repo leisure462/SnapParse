@@ -6,6 +6,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub general: GeneralSettings,
     pub api: ApiSettings,
+    #[serde(default)]
+    pub ocr: OcrSettings,
     pub toolbar: ToolbarSettings,
     pub window: WindowSettings,
     pub features: FeaturesSettings,
@@ -17,6 +19,7 @@ impl Default for AppSettings {
         Self {
             general: GeneralSettings::default(),
             api: ApiSettings::default(),
+            ocr: OcrSettings::default(),
             toolbar: ToolbarSettings::default(),
             window: WindowSettings::default(),
             features: FeaturesSettings::default(),
@@ -89,6 +92,98 @@ impl Default for ApiSettings {
                 optimize: String::from("gpt-4o-mini"),
             },
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OcrSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_ocr_capture_hotkey")]
+    pub capture_hotkey: String,
+    #[serde(default)]
+    pub provider: OcrProvider,
+    #[serde(default = "default_ocr_base_url")]
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default = "default_ocr_model")]
+    pub model: String,
+    #[serde(default = "default_ocr_timeout_ms")]
+    pub timeout_ms: u64,
+    #[serde(default = "default_ocr_prompt")]
+    pub prompt: String,
+    #[serde(default)]
+    pub post_action_mode: OcrPostActionMode,
+    #[serde(default = "default_ocr_post_action_id")]
+    pub post_action_id: String,
+}
+
+impl Default for OcrSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            capture_hotkey: default_ocr_capture_hotkey(),
+            provider: OcrProvider::default(),
+            base_url: default_ocr_base_url(),
+            api_key: String::new(),
+            model: default_ocr_model(),
+            timeout_ms: default_ocr_timeout_ms(),
+            prompt: default_ocr_prompt(),
+            post_action_mode: OcrPostActionMode::default(),
+            post_action_id: default_ocr_post_action_id(),
+        }
+    }
+}
+
+fn default_ocr_capture_hotkey() -> String {
+    String::from("Ctrl+Shift+O")
+}
+
+fn default_ocr_base_url() -> String {
+    String::from("https://api.openai.com/v1")
+}
+
+fn default_ocr_model() -> String {
+    String::from("gpt-4o-mini")
+}
+
+fn default_ocr_timeout_ms() -> u64 {
+    45_000
+}
+
+fn default_ocr_prompt() -> String {
+    String::from("请提取图片中的全部文字，按原有顺序输出，不要添加解释。")
+}
+
+fn default_ocr_post_action_id() -> String {
+    String::from("translate")
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum OcrProvider {
+    OpenaiVision,
+    GlmOcr,
+}
+
+impl Default for OcrProvider {
+    fn default() -> Self {
+        OcrProvider::OpenaiVision
+    }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum OcrPostActionMode {
+    Auto,
+    Manual,
+}
+
+impl Default for OcrPostActionMode {
+    fn default() -> Self {
+        OcrPostActionMode::Auto
     }
 }
 

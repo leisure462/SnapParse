@@ -6,6 +6,7 @@ pub const TRANSLATE_WINDOW_LABEL: &str = "translate";
 pub const SUMMARY_WINDOW_LABEL: &str = "summary";
 pub const EXPLAIN_WINDOW_LABEL: &str = "explain";
 pub const OPTIMIZE_WINDOW_LABEL: &str = "optimize";
+pub const OCR_CAPTURE_WINDOW_LABEL: &str = "ocr-capture";
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
@@ -17,6 +18,7 @@ pub enum WindowKind {
     Summary,
     Explain,
     Optimize,
+    OcrCapture,
     Settings,
 }
 
@@ -29,6 +31,7 @@ impl WindowKind {
             WindowKind::Summary => SUMMARY_WINDOW_LABEL,
             WindowKind::Explain => EXPLAIN_WINDOW_LABEL,
             WindowKind::Optimize => OPTIMIZE_WINDOW_LABEL,
+            WindowKind::OcrCapture => OCR_CAPTURE_WINDOW_LABEL,
             WindowKind::Settings => SETTINGS_WINDOW_LABEL,
         }
     }
@@ -41,6 +44,7 @@ impl WindowKind {
             WindowKind::Summary => "总结",
             WindowKind::Explain => "解释",
             WindowKind::Optimize => "优化",
+            WindowKind::OcrCapture => "OCR截图",
             WindowKind::Settings => "设置",
         }
     }
@@ -58,6 +62,7 @@ impl WindowKind {
             WindowKind::Summary => (520.0, 400.0),
             WindowKind::Explain => (520.0, 400.0),
             WindowKind::Optimize => (520.0, 400.0),
+            WindowKind::OcrCapture => (960.0, 640.0),
             WindowKind::Settings => (780.0, 560.0),
         }
     }
@@ -67,20 +72,21 @@ impl WindowKind {
     }
 
     /// Only action bar uses transparent webview so the capsule can float.
+    /// OCR capture also uses transparency for screen overlay rendering.
     /// Feature windows stay opaque for readability and rendering stability.
     pub fn transparent(self) -> bool {
-        matches!(self, WindowKind::ActionBar)
+        matches!(self, WindowKind::ActionBar | WindowKind::OcrCapture)
     }
 
     pub fn resizable(self) -> bool {
-        !matches!(self, WindowKind::ActionBar)
+        !matches!(self, WindowKind::ActionBar | WindowKind::OcrCapture)
     }
 
     pub fn always_on_top(self) -> bool {
-        matches!(self, WindowKind::ActionBar)
+        matches!(self, WindowKind::ActionBar | WindowKind::OcrCapture)
     }
 
     pub fn skip_taskbar(self) -> bool {
-        matches!(self, WindowKind::ActionBar)
+        matches!(self, WindowKind::ActionBar | WindowKind::OcrCapture)
     }
 }

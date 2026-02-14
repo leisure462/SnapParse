@@ -286,12 +286,13 @@ fn point_hits_action_bar(app: &AppHandle, point: SelectionPoint) -> bool {
 
 #[cfg(windows)]
 fn point_hits_snapparse_windows(app: &AppHandle, point: SelectionPoint) -> bool {
-    const WINDOW_KINDS: [WindowKind; 6] = [
+    const WINDOW_KINDS: [WindowKind; 7] = [
         WindowKind::Settings,
         WindowKind::Translate,
         WindowKind::Summary,
         WindowKind::Explain,
         WindowKind::Optimize,
+        WindowKind::OcrCapture,
         WindowKind::Main,
     ];
 

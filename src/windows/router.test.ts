@@ -10,6 +10,10 @@ describe("window router", () => {
     expect(resolveWindowRoute("optimize")).toBe("/windows/optimize");
   });
 
+  it("resolves ocr capture window route", () => {
+    expect(resolveWindowRoute("ocr-capture")).toBe("/windows/ocr-capture");
+  });
+
   it("resolves location query to window key", () => {
     expect(resolveWindowFromLocation("?window=settings")).toBe("settings");
   });
