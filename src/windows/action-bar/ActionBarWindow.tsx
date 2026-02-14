@@ -289,22 +289,6 @@ export default function ActionBarWindow(): JSX.Element {
 
         const requestId = Date.now();
 
-        try {
-          await invoke("open_window", { kind: action.commandWindow });
-          await invoke("resize_window", {
-            kind: action.commandWindow,
-            width: fwSize.width,
-            height: fwSize.height
-          });
-          await invoke("move_window", {
-            kind: action.commandWindow,
-            x: anchor.x,
-            y: anchor.y
-          });
-        } catch (err) {
-          console.error("[ActionBar] failed to open/move feature window:", err);
-        }
-
         const payload = {
           text: textForAction,
           source: "action-bar",
@@ -315,18 +299,17 @@ export default function ActionBarWindow(): JSX.Element {
           requestId
         };
 
-        if (action.commandWindow === "optimize") {
-          console.log("[ActionBar] setting pending optimize request, text length:", payload.text.length, "title:", payload.title);
-          try {
-            await invoke("set_pending_optimize_request", { payload });
-            console.log("[ActionBar] pending optimize request set successfully");
-          } catch (error) {
-            console.error("[ActionBar] failed to set pending optimize request:", error);
-          }
-        }
+        const setPendingOptimizePromise =
+          action.commandWindow === "optimize"
+            ? invoke("set_pending_optimize_request", { payload }).catch((error) => {
+                console.error("[ActionBar] failed to set pending optimize request:", error);
+              })
+            : Promise.resolve();
+
+        await setPendingOptimizePromise;
 
         // Emit multiple times with same requestId to reduce first-open race conditions.
-        const emitDelays = [0, 220, 480, 860, 1320];
+        const emitDelays = [0, 120, 300];
         for (const delay of emitDelays) {
           window.setTimeout(() => {
             void emit("change-text", payload);
@@ -334,6 +317,24 @@ export default function ActionBarWindow(): JSX.Element {
               void emit("optimize-pending-updated", { requestId });
             }
           }, delay);
+        }
+
+        try {
+          await invoke("open_window", { kind: action.commandWindow });
+
+          void invoke("resize_window", {
+            kind: action.commandWindow,
+            width: fwSize.width,
+            height: fwSize.height
+          }).catch(() => {});
+
+          void invoke("move_window", {
+            kind: action.commandWindow,
+            x: anchor.x,
+            y: anchor.y
+          }).catch(() => {});
+        } catch (err) {
+          console.error("[ActionBar] failed to open/move feature window:", err);
         }
 
         await closeActionBarWindow();

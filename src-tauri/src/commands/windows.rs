@@ -20,12 +20,7 @@ fn pending_optimize_request_store() -> &'static Mutex<Option<PendingOptimizeRequ
 
 #[tauri::command]
 pub fn open_window(app: tauri::AppHandle, kind: WindowKind) -> Result<(), String> {
-    eprintln!("[cmd] open_window called: {:?}", kind);
-    manager::show_window(&app, kind).map_err(|error| {
-        let msg = format!("failed to open window {:?}: {error}", kind);
-        eprintln!("[cmd] {}", msg);
-        msg
-    })
+    manager::show_window(&app, kind).map_err(|error| format!("failed to open window {:?}: {error}", kind))
 }
 
 #[tauri::command]
@@ -35,7 +30,6 @@ pub fn close_window(app: tauri::AppHandle, kind: WindowKind) -> Result<(), Strin
 
 #[tauri::command]
 pub fn move_window(app: tauri::AppHandle, kind: WindowKind, x: f64, y: f64) -> Result<(), String> {
-    eprintln!("[cmd] move_window called: {:?} to ({}, {})", kind, x, y);
     manager::position_window_logical(&app, kind, x, y)
         .map_err(|error| format!("failed to move window: {error}"))
 }
@@ -87,8 +81,6 @@ pub fn open_external_url(url: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn set_pending_optimize_request(payload: PendingOptimizeRequest) -> Result<(), String> {
-    eprintln!("[cmd] set_pending_optimize_request called, text_len={}, target={:?}, title={:?}",
-        payload.text.len(), payload.target, payload.title);
     if payload.text.trim().is_empty() {
         return Err(String::from("pending optimize request text must not be empty"));
     }
@@ -107,11 +99,5 @@ pub fn take_pending_optimize_request() -> Result<Option<PendingOptimizeRequest>,
     let mut guard = store
         .lock()
         .map_err(|error| format!("failed to lock optimize request store: {error}"))?;
-    let result = guard.take();
-    if let Some(ref req) = result {
-        eprintln!("[cmd] take_pending_optimize_request got request, text_len={}", req.text.len());
-    } else {
-        eprintln!("[cmd] take_pending_optimize_request returned None");
-    }
-    Ok(result)
+    Ok(guard.take())
 }

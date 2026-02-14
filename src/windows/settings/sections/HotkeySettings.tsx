@@ -133,21 +133,6 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
         </button>
       </div>
 
-      <label className="settings-switch">
-        <input
-          type="checkbox"
-          checked={settings.toolbar.triggerMode === "hotkey"}
-          onChange={(event) => {
-            onChange(
-              patchToolbar(settings, (toolbar) => ({
-                ...toolbar,
-                triggerMode: event.target.checked ? "hotkey" : "selection"
-              }))
-            );
-          }}
-        />
-        <span>使用“快捷键”作为默认取词触发方式</span>
-      </label>
     </section>
   );
 }

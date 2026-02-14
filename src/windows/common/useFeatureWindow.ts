@@ -27,6 +27,26 @@ export function useFeatureWindow(): FeatureWindowState {
   const [language, setLanguage] = useState<AppLanguage>(defaultSettings().general.language);
   const pinnedRef = useRef(false);
 
+  const safeSetAlwaysOnTop = (value: boolean): void => {
+    const currentWindow = getCurrentWindow() as ReturnType<typeof getCurrentWindow> & {
+      setAlwaysOnTop?: (alwaysOnTop: boolean) => Promise<void>;
+    };
+
+    if (typeof currentWindow.setAlwaysOnTop === "function") {
+      void currentWindow.setAlwaysOnTop(value).catch(() => {});
+    }
+  };
+
+  const safeHideWindow = (): void => {
+    const currentWindow = getCurrentWindow() as ReturnType<typeof getCurrentWindow> & {
+      hide?: () => Promise<void>;
+    };
+
+    if (typeof currentWindow.hide === "function") {
+      void currentWindow.hide().catch(() => {});
+    }
+  };
+
   /** Apply settings values from an AppSettings object. */
   const applySettings = (s: AppSettings): void => {
     const defaults = defaultSettings();
@@ -71,7 +91,22 @@ export function useFeatureWindow(): FeatureWindowState {
     let blurTimer: ReturnType<typeof setTimeout> | undefined;
     let keepOnTopInterval: ReturnType<typeof setInterval> | undefined;
 
-    getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+    const currentWindow = getCurrentWindow() as ReturnType<typeof getCurrentWindow> & {
+      onFocusChanged?: (handler: (event: { payload: boolean }) => void) => Promise<() => void>;
+    };
+
+    if (typeof currentWindow.onFocusChanged !== "function") {
+      return () => {
+        if (blurTimer !== undefined) {
+          clearTimeout(blurTimer);
+        }
+        if (keepOnTopInterval !== undefined) {
+          clearInterval(keepOnTopInterval);
+        }
+      };
+    }
+
+    currentWindow.onFocusChanged(({ payload: focused }) => {
       if (blurTimer !== undefined) {
         clearTimeout(blurTimer);
         blurTimer = undefined;
@@ -79,14 +114,14 @@ export function useFeatureWindow(): FeatureWindowState {
 
       if (!focused && !pinnedRef.current) {
         blurTimer = setTimeout(() => {
-          getCurrentWindow().hide().catch(() => {});
+          safeHideWindow();
         }, 180);
       } else if (!focused && pinnedRef.current) {
-        getCurrentWindow().setAlwaysOnTop(true).catch(() => {});
+        safeSetAlwaysOnTop(true);
         if (keepOnTopInterval === undefined) {
           keepOnTopInterval = setInterval(() => {
             if (pinnedRef.current) {
-              getCurrentWindow().setAlwaysOnTop(true).catch(() => {});
+              safeSetAlwaysOnTop(true);
             }
           }, 1000);
         }
@@ -115,11 +150,11 @@ export function useFeatureWindow(): FeatureWindowState {
     const next = !pinned;
     setPinned(next);
     pinnedRef.current = next;
-    getCurrentWindow().setAlwaysOnTop(next).catch(() => {});
+    safeSetAlwaysOnTop(next);
   };
 
   useEffect(() => {
-    getCurrentWindow().setAlwaysOnTop(pinned).catch(() => {});
+    safeSetAlwaysOnTop(pinned);
   }, [pinned]);
 
   const shellStyle: React.CSSProperties = {

@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import type { AppSettings, TriggerMode } from "../../../shared/settings";
 import type { SettingsSectionProps } from "./sectionTypes";
 
@@ -32,41 +31,24 @@ function patchToolbar(
 
 export default function ToolbarSettingsSection(props: SettingsSectionProps): JSX.Element {
   const { settings, onChange } = props;
-  const [hoveredMode, setHoveredMode] = useState<TriggerMode | null>(null);
-
-  const hoveredTip = useMemo(() => {
-    if (!hoveredMode) {
-      return "";
-    }
-    return TRIGGER_OPTIONS.find((item) => item.value === hoveredMode)?.tip ?? "";
-  }, [hoveredMode]);
 
   return (
     <section className="settings-section" aria-label="工具栏配置面板">
       <h2>工具栏</h2>
       <p className="settings-hint">控制划词后工具栏行为和外观</p>
 
-      <div className="settings-trigger-card">
-        <div className="settings-trigger-row">
-          <span className="settings-trigger-title">取词方式</span>
-          <span className="settings-trigger-help" aria-hidden="true">
-            ?
-          </span>
+      <div className="settings-trigger-card settings-trigger-card-inline">
+        <div className="settings-trigger-copy">
+          <div className="settings-trigger-row">
+            <span className="settings-trigger-title">取词方式</span>
+            <span className="settings-trigger-help" aria-hidden="true">
+              ?
+            </span>
+          </div>
+          <p className="settings-hint">划词后，触发取词并显示工具栏的方式</p>
         </div>
-        <p className="settings-hint">划词后，触发取词并显示工具栏的方式</p>
 
-        <div
-          className="settings-trigger-segment-wrap"
-          onMouseLeave={() => {
-            setHoveredMode(null);
-          }}
-        >
-          {hoveredTip ? (
-            <div className="settings-trigger-tooltip" role="status" aria-live="polite">
-              {hoveredTip}
-            </div>
-          ) : null}
-
+        <div className="settings-trigger-segment-wrap settings-trigger-segment-wrap-right">
           <div className="settings-segmented" role="radiogroup" aria-label="取词方式">
             {TRIGGER_OPTIONS.map((item) => {
               const isActive = settings.toolbar.triggerMode === item.value;
@@ -78,12 +60,6 @@ export default function ToolbarSettingsSection(props: SettingsSectionProps): JSX
                   aria-checked={isActive}
                   className={`settings-segment-btn ${isActive ? "active" : ""}`}
                   title={item.tip}
-                  onMouseEnter={() => {
-                    setHoveredMode(item.value);
-                  }}
-                  onFocus={() => {
-                    setHoveredMode(item.value);
-                  }}
                   onClick={() => {
                     onChange(
                       patchToolbar(settings, (toolbar) => ({
@@ -101,39 +77,21 @@ export default function ToolbarSettingsSection(props: SettingsSectionProps): JSX
         </div>
       </div>
 
-      <div className="settings-grid-2">
-        <label className="settings-switch">
-          <input
-            type="checkbox"
-            checked={settings.toolbar.compactMode}
-            onChange={(event) => {
-              onChange(
-                patchToolbar(settings, (toolbar) => ({
-                  ...toolbar,
-                  compactMode: event.target.checked
-                }))
-              );
-            }}
-          />
-          <span>紧凑模式（仅显示图标）</span>
-        </label>
-
-        <label className="settings-switch">
-          <input
-            type="checkbox"
-            checked={settings.toolbar.showLabel}
-            onChange={(event) => {
-              onChange(
-                patchToolbar(settings, (toolbar) => ({
-                  ...toolbar,
-                  showLabel: event.target.checked
-                }))
-              );
-            }}
-          />
-          <span>显示文字标签</span>
-        </label>
-      </div>
+      <label className="settings-switch settings-switch-full">
+        <input
+          type="checkbox"
+          checked={settings.toolbar.compactMode}
+          onChange={(event) => {
+            onChange(
+              patchToolbar(settings, (toolbar) => ({
+                ...toolbar,
+                compactMode: event.target.checked
+              }))
+            );
+          }}
+        />
+        <span>紧凑模式（仅显示图标）</span>
+      </label>
     </section>
   );
 }

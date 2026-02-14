@@ -49,45 +49,13 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
   // Track the current stream_id so stale events are ignored.
   const activeStreamId = useRef<string | null>(null);
   const unlisteners = useRef<UnlistenFn[]>([]);
-  const pendingChunkBuffer = useRef("");
-  const flushTimer = useRef<number | null>(null);
-
-  const clearChunkFlushTimer = useCallback(() => {
-    if (flushTimer.current !== null) {
-      window.clearTimeout(flushTimer.current);
-      flushTimer.current = null;
-    }
-  }, []);
-
-  const flushBufferedChunks = useCallback(() => {
-    clearChunkFlushTimer();
-    if (!pendingChunkBuffer.current) {
-      return;
-    }
-
-    const chunk = pendingChunkBuffer.current;
-    pendingChunkBuffer.current = "";
-    setResultText((prev) => prev + chunk);
-  }, [clearChunkFlushTimer]);
-
-  const queueChunkFlush = useCallback(() => {
-    if (flushTimer.current !== null) {
-      return;
-    }
-
-    flushTimer.current = window.setTimeout(() => {
-      flushBufferedChunks();
-    }, 24);
-  }, [flushBufferedChunks]);
 
   const cleanup = useCallback(() => {
     for (const fn of unlisteners.current) {
       fn();
     }
     unlisteners.current = [];
-    clearChunkFlushTimer();
-    pendingChunkBuffer.current = "";
-  }, [clearChunkFlushTimer]);
+  }, []);
 
   const acceptStreamEvent = useCallback((incomingStreamId: string): boolean => {
     if (!activeStreamId.current) {
@@ -112,51 +80,46 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
       // Abort any previous listeners
       cleanup();
       activeStreamId.current = null;
-      pendingChunkBuffer.current = "";
       setResultText("");
       setErrorText(undefined);
       setLoading(true);
       setStreaming(false);
 
       const run = async (): Promise<void> => {
-        // Set up listeners BEFORE invoking the command so we never miss
-        // early chunks.
-        const chunkUn = await listen<StreamChunkPayload>("stream-chunk", (event) => {
-          if (!acceptStreamEvent(event.payload.streamId)) {
-            return;
-          }
-          setStreaming(true);
-          setLoading(false);
-          pendingChunkBuffer.current += event.payload.chunk;
-          queueChunkFlush();
-        });
-
-        const doneUn = await listen<StreamDonePayload>("stream-done", (event) => {
-          if (!acceptStreamEvent(event.payload.streamId)) {
-            return;
-          }
-
-          flushBufferedChunks();
-          setResultText(event.payload.fullText);
-          setStreaming(false);
-          setLoading(false);
-        });
-
-        const errorUn = await listen<StreamErrorPayload>("stream-error", (event) => {
-          if (!acceptStreamEvent(event.payload.streamId)) {
-            return;
-          }
-
-          clearChunkFlushTimer();
-          pendingChunkBuffer.current = "";
-          setErrorText(`${errorLabel}：${event.payload.error}`);
-          setStreaming(false);
-          setLoading(false);
-        });
-
-        unlisteners.current = [chunkUn, doneUn, errorUn];
-
         try {
+          // Set up listeners BEFORE invoking the command so we never miss
+          // early chunks.
+          const [chunkUn, doneUn, errorUn] = await Promise.all([
+            listen<StreamChunkPayload>("stream-chunk", (event) => {
+              if (!acceptStreamEvent(event.payload.streamId)) {
+                return;
+              }
+              setStreaming(true);
+              setLoading(false);
+              setResultText((prev) => prev + event.payload.chunk);
+            }),
+            listen<StreamDonePayload>("stream-done", (event) => {
+              if (!acceptStreamEvent(event.payload.streamId)) {
+                return;
+              }
+
+              setResultText(event.payload.fullText);
+              setStreaming(false);
+              setLoading(false);
+            }),
+            listen<StreamErrorPayload>("stream-error", (event) => {
+              if (!acceptStreamEvent(event.payload.streamId)) {
+                return;
+              }
+
+              setErrorText(`${errorLabel}：${event.payload.error}`);
+              setStreaming(false);
+              setLoading(false);
+            })
+          ]);
+
+          unlisteners.current = [chunkUn, doneUn, errorUn];
+
           const streamId = await invoke<string>("stream_process_text", {
             taskKind,
             text,
@@ -176,7 +139,7 @@ export function useStreamingAI(errorLabel: string): StreamingAIState & Streaming
 
       void run();
     },
-    [acceptStreamEvent, cleanup, clearChunkFlushTimer, errorLabel, flushBufferedChunks, queueChunkFlush]
+    [acceptStreamEvent, cleanup, errorLabel]
   );
 
   return { resultText, loading, streaming, errorText, startStream, reset };

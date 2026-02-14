@@ -51,8 +51,6 @@ export default function OptimizeWindow(): JSX.Element {
         return;
       }
 
-      console.log("[OptimizeWindow] applyPayload called, text length:", normalized.text.length, "title:", normalized.title);
-
       if (normalized.title) {
         setTitle(normalized.title);
       } else {
@@ -68,12 +66,11 @@ export default function OptimizeWindow(): JSX.Element {
     const consumePendingRequest = async (): Promise<void> => {
       try {
         const pending = await invoke<ChangeTextPayload | null>("take_pending_optimize_request");
-        console.log("[OptimizeWindow] consumePendingRequest result:", pending ? `got text len ${pending.text.length}` : "null");
         if (pending) {
           applyPayload(pending);
         }
-      } catch (error) {
-        console.error("[OptimizeWindow] consumePendingRequest error:", error);
+      } catch {
+        // noop
       }
     };
 
@@ -97,7 +94,6 @@ export default function OptimizeWindow(): JSX.Element {
 
     getCurrentWindow().onFocusChanged(({ payload: focused }) => {
       if (focused) {
-        console.log("[OptimizeWindow] window focused, trying to consume pending request");
         void consumePendingRequest();
       }
     }).then((cleanup) => {
@@ -113,11 +109,9 @@ export default function OptimizeWindow(): JSX.Element {
 
   useEffect(() => {
     if (!sourceText.trim() || requestId === 0) {
-      console.log("[OptimizeWindow] useEffect skipped, sourceText empty:", !sourceText.trim(), "requestId:", requestId);
       return;
     }
 
-    console.log("[OptimizeWindow] starting stream, text length:", sourceText.length, "customPrompt:", customPrompt ? "set" : "none");
     ai.startStream("optimize", sourceText, {
       customPrompt,
       customModel

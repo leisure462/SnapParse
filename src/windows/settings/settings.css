@@ -267,6 +267,21 @@
   gap: 8px;
 }
 
+.settings-trigger-card-inline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.settings-trigger-copy {
+  min-width: 220px;
+  flex: 1;
+  display: grid;
+  gap: 8px;
+}
+
 .settings-trigger-row {
   display: flex;
   align-items: center;
@@ -297,6 +312,12 @@
   position: relative;
   display: grid;
   gap: 8px;
+}
+
+.settings-trigger-segment-wrap-right {
+  display: flex;
+  justify-content: flex-end;
+  align-self: flex-end;
 }
 
 .settings-trigger-tooltip {
@@ -542,6 +563,15 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--sp-text);
+}
+
+.settings-switch-full {
+  width: 100%;
+}
+
+.settings-window-switch-list {
+  display: grid;
+  gap: 8px;
 }
 
 /* ── Size presets ───────────────────────────────────────────── */
@@ -1210,6 +1240,14 @@
 
   .settings-segmented {
     width: 100%;
+  }
+
+  .settings-trigger-card-inline {
+    align-items: stretch;
+  }
+
+  .settings-trigger-segment-wrap-right {
+    justify-content: flex-start;
   }
 
   .settings-segment-btn {

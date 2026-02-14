@@ -54,10 +54,10 @@ impl WindowKind {
             WindowKind::Main => (1200.0, 780.0),
             WindowKind::ActionBar => (402.0, 48.0),
             // Feature windows default to "large" preset; actual size set via resize_window at runtime
-            WindowKind::Translate => (680.0, 520.0),
-            WindowKind::Summary => (680.0, 520.0),
-            WindowKind::Explain => (680.0, 520.0),
-            WindowKind::Optimize => (680.0, 520.0),
+            WindowKind::Translate => (520.0, 400.0),
+            WindowKind::Summary => (520.0, 400.0),
+            WindowKind::Explain => (520.0, 400.0),
+            WindowKind::Optimize => (520.0, 400.0),
             WindowKind::Settings => (780.0, 560.0),
         }
     }

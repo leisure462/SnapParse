@@ -100,13 +100,13 @@ export const SETTINGS_SECTION_ORDER = [
 export function resolveWindowSize(preset: WindowSizePreset): { width: number; height: number } {
   switch (preset) {
     case "large":
-      return { width: 680, height: 520 };
-    case "medium":
       return { width: 520, height: 400 };
+    case "medium":
+      return { width: 460, height: 360 };
     case "small":
       return { width: 400, height: 320 };
     default:
-      return { width: 680, height: 520 };
+      return { width: 520, height: 400 };
   }
 }
 
@@ -247,9 +247,9 @@ function mergeWindow(
   const raw = incoming as Record<string, unknown>;
   if (!incoming.windowSize && (raw.windowWidth || raw.windowHeight)) {
     const w = Number(raw.windowWidth) || 520;
-    if (w >= 600) {
+    if (w >= 500) {
       merged.windowSize = "large";
-    } else if (w >= 460) {
+    } else if (w >= 430) {
       merged.windowSize = "medium";
     } else {
       merged.windowSize = "small";

@@ -12,8 +12,8 @@ function patchWindow(
 }
 
 const SIZE_PRESETS: Array<{ value: WindowSizePreset; label: string; desc: string }> = [
-  { value: "large", label: "大", desc: "680 x 520" },
-  { value: "medium", label: "中", desc: "520 x 400" },
+  { value: "large", label: "大", desc: "520 x 400" },
+  { value: "medium", label: "中", desc: "460 x 360" },
   { value: "small", label: "小", desc: "400 x 320" }
 ];
 
@@ -67,7 +67,7 @@ export default function WindowSettingsSection(props: SettingsSectionProps): JSX.
         />
       </label>
 
-      <div className="settings-grid-2">
+      <div className="settings-window-switch-list">
         <label className="settings-switch">
           <input
             type="checkbox"
@@ -82,22 +82,6 @@ export default function WindowSettingsSection(props: SettingsSectionProps): JSX.
             }}
           />
           <span>跟随工具栏</span>
-        </label>
-
-        <label className="settings-switch">
-          <input
-            type="checkbox"
-            checked={settings.window.rememberSize}
-            onChange={(event) => {
-              onChange(
-                patchWindow(settings, (windowSettings) => ({
-                  ...windowSettings,
-                  rememberSize: event.target.checked
-                }))
-              );
-            }}
-          />
-          <span>记住大小</span>
         </label>
 
         <label className="settings-switch">
