@@ -102,6 +102,8 @@ pub struct OcrSettings {
     pub enabled: bool,
     #[serde(default = "default_ocr_capture_hotkey")]
     pub capture_hotkey: String,
+    #[serde(default = "default_ocr_quick_hotkey")]
+    pub quick_ocr_hotkey: String,
     #[serde(default)]
     pub capture_default_mode: CaptureMode,
     #[serde(default = "default_ocr_show_shortcut_hints")]
@@ -129,6 +131,7 @@ impl Default for OcrSettings {
         Self {
             enabled: false,
             capture_hotkey: default_ocr_capture_hotkey(),
+            quick_ocr_hotkey: default_ocr_quick_hotkey(),
             capture_default_mode: CaptureMode::default(),
             show_shortcut_hints: default_ocr_show_shortcut_hints(),
             mode_hotkeys: OcrModeHotkeys::default(),
@@ -144,7 +147,11 @@ impl Default for OcrSettings {
 }
 
 fn default_ocr_capture_hotkey() -> String {
-    String::from("Ctrl+Shift+O")
+    String::from("Ctrl+Shift+X")
+}
+
+fn default_ocr_quick_hotkey() -> String {
+    String::from("Alt+S")
 }
 
 fn default_ocr_show_shortcut_hints() -> bool {
@@ -228,7 +235,7 @@ fn default_mode_hotkey_fullscreen() -> String {
 }
 
 fn default_mode_hotkey_window() -> String {
-    String::from("Ctrl+W")
+    String::from("Ctrl+M")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

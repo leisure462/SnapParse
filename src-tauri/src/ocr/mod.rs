@@ -18,9 +18,30 @@ use crate::windows::manager;
 const GLM_OCR_LAYOUT_URL: &str = "https://open.bigmodel.cn/api/paas/v4/layout_parsing";
 const GLM_OCR_FIXED_MODEL: &str = "glm-ocr";
 
-fn ocr_hotkey_store() -> &'static Mutex<Option<String>> {
-    static STORE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
-    STORE.get_or_init(|| Mutex::new(None))
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+struct RegisteredOcrHotkeys {
+    screenshot_hotkey: Option<String>,
+    quick_ocr_hotkey: Option<String>,
+}
+
+#[derive(Debug, Copy, Clone)]
+enum CaptureEntryKind {
+    Screenshot,
+    Ocr,
+}
+
+impl CaptureEntryKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            CaptureEntryKind::Screenshot => "screenshot",
+            CaptureEntryKind::Ocr => "ocr",
+        }
+    }
+}
+
+fn ocr_hotkey_store() -> &'static Mutex<RegisteredOcrHotkeys> {
+    static STORE: OnceLock<Mutex<RegisteredOcrHotkeys>> = OnceLock::new();
+    STORE.get_or_init(|| Mutex::new(RegisteredOcrHotkeys::default()))
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -63,6 +84,12 @@ pub struct LogicalRectPayload {
 pub struct ScreenshotPreviewPayload {
     pub data_url: String,
     pub logical_rect: LogicalRectPayload,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CaptureOpenedPayload {
+    entry_kind: &'static str,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -158,14 +185,26 @@ struct GlmLayoutRequest {
 
 pub fn sync_ocr_hotkey(app: &AppHandle, settings: &AppSettings) -> Result<(), String> {
     let desired = if settings.ocr.enabled {
-        let hotkey = settings.ocr.capture_hotkey.trim();
-        if hotkey.is_empty() {
-            None
-        } else {
-            Some(hotkey.to_owned())
+        RegisteredOcrHotkeys {
+            screenshot_hotkey: {
+                let hotkey = settings.ocr.capture_hotkey.trim();
+                if hotkey.is_empty() {
+                    None
+                } else {
+                    Some(hotkey.to_owned())
+                }
+            },
+            quick_ocr_hotkey: {
+                let hotkey = settings.ocr.quick_ocr_hotkey.trim();
+                if hotkey.is_empty() {
+                    None
+                } else {
+                    Some(hotkey.to_owned())
+                }
+            },
         }
     } else {
-        None
+        RegisteredOcrHotkeys::default()
     };
 
     let shortcut_api = app.global_shortcut();
@@ -178,29 +217,55 @@ pub fn sync_ocr_hotkey(app: &AppHandle, settings: &AppSettings) -> Result<(), St
         return Ok(());
     }
 
-    if let Some(current) = guard.as_ref() {
+    if let Some(current) = guard.screenshot_hotkey.as_ref() {
         let _ = shortcut_api.unregister(current.as_str());
     }
 
-    if let Some(next_hotkey) = desired.clone() {
-        shortcut_api
-            .on_shortcut(next_hotkey.as_str(), |app_handle, _shortcut, event| {
-                if event.state != ShortcutState::Pressed {
-                    return;
-                }
+    if let Some(current) = guard.quick_ocr_hotkey.as_ref() {
+        let _ = shortcut_api.unregister(current.as_str());
+    }
 
-                if let Err(error) = open_capture_overlay(app_handle) {
-                    eprintln!("failed to open OCR capture overlay: {error}");
-                }
-            })
-            .map_err(|error| format!("failed to register OCR hotkey `{next_hotkey}`: {error}"))?;
+    if let Some(next_hotkey) = desired.screenshot_hotkey.as_ref() {
+        register_hotkey(
+            app,
+            next_hotkey,
+            CaptureEntryKind::Screenshot,
+            "screenshot hotkey",
+        )?;
+    }
+
+    if let Some(next_hotkey) = desired.quick_ocr_hotkey.as_ref() {
+        register_hotkey(app, next_hotkey, CaptureEntryKind::Ocr, "ocr hotkey")?;
     }
 
     *guard = desired;
     Ok(())
 }
 
+fn register_hotkey(
+    app: &AppHandle,
+    hotkey: &str,
+    entry_kind: CaptureEntryKind,
+    label: &str,
+) -> Result<(), String> {
+    app.global_shortcut()
+        .on_shortcut(hotkey, move |app_handle, _shortcut, event| {
+            if event.state != ShortcutState::Pressed {
+                return;
+            }
+
+            if let Err(error) = open_capture_overlay_with_entry(app_handle, entry_kind) {
+                eprintln!("failed to open OCR capture overlay: {error}");
+            }
+        })
+        .map_err(|error| format!("failed to register {label} `{hotkey}`: {error}"))
+}
+
 pub fn open_capture_overlay(app: &AppHandle) -> Result<(), String> {
+    open_capture_overlay_with_entry(app, CaptureEntryKind::Screenshot)
+}
+
+fn open_capture_overlay_with_entry(app: &AppHandle, entry_kind: CaptureEntryKind) -> Result<(), String> {
     let window = manager::ensure_window(app, WindowKind::OcrCapture)
         .map_err(|error| format!("failed to create OCR capture window: {error}"))?;
 
@@ -235,7 +300,13 @@ pub fn open_capture_overlay(app: &AppHandle) -> Result<(), String> {
         .show()
         .map_err(|error| format!("failed to show OCR capture window: {error}"))?;
 
-    let _ = app.emit_to(WindowKind::OcrCapture.label(), "ocr-capture-opened", ());
+    let _ = app.emit_to(
+        WindowKind::OcrCapture.label(),
+        "ocr-capture-opened",
+        CaptureOpenedPayload {
+            entry_kind: entry_kind.as_str(),
+        },
+    );
 
     let _ = window.unminimize();
     let _ = window.set_focus();

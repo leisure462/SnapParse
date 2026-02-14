@@ -41,6 +41,7 @@ export interface ApiSettings {
 export interface OcrSettings {
   enabled: boolean;
   captureHotkey: string;
+  quickOcrHotkey: string;
   captureDefaultMode: CaptureMode;
   showShortcutHints: boolean;
   modeHotkeys: {
@@ -187,13 +188,14 @@ export function defaultSettings(): AppSettings {
     },
     ocr: {
       enabled: false,
-      captureHotkey: "Ctrl+Shift+O",
+      captureHotkey: "Ctrl+Shift+X",
+      quickOcrHotkey: "Alt+S",
       captureDefaultMode: "region",
       showShortcutHints: true,
       modeHotkeys: {
         region: "Ctrl+R",
         fullscreen: "Ctrl+A",
-        window: "Ctrl+W"
+        window: "Ctrl+M"
       },
       provider: "openai-vision",
       baseUrl: DEFAULT_OPENAI_OCR_BASE_URL,
@@ -479,6 +481,10 @@ export function validateSettings(input: DeepPartial<AppSettings> = {}): AppSetti
 
   if (!merged.ocr.captureHotkey.trim()) {
     throw new Error("ocr.captureHotkey must not be empty");
+  }
+
+  if (!merged.ocr.quickOcrHotkey.trim()) {
+    throw new Error("ocr.quickOcrHotkey must not be empty");
   }
 
   if (!merged.ocr.modeHotkeys.region.trim()) {

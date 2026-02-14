@@ -36,6 +36,10 @@ interface ScreenshotPreviewPayload {
   logicalRect: LogicalRect;
 }
 
+interface CaptureOpenedPayload {
+  entryKind?: "screenshot" | "ocr";
+}
+
 interface CaptureSettings {
   defaultMode: CaptureMode;
   showShortcutHints: boolean;
@@ -53,7 +57,7 @@ const DEFAULT_CAPTURE_SETTINGS: CaptureSettings = {
   modeHotkeys: {
     region: "Ctrl+R",
     fullscreen: "Ctrl+A",
-    window: "Ctrl+W"
+    window: "Ctrl+M"
   }
 };
 
@@ -160,6 +164,7 @@ export default function OcrCaptureWindow(): JSX.Element {
   const [windowHintRect, setWindowHintRect] = useState<LogicalRect | null>(null);
   const [captured, setCaptured] = useState<{ dataUrl: string; logicalRect: LogicalRect } | null>(null);
   const [actionBusy, setActionBusy] = useState<"ocr" | "copy" | "save" | null>(null);
+  const [entryKind, setEntryKind] = useState<"screenshot" | "ocr">("screenshot");
   const windowHintTimerRef = useRef<number | null>(null);
   const latestPointerRef = useRef<Point | null>(null);
   const settingsRef = useRef<CaptureSettings>(DEFAULT_CAPTURE_SETTINGS);
@@ -201,6 +206,32 @@ export default function OcrCaptureWindow(): JSX.Element {
   }, [endPoint, startPoint]);
 
   const activeRect = captured?.logicalRect ?? (mode === "window" ? windowHintRect : rect);
+
+  const actionsStyle = useMemo(() => {
+    if (!activeRect) {
+      return undefined;
+    }
+
+    const panelWidth = 172;
+    const panelHeight = 36;
+    const gap = 8;
+
+    let left = activeRect.x;
+    let top = activeRect.y + activeRect.height + gap;
+
+    if (left + panelWidth > window.innerWidth - gap) {
+      left = Math.max(gap, window.innerWidth - panelWidth - gap);
+    }
+
+    if (top + panelHeight > window.innerHeight - gap) {
+      top = Math.max(gap, activeRect.y - panelHeight - gap);
+    }
+
+    return {
+      left: `${Math.round(left)}px`,
+      top: `${Math.round(top)}px`
+    };
+  }, [activeRect]);
 
   const capturePreview = useCallback(async (request: {
     mode: CaptureMode;
@@ -291,9 +322,11 @@ export default function OcrCaptureWindow(): JSX.Element {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
 
-    listen("ocr-capture-opened", () => {
+    listen<CaptureOpenedPayload>("ocr-capture-opened", (event) => {
       resetCaptureState();
-      setMode(settingsRef.current.defaultMode);
+      const incoming = event.payload?.entryKind === "ocr" ? "ocr" : "screenshot";
+      setEntryKind(incoming);
+      setMode(incoming === "ocr" ? "region" : settingsRef.current.defaultMode);
     }).then((cleanup) => {
       unlisten = cleanup;
     });
@@ -421,6 +454,19 @@ export default function OcrCaptureWindow(): JSX.Element {
       width: finalRect.width,
       height: finalRect.height
     };
+
+    if (entryKind === "ocr") {
+      setProcessing(true);
+      try {
+        await invoke("run_ocr_capture", { region: toOcrRegion(payload) });
+      } catch {
+        // noop
+      } finally {
+        resetCaptureState();
+        await closeCaptureWindow();
+      }
+      return;
+    }
 
     runRegionCapture(payload);
   };
@@ -561,7 +607,7 @@ export default function OcrCaptureWindow(): JSX.Element {
       ) : null}
 
       {captured ? (
-        <div className="ocr-capture-actions">
+        <div className="ocr-capture-actions" style={actionsStyle}>
           <button
             type="button"
             className="ocr-capture-action-btn icon-btn"
@@ -572,7 +618,13 @@ export default function OcrCaptureWindow(): JSX.Element {
             aria-label="OCR识别"
             title="OCR识别"
           >
-            OCR
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="4" y="5" width="16" height="14" rx="2" />
+              <path d="M8 9h3" />
+              <path d="M8 13h3" />
+              <path d="M14 13c0-1.7 1.3-3 3-3" />
+              <path d="M17 10v6" />
+            </svg>
           </button>
           <button
             type="button"
@@ -581,8 +633,13 @@ export default function OcrCaptureWindow(): JSX.Element {
               void copyAction();
             }}
             disabled={actionBusy !== null || processing}
+            aria-label="复制截图"
+            title="复制截图"
           >
-            复制
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="8" y="8" width="11" height="12" rx="2" />
+              <path d="M5 15V6a2 2 0 0 1 2-2h8" />
+            </svg>
           </button>
           <button
             type="button"
@@ -591,8 +648,14 @@ export default function OcrCaptureWindow(): JSX.Element {
               void saveAction();
             }}
             disabled={actionBusy !== null || processing}
+            aria-label="另存为"
+            title="另存为"
           >
-            另存为
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <path d="M17 21v-8H7v8" />
+              <path d="M7 3v5h8" />
+            </svg>
           </button>
           <button
             type="button"
@@ -602,8 +665,13 @@ export default function OcrCaptureWindow(): JSX.Element {
               void closeCaptureWindow();
             }}
             disabled={actionBusy !== null || processing}
+            aria-label="取消"
+            title="取消"
           >
-            取消
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
           </button>
         </div>
       ) : null}

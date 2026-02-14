@@ -6,6 +6,8 @@
   user-select: none;
   background: rgba(9, 11, 16, 0.34);
   overflow: hidden;
+  border: 0;
+  outline: none;
 }
 
 .ocr-capture-shell::before {
@@ -57,6 +59,7 @@
 .ocr-capture-preview-image {
   position: absolute;
   object-fit: cover;
+  border: 1px solid rgba(160, 205, 255, 0.88);
   box-shadow: 0 12px 28px rgba(5, 11, 23, 0.45);
   z-index: 3;
   pointer-events: none;
@@ -102,41 +105,40 @@
 
 .ocr-capture-actions {
   position: absolute;
-  right: 16px;
-  bottom: 16px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(164, 203, 255, 0.38);
+  background: rgba(10, 18, 29, 0.74);
+  backdrop-filter: blur(8px);
   z-index: 7;
 }
 
 .ocr-capture-action-btn {
-  height: 32px;
-  min-width: 70px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(171, 211, 255, 0.42);
-  background: rgba(14, 23, 35, 0.82);
-  color: rgba(240, 247, 255, 0.94);
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid rgba(171, 211, 255, 0.32);
+  background: rgba(16, 28, 43, 0.78);
+  color: rgba(240, 247, 255, 0.92);
   font: inherit;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease, opacity 120ms ease;
 }
 
-.ocr-capture-action-btn.icon-btn {
-  min-width: 56px;
-  font-size: 11px;
-  letter-spacing: 0.03em;
-}
-
 .ocr-capture-action-btn.ghost {
-  border-color: rgba(255, 181, 181, 0.5);
+  border-color: rgba(255, 181, 181, 0.52);
 }
 
 .ocr-capture-action-btn:hover:not(:disabled) {
-  background: rgba(31, 48, 73, 0.92);
+  background: rgba(39, 60, 88, 0.94);
 }
 
 .ocr-capture-action-btn:disabled {

@@ -3,10 +3,11 @@ import type { AppSettings } from "../../../shared/settings";
 import type { SettingsSectionProps } from "./sectionTypes";
 
 const DEFAULT_TRIGGER_HOTKEY = "Ctrl+Shift+Space";
-const DEFAULT_SCREENSHOT_HOTKEY = "Ctrl+Shift+O";
+const DEFAULT_SCREENSHOT_HOTKEY = "Ctrl+Shift+X";
+const DEFAULT_QUICK_OCR_HOTKEY = "Alt+S";
 const DEFAULT_REGION_MODE_HOTKEY = "Ctrl+R";
 const DEFAULT_FULLSCREEN_MODE_HOTKEY = "Ctrl+A";
-const DEFAULT_WINDOW_MODE_HOTKEY = "Ctrl+W";
+const DEFAULT_WINDOW_MODE_HOTKEY = "Ctrl+M";
 
 function normalizeKey(key: string): string | null {
   if (key === " ") {
@@ -164,6 +165,41 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
         />
       </label>
 
+      <label className="settings-field">
+        <span>OCR 快捷键</span>
+        <input
+          type="text"
+          readOnly
+          value={settings.ocr.quickOcrHotkey}
+          placeholder={DEFAULT_QUICK_OCR_HOTKEY}
+          onKeyDown={(event) => {
+            event.preventDefault();
+
+            if (event.key === "Backspace" || event.key === "Delete") {
+              onChange(
+                patchOcr(settings, (ocr) => ({
+                  ...ocr,
+                  quickOcrHotkey: DEFAULT_QUICK_OCR_HOTKEY
+                }))
+              );
+              return;
+            }
+
+            const hotkey = formatHotkey(event);
+            if (!hotkey) {
+              return;
+            }
+
+            onChange(
+              patchOcr(settings, (ocr) => ({
+                ...ocr,
+                quickOcrHotkey: hotkey
+              }))
+            );
+          }}
+        />
+      </label>
+
       <div className="settings-grid-3">
         <label className="settings-field">
           <span>区域模式快捷键</span>
@@ -313,6 +349,7 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
               patchOcr(settings, (ocr) => ({
                 ...ocr,
                 captureHotkey: DEFAULT_SCREENSHOT_HOTKEY,
+                quickOcrHotkey: DEFAULT_QUICK_OCR_HOTKEY,
                 modeHotkeys: {
                   region: DEFAULT_REGION_MODE_HOTKEY,
                   fullscreen: DEFAULT_FULLSCREEN_MODE_HOTKEY,
@@ -322,7 +359,7 @@ export default function HotkeySettingsSection(props: SettingsSectionProps): JSX.
             );
           }}
         >
-          恢复截屏快捷键
+          恢复截屏/OCR快捷键
         </button>
       </div>
 
