@@ -38,9 +38,9 @@ describe("SettingsWindow", () => {
     });
   }
 
-  it("opens API settings as default first section", async () => {
+  it("opens 通用设置 as default first section", async () => {
     await renderWindow();
-    expect(screen.getByRole("tab", { name: "API配置" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "通用设置" })).toHaveAttribute("aria-selected", "true");
   });
 
   it("shows theme mode selector inside 通用设置 section", async () => {
@@ -53,6 +53,7 @@ describe("SettingsWindow", () => {
 
   it("allows temporarily invalid api fields while editing", async () => {
     await renderWindow();
+    fireEvent.click(screen.getByRole("tab", { name: "API配置" }));
 
     const baseUrlInput = screen.getByLabelText("Base URL");
     const modelInput = screen.getByLabelText("翻译模型");
@@ -66,6 +67,7 @@ describe("SettingsWindow", () => {
 
   it("supports testing api connectivity from api section", async () => {
     await renderWindow();
+    fireEvent.click(screen.getByRole("tab", { name: "API配置" }));
 
     fireEvent.click(screen.getByRole("button", { name: "测试 API" }));
 
@@ -83,6 +85,7 @@ describe("SettingsWindow", () => {
 
   it("shows optimize model field in api section", async () => {
     await renderWindow();
+    fireEvent.click(screen.getByRole("tab", { name: "API配置" }));
     expect(screen.getByLabelText("优化模型")).toBeInTheDocument();
   });
 });

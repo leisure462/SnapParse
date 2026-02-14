@@ -20,13 +20,13 @@ import "./settings.css";
 type SectionKey = "api" | "general" | "toolbar" | "hotkeys" | "window" | "features" | "advanced";
 
 const SECTIONS: Array<{ key: SectionKey; label: string }> = [
-  { key: "api", label: "API配置" },
   { key: "general", label: "通用设置" },
-  { key: "toolbar", label: "工具栏" },
-  { key: "hotkeys", label: "快捷键设置" },
-  { key: "window", label: "功能窗口" },
+  { key: "api", label: "API配置" },
   { key: "features", label: "功能" },
-  { key: "advanced", label: "高级设置" }
+  { key: "toolbar", label: "工具栏" },
+  { key: "window", label: "功能窗口" },
+  { key: "advanced", label: "高级设置" },
+  { key: "hotkeys", label: "快捷键设置" }
 ];
 
 function persistThemeFromSettings(settings: AppSettings): void {
@@ -34,7 +34,7 @@ function persistThemeFromSettings(settings: AppSettings): void {
 }
 
 export default function SettingsWindow(): JSX.Element {
-  const [activeSection, setActiveSection] = useState<SectionKey>("api");
+  const [activeSection, setActiveSection] = useState<SectionKey>("general");
   const [settings, setSettings] = useState<AppSettings>(() => defaultSettings());
   const [isResettingDefaults, setIsResettingDefaults] = useState(false);
   const hasHydratedRef = useRef(false);

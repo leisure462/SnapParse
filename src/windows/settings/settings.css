@@ -2,57 +2,57 @@
 
 :root,
 :root[data-theme="light"] {
-  --sp-settings-bg-top: #fffefb;
-  --sp-settings-bg-bottom: #f9f6ef;
-  --sp-settings-bg-glow: rgba(196, 161, 109, 0.11);
-  --sp-settings-frame-bg: #fffdf9;
-  --sp-settings-frame-border: #ddcfb6;
+  --sp-settings-bg-top: #f6f9ff;
+  --sp-settings-bg-bottom: #eef4ff;
+  --sp-settings-bg-glow: rgba(73, 113, 193, 0.14);
+  --sp-settings-frame-bg: #ffffff;
+  --sp-settings-frame-border: #d7e2f4;
   --sp-settings-frame-shadow:
-    0 14px 28px rgba(63, 45, 20, 0.12),
-    0 6px 14px rgba(63, 45, 20, 0.08),
-    inset 0 1px 0 rgba(255, 250, 240, 0.80);
+    0 18px 34px rgba(30, 66, 124, 0.12),
+    0 8px 18px rgba(33, 72, 136, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 
   --sp-settings-sidebar-bg:
-    linear-gradient(180deg, #f9f4ea 0%, #f4eee2 100%);
-  --sp-settings-sidebar-border: #d8c6aa;
+    linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%);
+  --sp-settings-sidebar-border: #d5e1f4;
 
   --sp-settings-main-bg:
-    linear-gradient(180deg, #fffdf8 0%, #f8f4eb 100%);
+    linear-gradient(180deg, #ffffff 0%, #f5f9ff 100%);
 
-  --sp-settings-card-bg: #fffdf8;
-  --sp-settings-card-border: #dfcfb3;
+  --sp-settings-card-bg: #ffffff;
+  --sp-settings-card-border: #d8e4f7;
   --sp-settings-card-shadow:
-    0 10px 20px rgba(79, 57, 25, 0.10),
-    inset 0 1px 0 rgba(255, 251, 242, 0.90);
+    0 10px 20px rgba(41, 73, 130, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
 
-  --sp-settings-tab-bg: #f8f1e4;
-  --sp-settings-tab-border: #d7c3a2;
-  --sp-settings-tab-hover: #f3ead8;
-  --sp-settings-tab-active-bg: linear-gradient(180deg, #f0e4ce 0%, #e7d5b6 100%);
-  --sp-settings-tab-active-border: #c7a777;
+  --sp-settings-tab-bg: #f4f8ff;
+  --sp-settings-tab-border: #cfdbef;
+  --sp-settings-tab-hover: #e8effc;
+  --sp-settings-tab-active-bg: linear-gradient(180deg, #e2ebff 0%, #d5e2fb 100%);
+  --sp-settings-tab-active-border: #7d9fdd;
 
-  --sp-settings-input-bg: #fffaf1;
-  --sp-settings-input-border: #d6bf9a;
+  --sp-settings-input-bg: #fbfdff;
+  --sp-settings-input-border: #cbdaf0;
   --sp-settings-input-shadow:
-    inset 0 1px 0 rgba(255, 248, 236, 0.88),
-    0 3px 8px rgba(82, 58, 22, 0.08);
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 3px 8px rgba(37, 71, 129, 0.08);
 
-  --sp-settings-switch-bg: #f8f1e3;
-  --sp-settings-switch-border: #d3bc97;
-  --sp-settings-switch-hover: #f1e7d3;
+  --sp-settings-switch-bg: #f5f9ff;
+  --sp-settings-switch-border: #cad8ee;
+  --sp-settings-switch-hover: #ebf2ff;
 
-  --sp-settings-reset-bg: #f4e9d3;
-  --sp-settings-reset-border: #cfb28a;
+  --sp-settings-reset-bg: #edf3ff;
+  --sp-settings-reset-border: #c2d4f1;
 
-  --sp-settings-text: #9b7c4b;
-  --sp-settings-text-secondary: #aa8b59;
-  --sp-settings-text-muted: #b99d6f;
-  --sp-settings-accent: #c0a06f;
-  --sp-settings-accent-hover: #cfb180;
-  --sp-settings-accent-soft: rgba(192, 160, 111, 0.22);
-  --sp-settings-accent-ring: rgba(192, 160, 111, 0.28);
-  --sp-settings-on-accent: #23170d;
-  --sp-settings-border-strong: #c3a57a;
+  --sp-settings-text: #1f3659;
+  --sp-settings-text-secondary: #2f4e80;
+  --sp-settings-text-muted: #58739a;
+  --sp-settings-accent: #3c67ba;
+  --sp-settings-accent-hover: #3157a0;
+  --sp-settings-accent-soft: rgba(60, 103, 186, 0.18);
+  --sp-settings-accent-ring: rgba(60, 103, 186, 0.26);
+  --sp-settings-on-accent: #ffffff;
+  --sp-settings-border-strong: #8faad5;
 }
 
 :root[data-theme="dark"] {

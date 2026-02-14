@@ -15,17 +15,17 @@ body:has(.md2-action-bar),
 /* ── Light / dark actionbar tokens ──────────────────────────── */
 :root,
 :root[data-theme="light"] {
-  --sp-actionbar-bg: #f7f9fc;
-  --sp-actionbar-corner: #f7f9fc;
-  --sp-actionbar-btn-hover: #e8eef8;
-  --sp-actionbar-btn-active: #dce7f7;
+  --sp-actionbar-bg: #ffffff;
+  --sp-actionbar-corner: #ffffff;
+  --sp-actionbar-btn-hover: #edf3ff;
+  --sp-actionbar-btn-active: #e1ebff;
 }
 
 :root[data-theme="dark"] {
-  --sp-actionbar-bg: #1b283d;
-  --sp-actionbar-corner: #1b283d;
-  --sp-actionbar-btn-hover: #263a58;
-  --sp-actionbar-btn-active: #304a70;
+  --sp-actionbar-bg: var(--sp-surface-raised);
+  --sp-actionbar-corner: var(--sp-surface-raised);
+  --sp-actionbar-btn-hover: var(--sp-surface-hover);
+  --sp-actionbar-btn-active: var(--sp-primary-soft);
 }
 
 /* The ref is on this element — getBoundingClientRect() sizes the
@@ -146,7 +146,7 @@ body:has(.md2-action-bar),
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
-  color: #ffffff;
+  color: currentColor;
 }
 
 .md2-action-icon svg {

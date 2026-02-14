@@ -86,51 +86,51 @@
 /* ── Dark Theme ─────────────────────────────────────────────── */
 :root[data-theme="dark"] {
   /* Primary */
-  --sp-primary: #60a5fa;
-  --sp-primary-hover: #93c5fd;
-  --sp-primary-soft: rgba(96, 165, 250, 0.12);
-  --sp-on-primary: #0c1929;
+  --sp-primary: #c9a776;
+  --sp-primary-hover: #d6b88b;
+  --sp-primary-soft: rgba(201, 167, 118, 0.20);
+  --sp-on-primary: #1f150b;
 
   /* Surface hierarchy */
-  --sp-bg: #0c1222;
-  --sp-surface: #151e2e;
-  --sp-surface-raised: #1a2438;
-  --sp-surface-overlay: rgba(21, 30, 46, 0.92);
-  --sp-surface-hover: #1e293b;
-  --sp-surface-active: #253248;
+  --sp-bg: #0d0b09;
+  --sp-surface: #15110d;
+  --sp-surface-raised: #1b150f;
+  --sp-surface-overlay: rgba(21, 17, 13, 0.92);
+  --sp-surface-hover: #241c14;
+  --sp-surface-active: #30251b;
 
   /* Border / Divider */
-  --sp-border: #1e293b;
-  --sp-border-strong: #334155;
-  --sp-ring-focus: rgba(96, 165, 250, 0.40);
+  --sp-border: #433323;
+  --sp-border-strong: #5e4a33;
+  --sp-ring-focus: rgba(201, 167, 118, 0.34);
 
   /* Text */
-  --sp-text: #f1f5f9;
-  --sp-text-secondary: #94a3b8;
-  --sp-text-muted: #64748b;
-  --sp-text-inverse: #0f172a;
+  --sp-text: #ead4b0;
+  --sp-text-secondary: #ceb185;
+  --sp-text-muted: #9f835f;
+  --sp-text-inverse: #1a120a;
 
   /* Semantic */
-  --sp-success: #4ade80;
-  --sp-success-soft: rgba(74, 222, 128, 0.12);
-  --sp-warning: #fbbf24;
-  --sp-warning-soft: rgba(251, 191, 36, 0.12);
-  --sp-error: #f87171;
-  --sp-error-soft: rgba(248, 113, 113, 0.12);
+  --sp-success: #7fd3a8;
+  --sp-success-soft: rgba(127, 211, 168, 0.14);
+  --sp-warning: #e2be7b;
+  --sp-warning-soft: rgba(226, 190, 123, 0.16);
+  --sp-error: #ef9c8f;
+  --sp-error-soft: rgba(239, 156, 143, 0.14);
 
   /* Elevation */
-  --sp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
-  --sp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.25);
-  --sp-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.40), 0 2px 8px rgba(0, 0, 0, 0.30);
-  --sp-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.50), 0 4px 16px rgba(0, 0, 0, 0.35);
+  --sp-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.26);
+  --sp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(0, 0, 0, 0.28);
+  --sp-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.44), 0 2px 8px rgba(0, 0, 0, 0.34);
+  --sp-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.54), 0 4px 16px rgba(0, 0, 0, 0.38);
 
   /* Scrollbar */
-  --sp-scrollbar-thumb: rgba(255, 255, 255, 0.12);
-  --sp-scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+  --sp-scrollbar-thumb: rgba(201, 167, 118, 0.26);
+  --sp-scrollbar-thumb-hover: rgba(201, 167, 118, 0.42);
 
   /* Backdrop (for action bar glass effect) */
-  --sp-glass-bg: rgba(21, 30, 46, 0.78);
-  --sp-glass-border: rgba(30, 41, 59, 0.60);
+  --sp-glass-bg: rgba(21, 17, 13, 0.78);
+  --sp-glass-border: rgba(67, 51, 35, 0.60);
 }
 
 /* ── Global Reset ───────────────────────────────────────────── */

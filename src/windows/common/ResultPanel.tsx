@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface ResultPanelProps {
   originalText: string;
@@ -9,24 +11,68 @@ interface ResultPanelProps {
   error?: string;
 }
 
-function toParagraphs(value: string): string[] {
-  return value
-    .split(/\n{2,}|\r\n\r\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+async function copyToClipboard(value: string): Promise<void> {
+  if (!value.trim()) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    const fallback = document.createElement("textarea");
+    fallback.value = value;
+    fallback.style.position = "fixed";
+    fallback.style.opacity = "0";
+    document.body.append(fallback);
+    fallback.select();
+    document.execCommand("copy");
+    fallback.remove();
+  }
 }
 
 export default function ResultPanel(props: ResultPanelProps): JSX.Element {
   const [showOriginal, setShowOriginal] = useState(false);
-
-  const paragraphs = useMemo(() => toParagraphs(props.resultText), [props.resultText]);
+  const [copied, setCopied] = useState(false);
 
   const hasResult = props.resultText.trim().length > 0;
   const showLoadingDots = props.loading && !props.streaming && !hasResult;
   const showContent = hasResult || props.streaming;
+  const canCopy = !props.error && hasResult;
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCopied(false);
+    }, 1200);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [copied]);
+
+  const renderedMarkdown = useMemo(() => {
+    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{props.resultText}</ReactMarkdown>;
+  }, [props.resultText]);
 
   return (
     <section className="md2-result-panel" aria-live="polite">
+      {canCopy ? (
+        <button
+          type="button"
+          className="md2-result-copy-btn"
+          onClick={() => {
+            void copyToClipboard(props.resultText).then(() => {
+              setCopied(true);
+            });
+          }}
+        >
+          {copied ? "已复制" : "复制"}
+        </button>
+      ) : null}
+
       {showLoadingDots ? (
         <div className="md2-result-loading">
           <div className="md2-loading-dots">
@@ -41,11 +87,15 @@ export default function ResultPanel(props: ResultPanelProps): JSX.Element {
       ) : null}
 
       {showContent && !props.error ? (
-        <div className="md2-result-content">
-          {(paragraphs.length > 0 ? paragraphs : [props.resultText || ""]).map((item, index) => (
-            <p key={`${index}`}>{item}</p>
-          ))}
-          {props.streaming ? <span className="md2-streaming-cursor" /> : null}
+        <div className={`md2-result-content ${canCopy ? "with-copy" : ""}`}>
+          {props.streaming ? (
+            <div className="md2-result-streaming-text">
+              {props.resultText}
+              <span className="md2-streaming-cursor" />
+            </div>
+          ) : (
+            renderedMarkdown
+          )}
         </div>
       ) : null}
 
