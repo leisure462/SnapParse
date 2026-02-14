@@ -20,7 +20,7 @@ export default function OcrSettingsSection(props: SettingsSectionProps): JSX.Ele
   const { settings, onChange } = props;
 
   const actionOptions = useMemo(() => {
-    return resolveActionBarActions(settings);
+    return resolveActionBarActions(settings).filter((item) => item.commandWindow);
   }, [settings]);
 
   useEffect(() => {

@@ -6,6 +6,7 @@ interface ResultPanelProps {
   originalText: string;
   resultText: string;
   loading: boolean;
+  loadingLabel?: string;
   /** When true, resultText is still being appended via streaming. */
   streaming?: boolean;
   error?: string;
@@ -93,7 +94,7 @@ export default function ResultPanel(props: ResultPanelProps): JSX.Element {
           <div className="md2-loading-dots">
             <span /><span /><span />
           </div>
-          <span className="md2-loading-label">处理中...</span>
+          <span className="md2-loading-label">{props.loadingLabel ?? "处理中..."}</span>
         </div>
       ) : null}
 

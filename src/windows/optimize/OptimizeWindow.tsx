@@ -10,11 +10,13 @@ import "../common/windowChrome.css";
 
 interface ChangeTextPayload {
   text: string;
+  source?: string;
   target?: "translate" | "summary" | "explain" | "optimize";
   title?: string;
   customPrompt?: string;
   customModel?: string;
   requestId?: number;
+  ocrStage?: "ocring" | "processing" | "idle";
 }
 
 function normalizePayload(payload: ChangeTextPayload): ChangeTextPayload | null {
@@ -41,11 +43,42 @@ export default function OptimizeWindow(): JSX.Element {
   const [customPrompt, setCustomPrompt] = useState<string | undefined>(undefined);
   const [customModel, setCustomModel] = useState<string | undefined>(undefined);
   const [requestId, setRequestId] = useState(0);
+  const [ocrLoadingLabel, setOcrLoadingLabel] = useState<string | undefined>(undefined);
   const fw = useFeatureWindow();
   const ai = useStreamingAI("优化失败");
 
   useEffect(() => {
     const applyPayload = (payload: ChangeTextPayload): void => {
+      if (payload.target && payload.target !== "optimize") {
+        return;
+      }
+
+      if (payload.ocrStage === "ocring") {
+        ai.reset();
+        setSourceText("");
+        setRequestId(0);
+        setOcrLoadingLabel("OCR中...");
+
+        if (payload.title?.trim()) {
+          setTitle(payload.title.trim());
+        } else {
+          setTitle("优化");
+        }
+
+        setCustomPrompt(payload.customPrompt?.trim() || undefined);
+        setCustomModel(payload.customModel?.trim() || undefined);
+        return;
+      }
+
+      if (payload.ocrStage === "processing") {
+        setOcrLoadingLabel("处理中...");
+      } else if (payload.ocrStage === "idle") {
+        setOcrLoadingLabel(undefined);
+        return;
+      } else {
+        setOcrLoadingLabel(undefined);
+      }
+
       const normalized = normalizePayload(payload);
       if (!normalized) {
         return;
@@ -127,7 +160,8 @@ export default function OptimizeWindow(): JSX.Element {
           <ResultPanel
             originalText={sourceText}
             resultText={ai.resultText}
-            loading={ai.loading}
+            loading={ai.loading || (Boolean(ocrLoadingLabel) && !ai.streaming && !ai.resultText.trim() && !ai.errorText)}
+            loadingLabel={ocrLoadingLabel}
             streaming={ai.streaming}
             error={ai.errorText}
           />

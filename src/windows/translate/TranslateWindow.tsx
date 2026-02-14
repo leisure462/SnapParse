@@ -11,6 +11,7 @@ interface ChangeTextPayload {
   source?: string;
   target?: "translate" | "summary" | "explain" | "optimize";
   requestId?: number;
+  ocrStage?: "ocring" | "processing" | "idle";
 }
 
 const LANGUAGES: Array<{ code: string; label: string }> = [
@@ -30,6 +31,7 @@ export default function TranslateWindow(): JSX.Element {
   const [requestId, setRequestId] = useState(0);
   const [fromLanguage, setFromLanguage] = useState("auto");
   const [toLanguage, setToLanguage] = useState("en");
+  const [ocrLoadingLabel, setOcrLoadingLabel] = useState<string | undefined>(undefined);
   const fw = useFeatureWindow();
   const ai = useStreamingAI("翻译失败");
 
@@ -43,6 +45,23 @@ export default function TranslateWindow(): JSX.Element {
     listen<ChangeTextPayload>("change-text", (event) => {
       if (event.payload.target && event.payload.target !== "translate") {
         return;
+      }
+
+      if (event.payload.ocrStage === "ocring") {
+        ai.reset();
+        setSourceText("");
+        setRequestId(0);
+        setOcrLoadingLabel("OCR中...");
+        return;
+      }
+
+      if (event.payload.ocrStage === "processing") {
+        setOcrLoadingLabel("处理中...");
+      } else if (event.payload.ocrStage === "idle") {
+        setOcrLoadingLabel(undefined);
+        return;
+      } else {
+        setOcrLoadingLabel(undefined);
       }
 
       if (typeof event.payload.text === "string") {
@@ -122,7 +141,8 @@ export default function TranslateWindow(): JSX.Element {
           <ResultPanel
             originalText={sourceText}
             resultText={ai.resultText}
-            loading={ai.loading}
+            loading={ai.loading || (Boolean(ocrLoadingLabel) && !ai.streaming && !ai.resultText.trim() && !ai.errorText)}
+            loadingLabel={ocrLoadingLabel}
             streaming={ai.streaming}
             error={ai.errorText}
           />

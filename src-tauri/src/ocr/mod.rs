@@ -15,12 +15,6 @@ use crate::settings::store;
 use crate::windows::ids::WindowKind;
 use crate::windows::manager;
 
-const ACTION_BAR_DEFAULT_WIDTH: f64 = 402.0;
-const ACTION_BAR_DEFAULT_HEIGHT: f64 = 62.0;
-const ACTION_BAR_ABOVE_GAP: f64 = 14.0;
-const ACTION_BAR_BELOW_GAP: f64 = 18.0;
-const ACTION_BAR_MIN_PADDING: f64 = 10.0;
-
 fn ocr_hotkey_store() -> &'static Mutex<Option<String>> {
     static STORE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
     STORE.get_or_init(|| Mutex::new(None))
@@ -46,10 +40,24 @@ struct PhysicalCaptureRect {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct SelectionTextPayload {
+struct ChangeTextPayload {
     text: String,
     source: &'static str,
-    auto_action_id: Option<String>,
+    target: &'static str,
+    title: Option<String>,
+    custom_prompt: Option<String>,
+    custom_model: Option<String>,
+    request_id: Option<u64>,
+    ocr_stage: Option<&'static str>,
+}
+
+#[derive(Debug, Clone)]
+struct OcrActionRoute {
+    target_window: WindowKind,
+    target: &'static str,
+    title: Option<String>,
+    custom_prompt: Option<String>,
+    custom_model: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -209,6 +217,8 @@ async fn run_ocr_capture_inner(app: &AppHandle, region: OcrCaptureRegion) -> Res
         return Err(OcrError::Disabled);
     }
 
+    let route = resolve_ocr_action_route(&settings);
+
     let capture_window = app
         .get_webview_window(WindowKind::OcrCapture.label())
         .ok_or(OcrError::CaptureWindowUnavailable)?;
@@ -219,8 +229,26 @@ async fn run_ocr_capture_inner(app: &AppHandle, region: OcrCaptureRegion) -> Res
     std::thread::sleep(Duration::from_millis(90));
 
     let image_data_url = capture_region_data_url(physical_rect)?;
-    let text = request_ocr_text(&settings.ocr, &image_data_url).await?;
-    dispatch_ocr_result(app, &settings, text, physical_rect)?;
+
+    manager::show_window(app, route.target_window)
+        .map_err(|error| OcrError::CaptureFailure(error.to_string()))?;
+    emit_change_text(app, &route, String::new(), Some("ocring"), None)?;
+
+    let text = match request_ocr_text(&settings.ocr, &image_data_url).await {
+        Ok(value) => value,
+        Err(error) => {
+            let _ = emit_change_text(app, &route, String::new(), Some("idle"), None);
+            return Err(error);
+        }
+    };
+
+    emit_change_text(
+        app,
+        &route,
+        text,
+        Some("processing"),
+        Some(current_request_id()),
+    )?;
 
     Ok(())
 }
@@ -429,73 +457,106 @@ fn extract_ocr_text_from_response(payload: &serde_json::Value) -> Option<String>
     None
 }
 
-fn dispatch_ocr_result(
+fn resolve_ocr_action_route(settings: &AppSettings) -> OcrActionRoute {
+    let action_id = settings.ocr.post_action_id.trim();
+
+    match action_id {
+        "translate" => OcrActionRoute {
+            target_window: WindowKind::Translate,
+            target: "translate",
+            title: None,
+            custom_prompt: None,
+            custom_model: None,
+        },
+        "summary" | "summarize" => OcrActionRoute {
+            target_window: WindowKind::Summary,
+            target: "summary",
+            title: None,
+            custom_prompt: None,
+            custom_model: None,
+        },
+        "explain" => OcrActionRoute {
+            target_window: WindowKind::Explain,
+            target: "explain",
+            title: None,
+            custom_prompt: None,
+            custom_model: None,
+        },
+        "optimize" => OcrActionRoute {
+            target_window: WindowKind::Optimize,
+            target: "optimize",
+            title: Some(String::from("优化")),
+            custom_prompt: None,
+            custom_model: None,
+        },
+        _ => {
+            if settings.features.custom_actions_enabled {
+                if let Some(custom) = settings
+                    .features
+                    .custom_actions
+                    .iter()
+                    .find(|item| item.enabled && item.id.trim() == action_id)
+                {
+                    return OcrActionRoute {
+                        target_window: WindowKind::Optimize,
+                        target: "optimize",
+                        title: if custom.name.trim().is_empty() {
+                            Some(String::from("优化"))
+                        } else {
+                            Some(custom.name.trim().to_owned())
+                        },
+                        custom_prompt: if custom.prompt.trim().is_empty() {
+                            None
+                        } else {
+                            Some(custom.prompt.trim().to_owned())
+                        },
+                        custom_model: if custom.model.trim().is_empty() {
+                            None
+                        } else {
+                            Some(custom.model.trim().to_owned())
+                        },
+                    };
+                }
+            }
+
+            OcrActionRoute {
+                target_window: WindowKind::Translate,
+                target: "translate",
+                title: None,
+                custom_prompt: None,
+                custom_model: None,
+            }
+        }
+    }
+}
+
+fn emit_change_text(
     app: &AppHandle,
-    settings: &AppSettings,
+    route: &OcrActionRoute,
     text: String,
-    rect: PhysicalCaptureRect,
+    ocr_stage: Option<&'static str>,
+    request_id: Option<u64>,
 ) -> Result<(), OcrError> {
-    let (target_x, target_y) = compute_action_bar_position(app, rect);
-    let _ = manager::position_window_physical(app, WindowKind::ActionBar, target_x, target_y);
-    let _ = manager::show_window(app, WindowKind::ActionBar);
-
-    let trimmed = settings.ocr.post_action_id.trim();
-    let auto_action_id = if trimmed.is_empty() {
-        None
-    } else {
-        Some(trimmed.to_owned())
-    };
-
-    app.emit(
-        "selection-text-changed",
-        SelectionTextPayload {
+    app.emit_to(
+        route.target_window.label(),
+        "change-text",
+        ChangeTextPayload {
             text,
             source: "ocr",
-            auto_action_id,
+            target: route.target,
+            title: route.title.clone(),
+            custom_prompt: route.custom_prompt.clone(),
+            custom_model: route.custom_model.clone(),
+            request_id,
+            ocr_stage,
         },
     )
     .map_err(|error| OcrError::CaptureFailure(error.to_string()))
 }
 
-fn compute_action_bar_position(app: &AppHandle, rect: PhysicalCaptureRect) -> (f64, f64) {
-    let (action_bar_width, action_bar_height) = action_bar_window_size(app);
-    let anchor_x = f64::from(rect.x) + f64::from(rect.width) / 2.0;
-    let mut x = anchor_x - action_bar_width / 2.0;
-    let mut y = f64::from(rect.y) - action_bar_height - ACTION_BAR_ABOVE_GAP;
-
-    if let Ok(Some(monitor)) = app.monitor_from_point(anchor_x, f64::from(rect.y)) {
-        let monitor_position = monitor.position();
-        let monitor_size = monitor.size();
-
-        let min_x = f64::from(monitor_position.x) + ACTION_BAR_MIN_PADDING;
-        let max_x = f64::from(monitor_position.x) + f64::from(monitor_size.width)
-            - action_bar_width
-            - ACTION_BAR_MIN_PADDING;
-        x = x.clamp(min_x, max_x.max(min_x));
-
-        let top_limit = f64::from(monitor_position.y) + ACTION_BAR_MIN_PADDING;
-        if y < top_limit {
-            y = f64::from(rect.y) + f64::from(rect.height) + ACTION_BAR_BELOW_GAP;
-        }
-
-        let max_y = f64::from(monitor_position.y) + f64::from(monitor_size.height)
-            - action_bar_height
-            - ACTION_BAR_MIN_PADDING;
-        if y > max_y {
-            y = max_y;
-        }
-    }
-
-    (x, y)
-}
-
-fn action_bar_window_size(app: &AppHandle) -> (f64, f64) {
-    let Some(window) = app.get_webview_window(WindowKind::ActionBar.label()) else {
-        return (ACTION_BAR_DEFAULT_WIDTH, ACTION_BAR_DEFAULT_HEIGHT);
-    };
-
-    match window.outer_size() {
-        Ok(size) => (f64::from(size.width), f64::from(size.height)),
-        Err(_) => (ACTION_BAR_DEFAULT_WIDTH, ACTION_BAR_DEFAULT_HEIGHT),
-    }
+fn current_request_id() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
 }
