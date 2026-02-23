@@ -106,6 +106,7 @@ const MAX_TTS_TEXT_CHARS: usize = 12_000;
 const TASK_REPLACED_ERROR: &str = "__TASK_REPLACED__";
 const SELECTION_REPEAT_DEDUPE_WINDOW_MS: u64 = 900;
 const SELECTION_TEXT_COOLDOWN_MS: u64 = 2_500;
+const OCR_CAPTURE_BLUR_SUPPRESS_MS: u64 = 1_100;
 static EDGE_TTS_AUTO_INSTALL_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 const EDGE_TTS_INSTALL_IN_PROGRESS: &str = "__EDGE_TTS_INSTALL_IN_PROGRESS__";
 #[cfg(target_os = "windows")]
@@ -705,10 +706,28 @@ struct SelectionRuntimeState {
     active_result_request_nonce: AtomicU64,
 }
 
-#[derive(Default)]
+struct OcrCaptureSnapshot {
+    monitor_x: i32,
+    monitor_y: i32,
+    image: RgbaImage,
+}
+
 struct OcrRuntimeState {
     capture_active: AtomicBool,
     active_result_request_nonce: AtomicU64,
+    suppress_blur_until_ms: AtomicU64,
+    capture_snapshot: Mutex<Option<OcrCaptureSnapshot>>,
+}
+
+impl Default for OcrRuntimeState {
+    fn default() -> Self {
+        Self {
+            capture_active: AtomicBool::new(false),
+            active_result_request_nonce: AtomicU64::new(0),
+            suppress_blur_until_ms: AtomicU64::new(0),
+            capture_snapshot: Mutex::new(None),
+        }
+    }
 }
 
 struct AppSettingsState {
@@ -2966,7 +2985,6 @@ fn show_ocr_capture_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), Command
 
     let _ = window.set_always_on_top(true);
     let _ = window.show();
-    let _ = window.set_focus();
     Ok(())
 }
 
@@ -3066,6 +3084,16 @@ fn start_ocr_capture_workflow<R: Runtime>(app: &AppHandle<R>) -> Result<(), Comm
         ));
     };
     ocr_runtime.capture_active.store(true, Ordering::Relaxed);
+    ocr_runtime.suppress_blur_until_ms.store(
+        now_epoch_millis().saturating_add(OCR_CAPTURE_BLUR_SUPPRESS_MS),
+        Ordering::Relaxed,
+    );
+    if let Err(error) = refresh_ocr_capture_snapshot(&ocr_runtime) {
+        eprintln!("[OCR] preload capture snapshot failed: {error}");
+        if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
+            *snapshot = None;
+        }
+    }
     show_ocr_capture_window(app)?;
     emit_ocr_capture_started(app);
     Ok(())
@@ -4124,8 +4152,50 @@ async fn call_llm_for_action(
     Ok(content)
 }
 
+fn rgba_image_to_data_url(image: &RgbaImage) -> Result<String, CommandError> {
+    let dynamic = DynamicImage::ImageRgba8(image.clone());
+    let mut cursor = Cursor::new(Vec::<u8>::new());
+    dynamic
+        .write_to(&mut cursor, ImageFormat::Png)
+        .map_err(|error| CommandError::InvalidImage(error.to_string()))?;
+    let encoded = BASE64.encode(cursor.into_inner());
+    Ok(format!("data:image/png;base64,{encoded}"))
+}
+
+fn refresh_ocr_capture_snapshot(ocr_runtime: &OcrRuntimeState) -> Result<(), CommandError> {
+    let pointer = current_pointer_position().unwrap_or(PhysicalPosition::new(40, 40));
+    let screens = Screen::all().map_err(|error| CommandError::Settings(error.to_string()))?;
+    let screen = screens
+        .into_iter()
+        .find(|screen| {
+            let info = screen.display_info;
+            pointer.x >= info.x
+                && pointer.x < info.x.saturating_add(info.width as i32)
+                && pointer.y >= info.y
+                && pointer.y < info.y.saturating_add(info.height as i32)
+        })
+        .ok_or_else(|| CommandError::Settings("无法定位 OCR 截图显示器".to_string()))?;
+
+    let info = screen.display_info;
+    let image = screen
+        .capture()
+        .map_err(|error| CommandError::Settings(error.to_string()))?;
+
+    let mut guard = ocr_runtime
+        .capture_snapshot
+        .lock()
+        .map_err(|_| CommandError::Lock)?;
+    *guard = Some(OcrCaptureSnapshot {
+        monitor_x: info.x,
+        monitor_y: info.y,
+        image,
+    });
+    Ok(())
+}
+
 fn capture_ocr_area_to_data_url<R: Runtime>(
     app: &AppHandle<R>,
+    ocr_runtime: &OcrRuntimeState,
     area: &OcrCaptureAreaPayload,
 ) -> Result<String, CommandError> {
     let Some(window) = app.get_webview_window(OCR_CAPTURE_WINDOW_LABEL) else {
@@ -4147,6 +4217,37 @@ fn capture_ocr_area_to_data_url<R: Runtime>(
     let top = window_pos.y + (area.y * scale_factor).round() as i32;
     let mut width = (area.width * scale_factor).round().max(1.0) as u32;
     let mut height = (area.height * scale_factor).round().max(1.0) as u32;
+
+    if let Ok(snapshot_guard) = ocr_runtime.capture_snapshot.lock() {
+        if let Some(snapshot) = snapshot_guard.as_ref() {
+            let capture_x = left.saturating_sub(snapshot.monitor_x);
+            let capture_y = top.saturating_sub(snapshot.monitor_y);
+            let available_w = (snapshot.image.width() as i32)
+                .saturating_sub(capture_x)
+                .max(1) as u32;
+            let available_h = (snapshot.image.height() as i32)
+                .saturating_sub(capture_y)
+                .max(1) as u32;
+            let cropped_w = width.min(available_w);
+            let cropped_h = height.min(available_h);
+
+            if capture_x >= 0
+                && capture_y >= 0
+                && (capture_x as u32) < snapshot.image.width()
+                && (capture_y as u32) < snapshot.image.height()
+            {
+                let cropped = image::imageops::crop_imm(
+                    &snapshot.image,
+                    capture_x as u32,
+                    capture_y as u32,
+                    cropped_w,
+                    cropped_h,
+                )
+                .to_image();
+                return rgba_image_to_data_url(&cropped);
+            }
+        }
+    }
 
     let screens = Screen::all().map_err(|error| CommandError::Settings(error.to_string()))?;
     let screen = screens
@@ -4171,13 +4272,7 @@ fn capture_ocr_area_to_data_url<R: Runtime>(
     let image = screen
         .capture_area(capture_x, capture_y, width, height)
         .map_err(|error| CommandError::Settings(error.to_string()))?;
-    let dynamic = DynamicImage::ImageRgba8(image);
-    let mut cursor = Cursor::new(Vec::<u8>::new());
-    dynamic
-        .write_to(&mut cursor, ImageFormat::Png)
-        .map_err(|error| CommandError::InvalidImage(error.to_string()))?;
-    let encoded = BASE64.encode(cursor.into_inner());
-    Ok(format!("data:image/png;base64,{encoded}"))
+    rgba_image_to_data_url(&image)
 }
 
 async fn call_vision_ocr(
@@ -4382,6 +4477,10 @@ fn toggle_ocr_capture_window<R: Runtime>(app: &AppHandle<R>) {
     if capture_visible {
         if let Some(ocr_runtime) = app.try_state::<OcrRuntimeState>() {
             ocr_runtime.capture_active.store(false, Ordering::Relaxed);
+            ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
+            if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
+                *snapshot = None;
+            }
         }
         hide_ocr_capture_window(app);
         emit_ocr_capture_canceled(app);
@@ -5729,6 +5828,10 @@ fn cancel_ocr_capture_cmd(
     ocr_runtime: State<'_, OcrRuntimeState>,
 ) -> Result<(), CommandError> {
     ocr_runtime.capture_active.store(false, Ordering::Relaxed);
+    ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
+    if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
+        *snapshot = None;
+    }
     hide_ocr_capture_window(&app);
     emit_ocr_capture_canceled(&app);
     Ok(())
@@ -5804,6 +5907,7 @@ async fn complete_ocr_capture_cmd(
 ) -> Result<(), CommandError> {
     let task_nonce = begin_ocr_result_task(&app);
     ocr_runtime.capture_active.store(false, Ordering::Relaxed);
+    ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
 
     let snapshot = settings_state
         .data
@@ -5812,12 +5916,18 @@ async fn complete_ocr_capture_cmd(
         .clone();
     if !snapshot.ocr.enabled {
         hide_ocr_capture_window(&app);
+        if let Ok(mut capture_snapshot) = ocr_runtime.capture_snapshot.lock() {
+            *capture_snapshot = None;
+        }
         return Err(CommandError::Settings(
             "请先在设置中启用智能 OCR".to_string(),
         ));
     }
 
-    let image_data_url = capture_ocr_area_to_data_url(&app, &area)?;
+    let image_data_url = capture_ocr_area_to_data_url(&app, &ocr_runtime, &area)?;
+    if let Ok(mut capture_snapshot) = ocr_runtime.capture_snapshot.lock() {
+        *capture_snapshot = None;
+    }
     hide_ocr_capture_window(&app);
     std::thread::sleep(Duration::from_millis(8));
 
@@ -7111,6 +7221,19 @@ pub fn run() {
                     else {
                         return;
                     };
+                    let mut still_active = false;
+                    let mut suppress_until_ms = 0u64;
+                    if let Some(ocr_runtime) = app_handle.try_state::<OcrRuntimeState>() {
+                        still_active = ocr_runtime.capture_active.load(Ordering::Relaxed);
+                        suppress_until_ms =
+                            ocr_runtime.suppress_blur_until_ms.load(Ordering::Relaxed);
+                    }
+                    if !still_active {
+                        return;
+                    }
+                    if now_epoch_millis() <= suppress_until_ms {
+                        return;
+                    }
                     let still_unfocused = capture_window
                         .is_focused()
                         .map(|focused| !focused)
@@ -7120,6 +7243,10 @@ pub fn run() {
                     }
                     if let Some(ocr_runtime) = app_handle.try_state::<OcrRuntimeState>() {
                         ocr_runtime.capture_active.store(false, Ordering::Relaxed);
+                        ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
+                        if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
+                            *snapshot = None;
+                        }
                     }
                     hide_ocr_capture_window(&app_handle);
                     emit_ocr_capture_canceled(&app_handle);
