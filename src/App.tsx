@@ -117,7 +117,7 @@ const OCR_VISION_MAX_TOKENS_RANGE = { min: 256, max: 8192 };
 const TTS_RATE_PERCENT_RANGE = { min: -50, max: 100 };
 
 const FALLBACK_SETTINGS: AppSettings = {
-  version: 7,
+  version: 8,
   themePreset: "md2-dark",
   language: "zh-CN",
   window: {
@@ -128,7 +128,7 @@ const FALLBACK_SETTINGS: AppSettings = {
     silentStartup: false
   },
   selectionAssistant: {
-    enabled: false,
+    enabled: true,
     mode: "auto-detect",
     showIconAnimation: true,
     compactMode: false,
@@ -171,7 +171,7 @@ const FALLBACK_SETTINGS: AppSettings = {
     toggleOcr: FALLBACK_OCR_SHORTCUT
   },
   ocr: {
-    enabled: false,
+    enabled: true,
     autoRunAfterCapture: true,
     defaultAction: "translate",
     customAgentId: "",
@@ -724,14 +724,23 @@ function kindLabel(kind: ClipboardEntry["kind"]) {
 }
 
 function isSameHistoryEntry(a: ClipboardEntry, b: ClipboardEntry) {
-  return (
-    a.id === b.id &&
-    a.kind === b.kind &&
-    a.content === b.content &&
-    a.imageDataUrl === b.imageDataUrl &&
-    a.copiedAt === b.copiedAt &&
-    a.pinned === b.pinned
-  );
+  if (
+    a.id !== b.id ||
+    a.kind !== b.kind ||
+    a.copiedAt !== b.copiedAt ||
+    a.pinned !== b.pinned
+  ) {
+    return false;
+  }
+
+  if (a.kind === "image" || b.kind === "image") {
+    return (
+      a.content === b.content &&
+      (a.imageDataUrl?.length ?? 0) === (b.imageDataUrl?.length ?? 0)
+    );
+  }
+
+  return a.content === b.content;
 }
 
 function isSameHistoryList(current: ClipboardEntry[], next: ClipboardEntry[]) {
@@ -1165,6 +1174,7 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const wheelDirectionRef = useRef<"up" | "down" | null>(null);
   const wheelDeltaRef = useRef(0);
   const wheelTsRef = useRef(0);
+  const syncInFlightRef = useRef(false);
   const applyHistoryUpdate = useCallback((next: ClipboardEntry[]) => {
     setHistory((current) => (isSameHistoryList(current, next) ? current : next));
   }, []);
@@ -1226,11 +1236,17 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }
 
   async function syncClipboard() {
+    if (syncInFlightRef.current) {
+      return;
+    }
+    syncInFlightRef.current = true;
     try {
       const items = await invoke<ClipboardEntry[]>("sync_clipboard");
       applyHistoryUpdate(items);
     } catch {
       // Ignore transient clipboard conflicts from other apps.
+    } finally {
+      syncInFlightRef.current = false;
     }
   }
 

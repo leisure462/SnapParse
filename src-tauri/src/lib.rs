@@ -56,7 +56,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     IsIconic, IsWindow, SetForegroundWindow, ShowWindow, SW_RESTORE,
 };
 
-const SETTINGS_VERSION: u32 = 7;
+const SETTINGS_VERSION: u32 = 8;
+const WINDOW_LAYOUT_MIGRATION_VERSION: u32 = 7;
 const DEFAULT_TOGGLE_SHORTCUT: &str = "Alt+Space";
 const DEFAULT_TOGGLE_OCR_SHORTCUT: &str = "Alt+Shift+Space";
 const SETTINGS_FILENAME: &str = "settings.json";
@@ -242,7 +243,7 @@ struct SelectionAssistantSettings {
 impl Default for SelectionAssistantSettings {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             mode: SelectionTriggerMode::AutoDetect,
             show_icon_animation: true,
             compact_mode: false,
@@ -323,7 +324,7 @@ struct OcrSettings {
 impl Default for OcrSettings {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             auto_run_after_capture: true,
             default_action: OcrDefaultAction::Translate,
             custom_agent_id: String::new(),
@@ -671,6 +672,7 @@ struct ClipboardEntry {
 struct ClipboardState {
     history: VecDeque<ClipboardEntry>,
     last_observed_signature: Option<u64>,
+    last_clipboard_sequence: Option<u32>,
 }
 
 #[derive(Default)]
@@ -1222,7 +1224,7 @@ fn normalize_settings(settings: &mut AppSettings) {
     let mut height = settings
         .main_window_height
         .unwrap_or(DEFAULT_MAIN_WINDOW_HEIGHT);
-    if previous_version < SETTINGS_VERSION {
+    if previous_version < WINDOW_LAYOUT_MIGRATION_VERSION {
         width = DEFAULT_MAIN_WINDOW_WIDTH;
         height = DEFAULT_MAIN_WINDOW_HEIGHT;
     } else if (width == 420 && height == 720)
@@ -1236,7 +1238,7 @@ fn normalize_settings(settings: &mut AppSettings) {
     }
     settings.main_window_width = Some(clamp_main_window_width(width));
     settings.main_window_height = Some(clamp_main_window_height(height));
-    if previous_version < SETTINGS_VERSION {
+    if previous_version < WINDOW_LAYOUT_MIGRATION_VERSION {
         settings.main_window_x = None;
         settings.main_window_y = None;
     }
@@ -1247,7 +1249,7 @@ fn normalize_settings(settings: &mut AppSettings) {
     let mut selection_result_height = settings
         .selection_result_window_height
         .unwrap_or(DEFAULT_SELECTION_RESULT_WINDOW_HEIGHT);
-    if previous_version < SETTINGS_VERSION {
+    if previous_version < WINDOW_LAYOUT_MIGRATION_VERSION {
         selection_result_width = DEFAULT_SELECTION_RESULT_WINDOW_WIDTH;
         selection_result_height = DEFAULT_SELECTION_RESULT_WINDOW_HEIGHT;
     }
@@ -1256,7 +1258,7 @@ fn normalize_settings(settings: &mut AppSettings) {
     settings.selection_result_window_height = Some(clamp_selection_result_window_height(
         selection_result_height,
     ));
-    if previous_version < SETTINGS_VERSION {
+    if previous_version < WINDOW_LAYOUT_MIGRATION_VERSION {
         settings.selection_result_window_x = None;
         settings.selection_result_window_y = None;
     }
@@ -1267,7 +1269,7 @@ fn normalize_settings(settings: &mut AppSettings) {
     let mut ocr_result_height = settings
         .ocr_result_window_height
         .unwrap_or(DEFAULT_OCR_RESULT_WINDOW_HEIGHT);
-    if previous_version < SETTINGS_VERSION {
+    if previous_version < WINDOW_LAYOUT_MIGRATION_VERSION {
         ocr_result_width = DEFAULT_OCR_RESULT_WINDOW_WIDTH;
         ocr_result_height = DEFAULT_OCR_RESULT_WINDOW_HEIGHT;
     } else if ocr_result_width == 380 && ocr_result_height == 520 {
@@ -1277,9 +1279,14 @@ fn normalize_settings(settings: &mut AppSettings) {
     }
     settings.ocr_result_window_width = Some(clamp_ocr_result_window_width(ocr_result_width));
     settings.ocr_result_window_height = Some(clamp_ocr_result_window_height(ocr_result_height));
-    if previous_version < SETTINGS_VERSION {
+    if previous_version < WINDOW_LAYOUT_MIGRATION_VERSION {
         settings.ocr_result_window_x = None;
         settings.ocr_result_window_y = None;
+    }
+
+    if previous_version < SETTINGS_VERSION {
+        settings.selection_assistant.enabled = true;
+        settings.ocr.enabled = true;
     }
 
     if settings.selection_assistant.auto_hide_ms == 3600 {
@@ -2185,8 +2192,12 @@ fn clipboard_sequence_number() -> u32 {
     0
 }
 
-fn capture_console_selection_without_shortcut(before_text: Option<&str>) -> Option<(String, bool)> {
+fn capture_console_selection_without_shortcut(
+    hwnd_raw: isize,
+    before_text: Option<&str>,
+) -> Option<(String, bool)> {
     let normalized_before = before_text.map(|value| value.trim()).unwrap_or("");
+    let before_sequence = clipboard_sequence_number();
 
     // Some terminals update clipboard a little after mouse release.
     // Poll briefly to avoid falling back to synthetic copy shortcuts.
@@ -2195,11 +2206,18 @@ fn capture_console_selection_without_shortcut(before_text: Option<&str>) -> Opti
             if normalized_before != after_text {
                 return Some((after_text, true));
             }
-            // Clipboard may already contain the selected text before this drag.
-            // Treat it as a fresh capture when it differs from the last dispatched selection.
-            return Some((after_text, true));
         }
         std::thread::sleep(Duration::from_millis(16));
+    }
+
+    if let Some(captured) = try_capture_console_selection_for_copy(hwnd_raw, normalized_before) {
+        return Some((captured, true));
+    }
+
+    if let Some(after_text) = read_clipboard_text_trimmed() {
+        if clipboard_sequence_number() != before_sequence || after_text != normalized_before {
+            return Some((after_text, true));
+        }
     }
 
     None
@@ -4932,7 +4950,10 @@ fn start_selection_detector_thread(app: AppHandle) {
                     };
 
                     let (selected, clipboard_changed) = if is_console {
-                        match capture_console_selection_without_shortcut(clipboard_before_drag.as_deref()) {
+                        match capture_console_selection_without_shortcut(
+                            hwnd,
+                            clipboard_before_drag.as_deref(),
+                        ) {
                             Some(payload) => payload,
                             None => continue,
                         }
@@ -6246,6 +6267,14 @@ fn sync_clipboard(
         settings.clone()
     };
 
+    let current_sequence = clipboard_sequence_number();
+    if current_sequence != 0 {
+        let locked = with_history_lock(&state)?;
+        if locked.last_clipboard_sequence == Some(current_sequence) {
+            return Ok(collect_history(&locked.history));
+        }
+    }
+
     let mut clipboard =
         Clipboard::new().map_err(|error| CommandError::Clipboard(error.to_string()))?;
     let mut incoming: Option<ClipboardEntry> = None;
@@ -6292,6 +6321,9 @@ fn sync_clipboard(
         }
     } else if locked.last_observed_signature.is_some() {
         locked.last_observed_signature = None;
+    }
+    if current_sequence != 0 {
+        locked.last_clipboard_sequence = Some(current_sequence);
     }
 
     let updated = collect_history(&locked.history);
