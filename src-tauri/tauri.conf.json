@@ -1,0 +1,137 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "SnapParse",
+  "version": "1.0.0",
+  "identifier": "com.snapparse.clipboard",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "SnapParse",
+        "url": "index.html#/clipboard",
+        "width": 350,
+        "height": 520,
+        "minWidth": 248,
+        "minHeight": 360,
+        "maxWidth": 560,
+        "maxHeight": 980,
+        "center": true,
+        "visible": false,
+        "alwaysOnTop": false,
+        "skipTaskbar": true,
+        "decorations": false,
+        "resizable": true,
+        "maximizable": false
+      },
+      {
+        "label": "settings",
+        "title": "SnapParse Settings",
+        "url": "index.html#/settings",
+        "width": 700,
+        "height": 520,
+        "minWidth": 640,
+        "minHeight": 460,
+        "center": true,
+        "visible": false,
+        "resizable": true
+      },
+      {
+        "label": "selection_bar",
+        "title": "SnapParse Selection Bar",
+        "url": "index.html#/selection-bar",
+        "width": 330,
+        "height": 40,
+        "minWidth": 220,
+        "minHeight": 36,
+        "maxHeight": 50,
+        "center": false,
+        "visible": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "transparent": true,
+        "shadow": false,
+        "decorations": false,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "focus": false
+      },
+      {
+        "label": "selection_result",
+        "title": "Selection Result",
+        "url": "index.html#/selection-result",
+        "width": 430,
+        "height": 304,
+        "minWidth": 320,
+        "minHeight": 220,
+        "center": true,
+        "visible": false,
+        "resizable": true,
+        "alwaysOnTop": true,
+        "transparent": false,
+        "shadow": false,
+        "decorations": false,
+        "minimizable": true,
+        "maximizable": false
+      },
+      {
+        "label": "ocr_capture",
+        "title": "OCR Capture",
+        "url": "index.html#/ocr-capture",
+        "width": 1280,
+        "height": 720,
+        "center": true,
+        "visible": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "transparent": true,
+        "shadow": false,
+        "decorations": false,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "focus": true
+      },
+      {
+        "label": "ocr_result",
+        "title": "OCR Result",
+        "url": "index.html#/ocr-result",
+        "width": 380,
+        "height": 520,
+        "minWidth": 320,
+        "minHeight": 380,
+        "center": true,
+        "visible": false,
+        "resizable": true,
+        "alwaysOnTop": true,
+        "transparent": false,
+        "shadow": false,
+        "decorations": false,
+        "minimizable": true,
+        "maximizable": false
+      }
+    ],
+    "security": {
+      "capabilities": ["default"],
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "windows": {
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default desktop capability for SnapParse Clipboard",
+  "windows": [
+    "main",
+    "settings",
+    "selection_bar",
+    "selection_result",
+    "ocr_capture",
+    "ocr_result"
+  ],
+  "permissions": [
+    "core:default"
+  ]
+}
