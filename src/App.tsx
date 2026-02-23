@@ -322,6 +322,7 @@ const OCR_ACTION_OPTIONS: Array<{ key: OcrActionKind; label: string }> = [
   { key: "explain", label: "解释" },
   { key: "custom", label: "自定义 Agent" }
 ];
+const OCR_CUSTOM_ACTION_PREFIX = "custom:";
 
 const TTS_RUNTIME_MODE_OPTIONS: Array<{ key: TtsRuntimeMode; label: string }> = [
   { key: "dual-fallback", label: "双通道回退（推荐）" },
@@ -1506,6 +1507,22 @@ function iconForCustomAgent(name: string): LucideIcon {
   if (lowered.includes("copy")) return Copy;
   if (lowered.includes("spark")) return Sparkles;
   return Bot;
+}
+
+function iconGlyphForCustomAgent(iconKey: string) {
+  const key = iconKey.trim().toLowerCase();
+  if (key.includes("spark")) return "✨";
+  if (key.includes("bot")) return "🤖";
+  if (key.includes("search")) return "🔎";
+  if (key.includes("language")) return "🌐";
+  if (key.includes("translate")) return "🌐";
+  if (key.includes("copy")) return "📋";
+  if (key.includes("star")) return "⭐";
+  if (key.includes("light")) return "💡";
+  if (key.includes("code")) return "💻";
+  if (key.includes("book")) return "📘";
+  if (key.includes("pen")) return "✏️";
+  return "◆";
 }
 
 function SelectionBarWindow({ settingsApi }: { settingsApi: SettingsApi }) {
@@ -3493,6 +3510,58 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     [activeAgentId, agentDrafts]
   );
 
+  const ocrCustomActionOptions = useMemo(
+    () =>
+      settings.agents.custom
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((agent) => ({
+          value: `${OCR_CUSTOM_ACTION_PREFIX}${agent.id}`,
+          label: `${iconGlyphForCustomAgent(agent.icon)} ${agent.name || "未命名 Agent"}`
+        })),
+    [settings.agents.custom]
+  );
+
+  const ocrActionSelectValue = useMemo(() => {
+    if (settings.ocr.defaultAction !== "custom") {
+      return settings.ocr.defaultAction;
+    }
+    const matched = ocrCustomActionOptions.some(
+      (item) => item.value === `${OCR_CUSTOM_ACTION_PREFIX}${settings.ocr.customAgentId}`
+    );
+    if (matched && settings.ocr.customAgentId) {
+      return `${OCR_CUSTOM_ACTION_PREFIX}${settings.ocr.customAgentId}`;
+    }
+    return "custom";
+  }, [ocrCustomActionOptions, settings.ocr.customAgentId, settings.ocr.defaultAction]);
+
+  function applyOcrDefaultActionFromSelect(value: string) {
+    if (value.startsWith(OCR_CUSTOM_ACTION_PREFIX)) {
+      const customAgentId = value.slice(OCR_CUSTOM_ACTION_PREFIX.length).trim();
+      if (!customAgentId) {
+        void applyPatch({
+          ocr: {
+            defaultAction: "custom"
+          }
+        });
+        return;
+      }
+      void applyPatch({
+        ocr: {
+          defaultAction: "custom",
+          customAgentId
+        }
+      });
+      return;
+    }
+
+    void applyPatch({
+      ocr: {
+        defaultAction: value as OcrActionKind
+      }
+    });
+  }
+
   const currentGroup = SETTING_GROUPS.find((group) => group.key === activeGroup) ?? SETTING_GROUPS[0];
 
   return (
@@ -4084,49 +4153,28 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                 <select
                   id="ocr-default-action"
                   className="md2-select"
-                  value={settings.ocr.defaultAction}
+                  value={ocrActionSelectValue}
                   onChange={(event) => {
-                    void applyPatch({
-                      ocr: {
-                        defaultAction: event.target.value as OcrActionKind
-                      }
-                    });
+                    applyOcrDefaultActionFromSelect(event.target.value);
                   }}
                 >
-                  {OCR_ACTION_OPTIONS.map((item) => (
+                  {OCR_ACTION_OPTIONS.filter((item) => item.key !== "custom").map((item) => (
                     <option key={item.key} value={item.key}>
+                      {item.label}
+                    </option>
+                  ))}
+                  <option value="custom">
+                    {ocrCustomActionOptions.length > 0
+                      ? "自定义 Agent（未指定）"
+                      : "自定义 Agent（请先创建）"}
+                  </option>
+                  {ocrCustomActionOptions.map((item) => (
+                    <option key={item.value} value={item.value}>
                       {item.label}
                     </option>
                   ))}
                 </select>
               </div>
-
-              {settings.ocr.defaultAction === "custom" && (
-                <div className="filled-control">
-                  <label htmlFor="ocr-custom-agent">自定义 Agent</label>
-                  <select
-                    id="ocr-custom-agent"
-                    className="md2-select"
-                    value={settings.ocr.customAgentId}
-                    onChange={(event) => {
-                      void applyPatch({
-                        ocr: {
-                          customAgentId: event.target.value
-                        }
-                      });
-                    }}
-                  >
-                    <option value="">请选择 Agent</option>
-                    {settings.agents.custom
-                      .filter((item) => item.enabled)
-                      .map((agent) => (
-                        <option key={agent.id} value={agent.id}>
-                          {agent.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              )}
 
               <label className="check-row">
                 <span>OCR 结果窗口默认置顶</span>
