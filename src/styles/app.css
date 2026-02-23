@@ -7,14 +7,7 @@
   --bg-accent: rgba(59, 130, 246, 0.2);
   --primary: #3b82f6;
   --primary-soft: rgba(59, 130, 246, 0.2);
-  --brand-gradient: linear-gradient(
-    104deg,
-    #60a5fa 0%,
-    #22d3ee 24%,
-    #34d399 48%,
-    #f59e0b 73%,
-    #f97316 100%
-  );
+  --app-brand-color: rgba(255, 255, 255, 0.92);
   --selection-bar-bg: rgba(23, 23, 23, 0.96);
   --selection-bar-item: rgba(255, 255, 255, 0.84);
   --selection-bar-hover: rgba(96, 165, 250, 0.98);
@@ -104,14 +97,7 @@
   --bg-accent: rgba(59, 130, 246, 0.24);
   --primary: #3b82f6;
   --primary-soft: rgba(59, 130, 246, 0.2);
-  --brand-gradient: linear-gradient(
-    104deg,
-    #93c5fd 0%,
-    #60a5fa 22%,
-    #38bdf8 46%,
-    #22d3ee 70%,
-    #2dd4bf 100%
-  );
+  --app-brand-color: rgba(241, 245, 249, 0.95);
   --selection-bar-bg: rgba(19, 28, 44, 0.96);
   --selection-bar-item: rgba(255, 255, 255, 0.86);
   --selection-bar-hover: rgba(147, 197, 253, 0.98);
@@ -130,14 +116,7 @@
   --bg-accent: rgba(96, 165, 250, 0.16);
   --primary: #60a5fa;
   --primary-soft: rgba(96, 165, 250, 0.2);
-  --brand-gradient: linear-gradient(
-    104deg,
-    #7dd3fc 0%,
-    #60a5fa 26%,
-    #22d3ee 52%,
-    #34d399 78%,
-    #a3e635 100%
-  );
+  --app-brand-color: rgba(248, 250, 252, 0.94);
   --selection-bar-bg: rgba(28, 28, 28, 0.96);
   --selection-bar-item: rgba(255, 255, 255, 0.84);
   --selection-bar-hover: rgba(125, 211, 252, 0.96);
@@ -157,14 +136,7 @@
   --bg-accent: rgba(37, 99, 235, 0.1);
   --primary: #1d4ed8;
   --primary-soft: rgba(37, 99, 235, 0.14);
-  --brand-gradient: linear-gradient(
-    104deg,
-    #2563eb 0%,
-    #0ea5e9 24%,
-    #14b8a6 49%,
-    #f59e0b 74%,
-    #ef4444 100%
-  );
+  --app-brand-color: #344863;
   --selection-bar-bg: rgba(250, 252, 255, 0.96);
   --selection-bar-item: rgba(15, 23, 42, 0.84);
   --selection-bar-hover: rgba(29, 78, 216, 0.98);
@@ -246,14 +218,7 @@
   --bg-accent: rgba(232, 93, 58, 0.16);
   --primary: #e85d3a;
   --primary-soft: rgba(232, 93, 58, 0.18);
-  --brand-gradient: linear-gradient(
-    104deg,
-    #f97316 0%,
-    #fb7185 27%,
-    #ec4899 50%,
-    #a855f7 74%,
-    #6366f1 100%
-  );
+  --app-brand-color: #7f3b2a;
   --selection-bar-bg: rgba(255, 242, 235, 0.97);
   --selection-bar-item: rgba(92, 36, 23, 0.9);
   --selection-bar-hover: rgba(232, 93, 58, 0.98);
@@ -335,14 +300,7 @@
   --bg-accent: rgba(161, 98, 7, 0.15);
   --primary: #a16207;
   --primary-soft: rgba(161, 98, 7, 0.18);
-  --brand-gradient: linear-gradient(
-    104deg,
-    #ca8a04 0%,
-    #f59e0b 23%,
-    #f97316 46%,
-    #14b8a6 72%,
-    #0ea5e9 100%
-  );
+  --app-brand-color: #6a4a16;
   --selection-bar-bg: rgba(255, 251, 230, 0.97);
   --selection-bar-item: rgba(70, 49, 16, 0.9);
   --selection-bar-hover: rgba(161, 98, 7, 0.98);
@@ -594,10 +552,7 @@ select {
 }
 
 .app-brand-gradient {
-  background: var(--brand-gradient);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--app-brand-color);
 }
 
 .head-actions {

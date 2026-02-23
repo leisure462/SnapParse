@@ -485,6 +485,13 @@ const CUSTOM_AGENT_ICON_OPTIONS: Array<{ key: string; label: string; icon: Lucid
   { key: "Settings", label: "Settings", icon: Settings },
   { key: "ExternalLink", label: "External", icon: ExternalLink }
 ];
+const CUSTOM_AGENT_ICON_MAP: Record<string, LucideIcon> = CUSTOM_AGENT_ICON_OPTIONS.reduce(
+  (acc, item) => {
+    acc[item.key.toLowerCase()] = item.icon;
+    return acc;
+  },
+  {} as Record<string, LucideIcon>
+);
 
 const CUSTOM_AGENT_MAX_COUNT = 30;
 const CUSTOM_AGENT_NAME_MAX_UNITS = 8;
@@ -1285,23 +1292,43 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     return result;
   }, [history]);
 
+  const historySearchIndex = useMemo(
+    () => history.map((item) => ({ item, normalizedContent: item.content.toLowerCase() })),
+    [history]
+  );
+  const normalizedQuery = query.trim().toLowerCase();
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     let items: ClipboardEntry[];
-    if (filter === "all") {
-      items = history;
-    } else if (filter === "favorite") {
-      items = history.filter((item) => item.pinned);
-    } else {
-      items = history.filter((item) => item.kind === filter);
+    if (!normalizedQuery) {
+      if (filter === "all") {
+        return history;
+      }
+      if (filter === "favorite") {
+        return history.filter((item) => item.pinned);
+      }
+      return history.filter((item) => item.kind === filter);
     }
 
-    if (q) {
-      items = items.filter((item) => item.content.toLowerCase().includes(q));
+    if (filter === "all") {
+      items = historySearchIndex
+        .filter((item) => item.normalizedContent.includes(normalizedQuery))
+        .map((item) => item.item);
+    } else if (filter === "favorite") {
+      items = historySearchIndex
+        .filter((item) => item.item.pinned && item.normalizedContent.includes(normalizedQuery))
+        .map((item) => item.item);
+    } else {
+      items = historySearchIndex
+        .filter(
+          (item) =>
+            item.item.kind === filter && item.normalizedContent.includes(normalizedQuery)
+        )
+        .map((item) => item.item);
     }
 
     return items;
-  }, [filter, history, query]);
+  }, [filter, history, historySearchIndex, normalizedQuery]);
 
   function copyByClick(entry: ClipboardEntry) {
     return invoke<ClipboardEntry[]>("paste_entry_by_click", { id: entry.id })
@@ -1489,18 +1516,9 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 }
 
 function iconForCustomAgent(name: string): LucideIcon {
-  const exact = CUSTOM_AGENT_ICON_OPTIONS.find((item) => item.key === name.trim());
-  if (exact) return exact.icon;
-
-  const lowered = name.toLowerCase();
-  const fixedMap: Record<string, LucideIcon> = CUSTOM_AGENT_ICON_OPTIONS.reduce(
-    (acc, item) => {
-      acc[item.key.toLowerCase()] = item.icon;
-      return acc;
-    },
-    {} as Record<string, LucideIcon>
-  );
-  if (fixedMap[lowered]) return fixedMap[lowered];
+  const lowered = name.trim().toLowerCase();
+  const exact = CUSTOM_AGENT_ICON_MAP[lowered];
+  if (exact) return exact;
   if (lowered.includes("search")) return Search;
   if (lowered.includes("translate")) return Languages;
   if (lowered.includes("explain")) return Info;
