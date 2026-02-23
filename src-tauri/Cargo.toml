@@ -26,7 +26,9 @@ thiserror = "2"
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
 urlencoding = "2.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]

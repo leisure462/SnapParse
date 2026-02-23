@@ -35,6 +35,7 @@ It combines clipboard management, text selection assistant, OCR workflow, and TT
 - Global shortcuts
 - Launch on startup and silent startup
 - Persistent settings, import/export, and data storage controls
+- Built-in updater (check/download/install/relaunch)
 
 ## Tech Stack
 
@@ -140,6 +141,16 @@ See `docs/RELEASE_AND_UPDATE.md` for:
 - Versioning recommendations
 - How to deliver future updates
 - Tauri updater (hot update) implementation path
+- Signing key and `latest.json` release workflow
+
+Helper command:
+
+```bash
+npm run updater:manifest
+```
+
+GitHub Actions release workflow:
+- `.github/workflows/release.yml`
 
 User guide (Chinese):
 - `docs/USER_GUIDE.zh-CN.md`

@@ -5,6 +5,8 @@ dist/
 
 src-tauri/target/
 src-tauri/gen/
+src-tauri/updater.key
+src-tauri/updater.key.pub
 
 .vscode/
 .idea/

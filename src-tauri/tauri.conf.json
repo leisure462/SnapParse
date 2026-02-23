@@ -122,8 +122,19 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "endpoints": [
+        "https://github.com/leisure462/SnapParse/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdDNzBDNDg4RTE0NzcxRkEKUldUNmNVZmhpTVJ3ZlBWWVRVUVVraEU2eld0c3JjZDhLWFlHQXQ4UjJlclNoVFI2OEUrV2ZZNlMK"
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": "v1Compatible",
     "targets": "all",
     "icon": [
       "icons/icon.ico",

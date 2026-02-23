@@ -1,123 +1,130 @@
-# Release and Update Guide
+# Release and Auto-Update Guide
 
-This document explains:
+This project has enabled **Tauri v2 updater** end-to-end:
 
-1. How to publish SnapParse releases
-2. How to deliver future updates to users
-3. How to enable in-app hot update (auto updater)
+- Rust plugin: updater + process relaunch
+- Frontend update flow: check -> download -> install -> relaunch
+- Configured endpoint: GitHub Releases `latest.json`
 
----
+## 1. One-Time Setup
 
-## 1. Release Packaging
+### 1.1 Keep signing key safe
 
-Build installers locally:
+Updater signing key files are generated locally:
+
+- Private key: `src-tauri/updater.key` (must be kept secret)
+- Public key: `src-tauri/updater.key.pub` (already embedded into `tauri.conf.json`)
+
+Do not commit private key to repository.
+
+### 1.2 Environment variables for release signing
+
+Before building release, set:
+
+- `TAURI_SIGNING_PRIVATE_KEY` (private key content, not file path)
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+PowerShell example:
+
+```powershell
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content -Raw "D:\play\SnapParse\src-tauri\updater.key"
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "your-password"
+```
+
+## 2. Release Build
+
+Ensure version is updated in:
+
+- `package.json`
+- `src-tauri/tauri.conf.json`
+- `src-tauri/Cargo.toml`
+
+Then build:
 
 ```bash
 npm run tauri build
 ```
 
-Expected outputs:
+With `createUpdaterArtifacts: "v1Compatible"`, build output includes updater artifacts and `latest.json`.
 
-- MSI: `src-tauri/target/release/bundle/msi/*.msi`
-- NSIS: `src-tauri/target/release/bundle/nsis/*-setup.exe`
+Typical output folders:
 
-Recommended release checklist:
+- MSI: `src-tauri/target/release/bundle/msi/`
+- NSIS: `src-tauri/target/release/bundle/nsis/`
+- Updater artifacts: `.zip` + `.sig` files under `bundle/msi` and `bundle/nsis`
 
-- Bump version in:
-  - `package.json`
-  - `src-tauri/tauri.conf.json`
-  - `src-tauri/Cargo.toml`
-- Build and smoke test
-- Upload installers to GitHub Releases
-- Update changelog/release notes
+Generate `latest.json`:
 
----
+```bash
+npm run updater:manifest
+```
 
-## 2. How to Push New Changes to Users (Without In-App Updater)
+Output:
 
-If updater is not enabled yet:
+- `src-tauri/target/release/bundle/latest.json`
 
-- Publish a new GitHub Release version
-- Upload new installer files
-- Users download and install the new version manually
+## 3. GitHub Release Upload
 
-This is the simplest and most stable approach for early-stage releases.
+Create a new release tag (for example `v1.0.1`) and upload:
 
----
+- Installer (`.msi` / setup `.exe`)
+- Updater metadata: `latest.json`
+- Updater payload/signature:
+  - `SnapParse_<version>_x64_en-US.msi.zip`
+  - `SnapParse_<version>_x64_en-US.msi.zip.sig`
+  - `SnapParse_<version>_x64-setup.nsis.zip`
+  - `SnapParse_<version>_x64-setup.nsis.zip.sig`
 
-## 3. Can SnapParse Support Hot Update?
+Important:
 
-Yes. Tauri v2 supports updater-based in-app update flow.
+- `latest.json` must be uploaded as a release asset
+- `latest.json` URLs must point to the same release tag assets
+- Default generator uses tag `v<version>` (for example `v1.0.1`)
+- Current app endpoint:
+  - `https://github.com/leisure462/SnapParse/releases/latest/download/latest.json`
 
-Typical flow:
+## 4. Client Update Flow
 
-1. User app checks update metadata endpoint
-2. App finds a newer version
-3. App downloads signed update package
-4. App installs and relaunches
+In app (`关于与诊断`):
 
----
+1. Click `检查更新`
+2. If update exists, click `下载并安装`
+3. Wait for progress
+4. App auto relaunches after install
 
-## 4. Tauri v2 Updater Implementation Outline
+## 5. Notes for CI/CD
 
-### Step A: Enable updater plugin
+You can later move release build to GitHub Actions:
 
-Add updater plugin in Rust setup and configure permissions/capabilities as needed.
+- Inject signing key/path/password via repository secrets
+- Build on tag push
+- Upload `latest.json` + signed artifacts automatically
 
-### Step B: Configure updater endpoint
+### Included workflow in this repository
 
-In `tauri.conf.json`, define updater configuration and endpoint URL.
+File:
 
-### Step C: Prepare signing key
+- `.github/workflows/release.yml`
 
-Generate and securely store updater signing private key.
+Trigger:
 
-- Private key: used only in CI/release signing
-- Public key: embedded in app for verification
+- Push tag `v*` (recommended for official releases)
+- Manual run (`workflow_dispatch`) with `release_tag`
 
-### Step D: Release pipeline
+Required repository secrets:
 
-In CI/CD:
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-- Build release bundle
-- Sign update artifacts
-- Publish metadata manifest + files
+Release assets uploaded by workflow:
 
-### Step E: Frontend update check
+- MSI/NSIS installer
+- updater zip packages + `.sig`
+- `latest.json`
 
-Expose a UI action (for example in Settings > About):
+## 6. Security Checklist
 
-- Check for updates
-- Show update details
-- Download + install
-
----
-
-## 5. Suggested Delivery Strategy
-
-### Stage 1 (current)
-- Manual installer updates via GitHub Releases
-
-### Stage 2
-- Add "Check for updates" button (manual trigger)
-
-### Stage 3
-- Add silent background periodic checks with user consent
-
----
-
-## 6. Security Notes
-
-- Never ship updater private key in repository
-- Always verify signatures before install
-- Use HTTPS for update metadata and files
-- Keep rollback strategy for failed releases
-
----
-
-## 7. Recommended GitHub Release Assets
-
-- `SnapParse_<version>_x64_en-US.msi`
-- `SnapParse_<version>_x64-setup.exe`
-- `SHA256SUMS.txt`
-- Release notes (fixes/features/known issues)
+- Never expose `updater.key`
+- Rotate key only if strictly necessary (key rotation invalidates old signing trust chain)
+- Use HTTPS endpoints only
+- Keep release notes and rollback installers for emergency recovery

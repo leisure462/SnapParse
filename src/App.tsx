@@ -1,6 +1,9 @@
 
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check } from "@tauri-apps/plugin-updater";
 import {
   Activity,
   Archive,
@@ -25,6 +28,7 @@ import {
   Cpu,
   Crown,
   Database,
+  Download,
   ExternalLink,
   Feather,
   FileDown,
@@ -394,7 +398,7 @@ const SETTING_GROUPS: SettingGroup[] = [
     key: "about",
     label: "关于与诊断",
     icon: Info,
-    description: "运行状态与当前配置快照"
+    description: "运行状态、版本信息与更新管理"
   }
 ];
 
@@ -698,6 +702,19 @@ function snippet(content: string) {
   const compact = content.replace(/\s+/g, " ").trim();
   if (compact.length <= 108) return compact;
   return `${compact.slice(0, 108)}...`;
+}
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const fractionDigits = value >= 100 || unitIndex === 0 ? 0 : 1;
+  return `${value.toFixed(fractionDigits)} ${units[unitIndex]}`;
 }
 
 function kindLabel(kind: ClipboardEntry["kind"]) {
@@ -2758,12 +2775,129 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       >
     >
   >({});
+  const [appVersion, setAppVersion] = useState("1.0.0");
+  const [availableUpdateVersion, setAvailableUpdateVersion] = useState<string | null>(null);
+  const [availableUpdateNotes, setAvailableUpdateNotes] = useState("");
+  const [updateStatusText, setUpdateStatusText] = useState("尚未检查更新");
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [updateInstalling, setUpdateInstalling] = useState(false);
+  const [updateDownloadProgress, setUpdateDownloadProgress] = useState<number | null>(null);
 
   useEffect(() => {
     if (error) {
       setStatus(error);
     }
   }, [error]);
+
+  useEffect(() => {
+    let active = true;
+    void getVersion()
+      .then((version) => {
+        if (active) {
+          setAppVersion(version || "1.0.0");
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAppVersion("1.0.0");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function checkForAppUpdates(options?: { silent?: boolean }) {
+    if (updateChecking || updateInstalling) return;
+    const silent = Boolean(options?.silent);
+    setUpdateChecking(true);
+    setUpdateDownloadProgress(null);
+    try {
+      if (!silent) {
+        setUpdateStatusText("正在检查更新...");
+      }
+      const update = await check();
+      if (!update) {
+        setAvailableUpdateVersion(null);
+        setAvailableUpdateNotes("");
+        setUpdateStatusText("当前已经是最新版本");
+        return;
+      }
+
+      setAvailableUpdateVersion(update.version || null);
+      setAvailableUpdateNotes((update.body || "").trim());
+      setUpdateStatusText(`发现新版本 v${update.version}，可直接下载并安装`);
+    } catch (invokeError) {
+      setUpdateStatusText(`检查更新失败：${String(invokeError)}`);
+    } finally {
+      setUpdateChecking(false);
+    }
+  }
+
+  async function downloadAndInstallAppUpdate() {
+    if (updateChecking || updateInstalling) return;
+    setUpdateInstalling(true);
+    setUpdateDownloadProgress(0);
+    try {
+      const update = await check();
+      if (!update) {
+        setAvailableUpdateVersion(null);
+        setAvailableUpdateNotes("");
+        setUpdateStatusText("未发现可安装的新版本");
+        setUpdateDownloadProgress(null);
+        return;
+      }
+
+      let totalBytes = 0;
+      let downloadedBytes = 0;
+      setUpdateStatusText(`开始下载 v${update.version}...`);
+
+      await update.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          totalBytes = Number(event.data.contentLength ?? 0);
+          downloadedBytes = 0;
+          setUpdateDownloadProgress(0);
+          if (totalBytes > 0) {
+            setUpdateStatusText(
+              `正在下载更新包（${formatBytes(totalBytes)}）...`
+            );
+          } else {
+            setUpdateStatusText("正在下载更新包...");
+          }
+          return;
+        }
+
+        if (event.event === "Progress") {
+          downloadedBytes += Number(event.data.chunkLength ?? 0);
+          if (totalBytes > 0) {
+            const progress = Math.min(
+              100,
+              Math.max(0, Math.round((downloadedBytes / totalBytes) * 100))
+            );
+            setUpdateDownloadProgress(progress);
+            setUpdateStatusText(
+              `下载中 ${progress}%（${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}）`
+            );
+          } else {
+            setUpdateStatusText(`下载中（${formatBytes(downloadedBytes)}）`);
+          }
+          return;
+        }
+
+        if (event.event === "Finished") {
+          setUpdateDownloadProgress(100);
+          setUpdateStatusText("下载完成，正在安装...");
+        }
+      });
+
+      setUpdateStatusText("安装完成，应用即将重启...");
+      await relaunch();
+    } catch (invokeError) {
+      setUpdateStatusText(`安装更新失败：${String(invokeError)}`);
+    } finally {
+      setUpdateInstalling(false);
+    }
+  }
 
   useEffect(() => {
     if (!recordingMainShortcut) return;
@@ -2834,6 +2968,13 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     if (runningAppsLoading || runningApps.length > 0) return;
     void refreshRunningApps();
   }, [activeGroup, runningApps.length, runningAppsLoading]);
+
+  useEffect(() => {
+    if (activeGroup !== "about") return;
+    if (updateChecking || updateInstalling) return;
+    if (updateStatusText !== "尚未检查更新") return;
+    void checkForAppUpdates({ silent: true });
+  }, [activeGroup, updateChecking, updateInstalling, updateStatusText]);
 
   async function applyPatch(patch: AppSettingsPatch, successMessage = "设置已更新") {
     const result = await updateSettings(patch);
@@ -4578,6 +4719,44 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                   <span>主题：{settings.themePreset}</span>
                 </p>
               </div>
+            </article>
+
+            <article className="settings-card">
+              <h2>应用更新</h2>
+              <p className="help-text">当前版本：v{appVersion}</p>
+              <p className="help-text">
+                可用版本：{availableUpdateVersion ? `v${availableUpdateVersion}` : "暂无"}
+              </p>
+              <div className="card-actions">
+                <button
+                  className="tonal-btn"
+                  onClick={() => void checkForAppUpdates()}
+                  disabled={updateChecking || updateInstalling}
+                >
+                  <RefreshCw size={14} />
+                  <span>{updateChecking ? "检查中..." : "检查更新"}</span>
+                </button>
+                <button
+                  className="tonal-btn primary"
+                  onClick={() => void downloadAndInstallAppUpdate()}
+                  disabled={!availableUpdateVersion || updateChecking || updateInstalling}
+                >
+                  <Download size={14} />
+                  <span>{updateInstalling ? "安装中..." : "下载并安装"}</span>
+                </button>
+              </div>
+              <p className="help-text">{updateStatusText}</p>
+              {typeof updateDownloadProgress === "number" && (
+                <p className="help-text">下载进度：{updateDownloadProgress}%</p>
+              )}
+              {availableUpdateNotes && (
+                <textarea
+                  className="settings-json"
+                  readOnly
+                  value={availableUpdateNotes}
+                  aria-label="更新说明"
+                />
+              )}
             </article>
 
             <article className="settings-card">
