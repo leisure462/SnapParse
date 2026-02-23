@@ -6365,7 +6365,7 @@ fn sync_clipboard(
     app: AppHandle,
     settings_state: State<'_, AppSettingsState>,
     state: State<'_, Mutex<ClipboardState>>,
-) -> Result<Vec<ClipboardEntry>, CommandError> {
+) -> Result<Option<Vec<ClipboardEntry>>, CommandError> {
     let settings_snapshot = {
         let settings = with_settings_lock(&settings_state)?;
         settings.clone()
@@ -6375,7 +6375,7 @@ fn sync_clipboard(
     if current_sequence != 0 {
         let locked = with_history_lock(&state)?;
         if locked.last_clipboard_sequence == Some(current_sequence) {
-            return Ok(collect_history(&locked.history));
+            return Ok(None);
         }
     }
 
@@ -6430,10 +6430,14 @@ fn sync_clipboard(
         locked.last_clipboard_sequence = Some(current_sequence);
     }
 
-    let updated = collect_history(&locked.history);
+    let updated = if changed {
+        Some(collect_history(&locked.history))
+    } else {
+        None
+    };
     drop(locked);
-    if changed {
-        persist_history_snapshot(&app, &settings_snapshot, &updated)?;
+    if let Some(items) = updated.as_ref() {
+        persist_history_snapshot(&app, &settings_snapshot, items)?;
     }
     Ok(updated)
 }

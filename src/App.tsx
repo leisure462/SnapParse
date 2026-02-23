@@ -1241,8 +1241,10 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     }
     syncInFlightRef.current = true;
     try {
-      const items = await invoke<ClipboardEntry[]>("sync_clipboard");
-      applyHistoryUpdate(items);
+      const items = await invoke<ClipboardEntry[] | null>("sync_clipboard");
+      if (items) {
+        applyHistoryUpdate(items);
+      }
     } catch {
       // Ignore transient clipboard conflicts from other apps.
     } finally {
