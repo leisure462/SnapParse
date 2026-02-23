@@ -1909,26 +1909,140 @@ fn send_system_copy_shortcut(_hwnd_raw: isize) -> Result<(), CommandError> {
 }
 
 #[cfg(target_os = "windows")]
-fn is_console_like_window(hwnd_raw: isize) -> bool {
-    let Some(class_name) = window_class_name(hwnd_raw) else {
+fn is_terminal_host_process(hwnd_raw: isize) -> bool {
+    let (process_name, process_path) = window_process_identity(hwnd_raw);
+    let Some(name) = process_name else {
         return false;
     };
-    class_name.contains("CONSOLEWINDOWCLASS")
-        || class_name.contains("CASCADIA_HOSTING_WINDOW_CLASS")
-        || class_name.contains("PSEUDOCONSOLEWINDOW")
-        || class_name.contains("VIRTUALCONSOLECLASS")
-        || class_name.contains("MINTTY")
-        || class_name.contains("WEZTERM")
-        || class_name.contains("ALACRITTY")
+
+    const TERMINAL_HOST_PROCESSES: &[&str] = &[
+        "windowsterminal.exe",
+        "wt.exe",
+        "powershell.exe",
+        "pwsh.exe",
+        "cmd.exe",
+        "conhost.exe",
+        "wezterm.exe",
+        "wezterm-gui.exe",
+        "mintty.exe",
+        "alacritty.exe",
+        "tabby.exe",
+        "hyper.exe",
+        "conemu.exe",
+        "conemu64.exe",
+        "cmder.exe",
+        "code.exe",
+        "code-insiders.exe",
+        "cursor.exe",
+        "vscodium.exe",
+        "windsurf.exe",
+    ];
+
+    if TERMINAL_HOST_PROCESSES
+        .iter()
+        .any(|candidate| name == *candidate)
+    {
+        return true;
+    }
+
+    process_path
+        .as_deref()
+        .is_some_and(|path| path.contains("\\windowsapps\\wt.exe"))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_terminal_host_process(_hwnd_raw: isize) -> bool {
+    false
+}
+
+#[cfg(target_os = "windows")]
+fn is_console_like_window(hwnd_raw: isize) -> bool {
+    let class_like = window_class_name(hwnd_raw)
+        .map(|class_name| {
+            class_name.contains("CONSOLEWINDOWCLASS")
+                || class_name.contains("CASCADIA_HOSTING_WINDOW_CLASS")
+                || class_name.contains("PSEUDOCONSOLEWINDOW")
+                || class_name.contains("VIRTUALCONSOLECLASS")
+                || class_name.contains("MINTTY")
+                || class_name.contains("WEZTERM")
+                || class_name.contains("ALACRITTY")
+        })
+        .unwrap_or(false);
+
+    class_like || is_terminal_host_process(hwnd_raw)
 }
 
 #[cfg(target_os = "windows")]
 fn is_windows_terminal_window(hwnd_raw: isize) -> bool {
-    let Some(class_name) = window_class_name(hwnd_raw) else {
-        return false;
+    let class_like = window_class_name(hwnd_raw)
+        .map(|class_name| {
+            class_name.contains("CASCADIA_HOSTING_WINDOW_CLASS")
+                || class_name.contains("PSEUDOCONSOLEWINDOW")
+        })
+        .unwrap_or(false);
+
+    if class_like {
+        return true;
+    }
+
+    let (process_name, _) = window_process_identity(hwnd_raw);
+    process_name
+        .as_deref()
+        .is_some_and(|name| name == "windowsterminal.exe" || name == "wt.exe")
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_console_like_window(_hwnd_raw: isize) -> bool {
+    false
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_windows_terminal_window(_hwnd_raw: isize) -> bool {
+    false
+}
+
+#[cfg(target_os = "windows")]
+fn send_console_copy_shortcut(hwnd_raw: isize) -> Result<(), CommandError> {
+    const VK_VIRTUAL_INSERT: u16 = VK_INSERT as u16;
+
+    if hwnd_raw == 0 {
+        return Err(CommandError::Settings(
+            "No foreground window available for console copy shortcut".to_string(),
+        ));
+    }
+
+    let _ = restore_foreground_window(hwnd_raw);
+    std::thread::sleep(Duration::from_millis(12));
+
+    let send = |inputs: &mut [INPUT]| -> bool {
+        let sent = unsafe {
+            SendInput(
+                inputs.len() as u32,
+                inputs.as_mut_ptr(),
+                std::mem::size_of::<INPUT>() as i32,
+            )
+        };
+        sent == inputs.len() as u32
     };
-    class_name.contains("CASCADIA_HOSTING_WINDOW_CLASS")
-        || class_name.contains("PSEUDOCONSOLEWINDOW")
+
+    let mut copy_insert = [
+        keyboard_input(VK_CONTROL as u16, false),
+        keyboard_input(VK_VIRTUAL_INSERT, false),
+        keyboard_input(VK_VIRTUAL_INSERT, true),
+        keyboard_input(VK_CONTROL as u16, true),
+    ];
+    if send(&mut copy_insert) {
+        return Ok(());
+    }
+
+    Err(CommandError::Settings(
+        "Failed to dispatch safe console copy shortcut".to_string(),
+    ))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn send_console_copy_shortcut(_hwnd_raw: isize) -> Result<(), CommandError> {
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]
@@ -2014,16 +2128,6 @@ fn is_window_blocked_by_apps(hwnd_raw: isize, blocked_apps: &[String]) -> bool {
 
 #[cfg(not(target_os = "windows"))]
 fn is_window_blocked_by_apps(_hwnd_raw: isize, _blocked_apps: &[String]) -> bool {
-    false
-}
-
-#[cfg(not(target_os = "windows"))]
-fn is_console_like_window(_hwnd_raw: isize) -> bool {
-    false
-}
-
-#[cfg(not(target_os = "windows"))]
-fn is_windows_terminal_window(_hwnd_raw: isize) -> bool {
     false
 }
 
@@ -2155,12 +2259,12 @@ fn try_capture_console_selection_for_copy(hwnd_raw: isize, fallback_text: &str) 
     }
 
     let before_sequence = clipboard_sequence_number();
-    if send_system_copy_shortcut(hwnd_raw).is_err() {
+    if send_console_copy_shortcut(hwnd_raw).is_err() {
         return None;
     }
 
-    for _ in 0..22 {
-        std::thread::sleep(Duration::from_millis(14));
+    for _ in 0..8 {
+        std::thread::sleep(Duration::from_millis(10));
         let Some(candidate) = read_clipboard_text_trimmed() else {
             continue;
         };
@@ -2201,13 +2305,13 @@ fn capture_console_selection_without_shortcut(
 
     // Some terminals update clipboard a little after mouse release.
     // Poll briefly to avoid falling back to synthetic copy shortcuts.
-    for _ in 0..32 {
+    for _ in 0..12 {
         if let Some(after_text) = read_clipboard_text_trimmed() {
             if normalized_before != after_text {
                 return Some((after_text, true));
             }
         }
-        std::thread::sleep(Duration::from_millis(16));
+        std::thread::sleep(Duration::from_millis(9));
     }
 
     if let Some(captured) = try_capture_console_selection_for_copy(hwnd_raw, normalized_before) {
