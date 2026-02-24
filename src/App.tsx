@@ -968,7 +968,9 @@ function sanitizeSettings(input: AppSettings): AppSettings {
         input.ocr?.resultWindowAlwaysOnTop ?? FALLBACK_SETTINGS.ocr.resultWindowAlwaysOnTop
       ),
       vision: {
-        enabled: Boolean(input.ocr?.vision?.enabled ?? FALLBACK_SETTINGS.ocr.vision.enabled),
+        enabled: Boolean(
+          (input.ocr?.vision?.apiKey ?? FALLBACK_SETTINGS.ocr.vision.apiKey).trim().length > 0
+        ),
         baseUrl:
           input.ocr?.vision?.baseUrl?.trim() || FALLBACK_SETTINGS.ocr.vision.baseUrl,
         apiKey: input.ocr?.vision?.apiKey ?? FALLBACK_SETTINGS.ocr.vision.apiKey,
@@ -1749,7 +1751,10 @@ function SelectionBarWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const { settings, updateSettings } = settingsApi;
   const [result, setResult] = useState<SelectionResultPayload | null>(null);
-  const [isPinnedTop, setIsPinnedTop] = useState(true);
+  const pinLockedBySetting = settings.selectionAssistant.resultWindowAlwaysOnTop;
+  const [isPinnedTop, setIsPinnedTop] = useState(
+    () => settings.selectionAssistant.resultWindowAlwaysOnTop
+  );
   const [fromLang, setFromLang] = useState<TranslateLanguageCode>("auto");
   const [toLang, setToLang] = useState<TranslateTargetLanguageCode>(
     settings.selectionAssistant.defaultTranslateTo
@@ -1768,9 +1773,15 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     void invoke<boolean>("get_result_window_pinned_cmd")
       .then((value) => setIsPinnedTop(Boolean(value)))
       .catch(() => {
-        setIsPinnedTop(true);
+        setIsPinnedTop(settings.selectionAssistant.resultWindowAlwaysOnTop);
       });
-  }, []);
+  }, [settings.selectionAssistant.resultWindowAlwaysOnTop]);
+
+  useEffect(() => {
+    if (pinLockedBySetting) {
+      setIsPinnedTop(true);
+    }
+  }, [pinLockedBySetting]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -1810,6 +1821,10 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }, []);
 
   async function togglePinTop() {
+    if (pinLockedBySetting) {
+      setIsPinnedTop(true);
+      return;
+    }
     const next = !isPinnedTop;
     try {
       const value = await invoke<boolean>("set_result_window_pinned_cmd", { pinned: next });
@@ -1828,6 +1843,9 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }
 
   async function closeResultWindow() {
+    if (pinLockedBySetting) {
+      return;
+    }
     stopTtsPlayback();
     try {
       await invoke("close_selection_result_window");
@@ -2105,10 +2123,18 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               className={`icon-btn${isPinnedTop ? " active" : ""}`}
               onClick={() => void togglePinTop()}
               aria-label={isPinnedTop ? "Disable always on top" : "Enable always on top"}
+              disabled={pinLockedBySetting}
+              title={pinLockedBySetting ? "已由设置锁定为置顶" : undefined}
             >
               {isPinnedTop ? <PinOff size={14} /> : <Pin size={14} />}
             </button>
-            <button className="icon-btn" onClick={() => void closeResultWindow()} aria-label="Close">
+            <button
+              className="icon-btn"
+              onClick={() => void closeResultWindow()}
+              aria-label="Close"
+              disabled={pinLockedBySetting}
+              title={pinLockedBySetting ? "置顶锁定时不可关闭" : undefined}
+            >
               <X size={14} />
             </button>
           </div>
@@ -2360,7 +2386,8 @@ function OcrCaptureWindow() {
 function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const { settings } = settingsApi;
   const [result, setResult] = useState<OcrResultPayload | null>(null);
-  const [isPinnedTop, setIsPinnedTop] = useState(true);
+  const pinLockedBySetting = settings.ocr.resultWindowAlwaysOnTop;
+  const [isPinnedTop, setIsPinnedTop] = useState(() => settings.ocr.resultWindowAlwaysOnTop);
   const latestRequestIdRef = useRef("");
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsAudioRevokeRef = useRef<(() => void) | null>(null);
@@ -2375,9 +2402,15 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     void invoke<boolean>("get_ocr_result_window_pinned_cmd")
       .then((value) => setIsPinnedTop(Boolean(value)))
       .catch(() => {
-        setIsPinnedTop(true);
+        setIsPinnedTop(settings.ocr.resultWindowAlwaysOnTop);
       });
-  }, []);
+  }, [settings.ocr.resultWindowAlwaysOnTop]);
+
+  useEffect(() => {
+    if (pinLockedBySetting) {
+      setIsPinnedTop(true);
+    }
+  }, [pinLockedBySetting]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -2436,6 +2469,10 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const MetaIcon = resultMeta.icon;
 
   async function togglePinTop() {
+    if (pinLockedBySetting) {
+      setIsPinnedTop(true);
+      return;
+    }
     const next = !isPinnedTop;
     try {
       const value = await invoke<boolean>("set_ocr_result_window_pinned_cmd", { pinned: next });
@@ -2454,6 +2491,9 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }
 
   async function closeWindow() {
+    if (pinLockedBySetting) {
+      return;
+    }
     stopTtsPlayback();
     try {
       await invoke("close_ocr_result_window_cmd");
@@ -2690,13 +2730,21 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               className={`icon-btn${isPinnedTop ? " active" : ""}`}
               onClick={() => void togglePinTop()}
               aria-label={isPinnedTop ? "Disable always on top" : "Enable always on top"}
+              disabled={pinLockedBySetting}
+              title={pinLockedBySetting ? "已由设置锁定为置顶" : undefined}
             >
               {isPinnedTop ? <PinOff size={14} /> : <Pin size={14} />}
             </button>
             <button className="icon-btn" onClick={() => void minimizeWindow()} aria-label="Minimize">
               <Minus size={14} />
             </button>
-            <button className="icon-btn" onClick={() => void closeWindow()} aria-label="Close">
+            <button
+              className="icon-btn"
+              onClick={() => void closeWindow()}
+              aria-label="Close"
+              disabled={pinLockedBySetting}
+              title={pinLockedBySetting ? "置顶锁定时不可关闭" : undefined}
+            >
               <X size={14} />
             </button>
           </div>
@@ -3036,15 +3084,45 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     void refreshRunningApps();
   }, [activeGroup, runningApps.length, runningAppsLoading]);
 
-  const checkedUpdateOnSettingsEntryRef = useRef(false);
+  const lastAutoUpdateCheckAtRef = useRef(0);
   useEffect(() => {
-    if (!settings.window.checkUpdatesOnStartup) {
-      checkedUpdateOnSettingsEntryRef.current = false;
-      return;
-    }
-    if (checkedUpdateOnSettingsEntryRef.current) return;
-    checkedUpdateOnSettingsEntryRef.current = true;
-    void checkForAppUpdates({ silent: true, notifyOnAvailable: true });
+    if (!settings.window.checkUpdatesOnStartup) return;
+
+    const triggerCheck = () => {
+      void (async () => {
+        let visible = true;
+        let focused = true;
+        try {
+          const win = getCurrentWebviewWindow();
+          visible = await win.isVisible();
+          focused = await win.isFocused();
+        } catch {
+          focused = document.hasFocus();
+        }
+        if (!visible || !focused) return;
+
+        const now = Date.now();
+        if (now - lastAutoUpdateCheckAtRef.current < 1500) {
+          return;
+        }
+        lastAutoUpdateCheckAtRef.current = now;
+        void checkForAppUpdates({ silent: true, notifyOnAvailable: true });
+      })();
+    };
+
+    const onVisibility = () => {
+      if (!document.hidden) {
+        triggerCheck();
+      }
+    };
+
+    triggerCheck();
+    window.addEventListener("focus", triggerCheck);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("focus", triggerCheck);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [settings.window.checkUpdatesOnStartup]);
 
   async function applyPatch(patch: AppSettingsPatch, successMessage = "设置已更新") {
@@ -4239,20 +4317,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
             <article className="settings-card">
               <h2>视觉模型 API（OpenAI-compatible / GLM OCR）</h2>
-              <label className="check-row">
-                <span>启用视觉模型</span>
-                <input
-                  className="md2-check"
-                  type="checkbox"
-                  checked={settings.ocr.vision.enabled}
-                  onChange={(event) => {
-                    void applyPatch({
-                      ocr: { vision: { enabled: event.target.checked } }
-                    });
-                  }}
-                />
-              </label>
-
               <div className="filled-control">
                 <label htmlFor="ocr-vision-base-url">Base URL</label>
                 <input
@@ -4274,7 +4338,12 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                   value={settings.ocr.vision.apiKey}
                   onChange={(event) => {
                     void applyPatch({
-                      ocr: { vision: { apiKey: event.target.value } }
+                      ocr: {
+                        vision: {
+                          apiKey: event.target.value,
+                          enabled: event.target.value.trim().length > 0
+                        }
+                      }
                     });
                   }}
                 />

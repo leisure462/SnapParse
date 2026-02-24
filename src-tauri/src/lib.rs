@@ -1364,6 +1364,7 @@ fn normalize_settings(settings: &mut AppSettings) {
         .clamp(MIN_TTS_RATE_PERCENT, MAX_TTS_RATE_PERCENT);
 
     settings.ocr.custom_agent_id = settings.ocr.custom_agent_id.trim().to_string();
+    settings.ocr.vision.api_key = settings.ocr.vision.api_key.trim().to_string();
     settings.ocr.vision.base_url = settings.ocr.vision.base_url.trim().to_string();
     if settings.ocr.vision.base_url.is_empty() {
         settings.ocr.vision.base_url = "https://api.openai.com/v1/chat/completions".to_string();
@@ -1375,6 +1376,7 @@ fn normalize_settings(settings: &mut AppSettings) {
     settings.ocr.vision.temperature = settings.ocr.vision.temperature.clamp(0.0, 2.0);
     settings.ocr.vision.max_tokens = settings.ocr.vision.max_tokens.clamp(256, 8192);
     settings.ocr.vision.timeout_ms = settings.ocr.vision.timeout_ms.clamp(5_000, 120_000);
+    settings.ocr.vision.enabled = !settings.ocr.vision.api_key.is_empty();
     if settings.ocr.default_action == OcrDefaultAction::Custom
         && settings.ocr.custom_agent_id.is_empty()
     {
@@ -4382,9 +4384,9 @@ async fn call_vision_ocr(
     vision: &VisionSettings,
     image_data_url: &str,
 ) -> Result<String, CommandError> {
-    if !vision.enabled || vision.api_key.trim().is_empty() {
+    if vision.api_key.trim().is_empty() {
         return Err(CommandError::Settings(
-            "请先在智能 OCR 设置中配置并启用视觉模型 API".to_string(),
+            "请先在智能 OCR 设置中填写视觉模型 API Key".to_string(),
         ));
     }
 
@@ -5453,22 +5455,29 @@ fn set_result_window_pinned_cmd(
     settings_state: State<'_, AppSettingsState>,
     history_state: State<'_, Mutex<ClipboardState>>,
 ) -> Result<bool, CommandError> {
+    let enforce_pinned = settings_state
+        .data
+        .lock()
+        .map(|settings| settings.selection_assistant.result_window_always_on_top)
+        .unwrap_or(false);
+    let next_pinned = if enforce_pinned { true } else { pinned };
+
     if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
         window
-            .set_always_on_top(pinned)
+            .set_always_on_top(next_pinned)
             .map_err(|error| CommandError::Settings(error.to_string()))?;
     }
 
     let patch = SettingsPatch {
         selection_assistant: Some(SelectionAssistantSettingsPatch {
-            result_window_always_on_top: Some(pinned),
+            result_window_always_on_top: Some(next_pinned),
             ..SelectionAssistantSettingsPatch::default()
         }),
         ..SettingsPatch::default()
     };
     let _ = update_settings_internal(&app, &settings_state, &history_state, patch)?;
 
-    Ok(pinned)
+    Ok(next_pinned)
 }
 
 #[tauri::command]
@@ -5495,7 +5504,19 @@ fn minimize_selection_result_window(app: AppHandle) -> Result<(), CommandError> 
 }
 
 #[tauri::command]
-fn close_selection_result_window(app: AppHandle) -> Result<(), CommandError> {
+fn close_selection_result_window(
+    app: AppHandle,
+    settings_state: State<'_, AppSettingsState>,
+) -> Result<(), CommandError> {
+    let enforce_pinned = settings_state
+        .data
+        .lock()
+        .map(|settings| settings.selection_assistant.result_window_always_on_top)
+        .unwrap_or(false);
+    if enforce_pinned {
+        return Ok(());
+    }
+
     let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) else {
         return Err(CommandError::Settings(
             "Selection result window not found".to_string(),
@@ -5978,22 +5999,29 @@ fn set_ocr_result_window_pinned_cmd(
     settings_state: State<'_, AppSettingsState>,
     history_state: State<'_, Mutex<ClipboardState>>,
 ) -> Result<bool, CommandError> {
+    let enforce_pinned = settings_state
+        .data
+        .lock()
+        .map(|settings| settings.ocr.result_window_always_on_top)
+        .unwrap_or(false);
+    let next_pinned = if enforce_pinned { true } else { pinned };
+
     if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
         window
-            .set_always_on_top(pinned)
+            .set_always_on_top(next_pinned)
             .map_err(|error| CommandError::Settings(error.to_string()))?;
     }
 
     let patch = SettingsPatch {
         ocr: Some(OcrSettingsPatch {
-            result_window_always_on_top: Some(pinned),
+            result_window_always_on_top: Some(next_pinned),
             ..OcrSettingsPatch::default()
         }),
         ..SettingsPatch::default()
     };
     let _ = update_settings_internal(&app, &settings_state, &history_state, patch)?;
 
-    Ok(pinned)
+    Ok(next_pinned)
 }
 
 #[tauri::command]
@@ -6010,7 +6038,19 @@ fn minimize_ocr_result_window_cmd(app: AppHandle) -> Result<(), CommandError> {
 }
 
 #[tauri::command]
-fn close_ocr_result_window_cmd(app: AppHandle) -> Result<(), CommandError> {
+fn close_ocr_result_window_cmd(
+    app: AppHandle,
+    settings_state: State<'_, AppSettingsState>,
+) -> Result<(), CommandError> {
+    let enforce_pinned = settings_state
+        .data
+        .lock()
+        .map(|settings| settings.ocr.result_window_always_on_top)
+        .unwrap_or(false);
+    if enforce_pinned {
+        return Ok(());
+    }
+
     let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) else {
         return Err(CommandError::Settings(
             "OCR result window not found".to_string(),
