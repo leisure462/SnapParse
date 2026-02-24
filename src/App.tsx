@@ -298,12 +298,12 @@ const FILTER_OPTIONS: FilterOption[] = [
 ];
 
 const THEME_OPTIONS: ThemeOption[] = [
-  { key: "md2-dark", label: "MD2 Dark" },
-  { key: "midnight", label: "Midnight" },
-  { key: "graphite", label: "Graphite" },
-  { key: "daylight", label: "Daylight" },
-  { key: "sunrise", label: "Sunrise" },
-  { key: "amber-mist", label: "Amber Mist" }
+  { key: "md2-dark", label: "Fluent Dark" },
+  { key: "midnight", label: "Fluent Midnight" },
+  { key: "graphite", label: "Fluent Graphite" },
+  { key: "daylight", label: "Fluent Daylight" },
+  { key: "sunrise", label: "Fluent Sunrise" },
+  { key: "amber-mist", label: "Fluent Amber" }
 ];
 
 const PASTE_BEHAVIOR_OPTIONS: Array<{ key: PasteBehavior; label: string }> = [
