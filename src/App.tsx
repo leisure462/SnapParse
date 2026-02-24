@@ -125,7 +125,8 @@ const FALLBACK_SETTINGS: AppSettings = {
     rememberPosition: true,
     rememberMainWindowSize: true,
     launchOnSystemStartup: false,
-    silentStartup: false
+    silentStartup: false,
+    checkUpdatesOnStartup: false
   },
   selectionAssistant: {
     enabled: true,
@@ -835,7 +836,10 @@ function sanitizeSettings(input: AppSettings): AppSettings {
         input.window?.launchOnSystemStartup ??
         FALLBACK_SETTINGS.window.launchOnSystemStartup,
       silentStartup:
-        input.window?.silentStartup ?? FALLBACK_SETTINGS.window.silentStartup
+        input.window?.silentStartup ?? FALLBACK_SETTINGS.window.silentStartup,
+      checkUpdatesOnStartup:
+        input.window?.checkUpdatesOnStartup ??
+        FALLBACK_SETTINGS.window.checkUpdatesOnStartup
     },
     selectionAssistant: {
       enabled: Boolean(
@@ -3704,6 +3708,17 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                   checked={settings.window.silentStartup}
                   onChange={(event) => {
                     void applyPatch({ window: { silentStartup: event.target.checked } });
+                  }}
+                />
+              </label>
+              <label className="check-row">
+                <span>启动时检查更新</span>
+                <input
+                  className="md2-check"
+                  type="checkbox"
+                  checked={settings.window.checkUpdatesOnStartup}
+                  onChange={(event) => {
+                    void applyPatch({ window: { checkUpdatesOnStartup: event.target.checked } });
                   }}
                 />
               </label>

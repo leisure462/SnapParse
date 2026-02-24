@@ -32,6 +32,7 @@ use tauri::{
 };
 use tauri_plugin_autostart::AutoLaunchManager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+use tauri_plugin_updater::UpdaterExt;
 use thiserror::Error;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::Foundation::{CloseHandle, HWND, POINT, RECT};
@@ -53,7 +54,8 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId,
-    IsIconic, IsWindow, SetForegroundWindow, ShowWindow, SW_RESTORE,
+    IsIconic, IsWindow, MessageBoxW, SetForegroundWindow, ShowWindow, IDYES,
+    MB_ICONINFORMATION, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNO, SW_RESTORE,
 };
 
 const SETTINGS_VERSION: u32 = 8;
@@ -421,6 +423,7 @@ struct WindowSettings {
     remember_main_window_size: bool,
     launch_on_system_startup: bool,
     silent_startup: bool,
+    check_updates_on_startup: bool,
 }
 
 impl Default for WindowSettings {
@@ -431,6 +434,7 @@ impl Default for WindowSettings {
             remember_main_window_size: true,
             launch_on_system_startup: false,
             silent_startup: false,
+            check_updates_on_startup: false,
         }
     }
 }
@@ -548,6 +552,7 @@ struct WindowSettingsPatch {
     remember_main_window_size: Option<bool>,
     launch_on_system_startup: Option<bool>,
     silent_startup: Option<bool>,
+    check_updates_on_startup: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -1441,6 +1446,9 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
         }
         if let Some(enabled) = window_patch.silent_startup {
             settings.window.silent_startup = enabled;
+        }
+        if let Some(enabled) = window_patch.check_updates_on_startup {
+            settings.window.check_updates_on_startup = enabled;
         }
     }
 
@@ -4447,6 +4455,70 @@ fn show_settings_window<R: Runtime>(app: &AppHandle<R>) {
     show_window_by_label(app, SETTINGS_WINDOW_LABEL, true);
 }
 
+#[cfg(target_os = "windows")]
+fn show_startup_update_prompt(language: &str, version: &str) -> bool {
+    let is_english = language.eq_ignore_ascii_case("en-US");
+    let title = if is_english {
+        "SnapParse Update Available"
+    } else {
+        "SnapParse 更新提醒"
+    };
+    let message = if is_english {
+        format!(
+            "A new version (v{version}) is available.\nOpen \"About & Diagnostics\" now to update?"
+        )
+    } else {
+        format!(
+            "检测到新版本 v{version}。\n是否现在打开“关于与诊断”页面进行更新？"
+        )
+    };
+
+    let title_wide: Vec<u16> = title.encode_utf16().chain(std::iter::once(0)).collect();
+    let message_wide: Vec<u16> = message.encode_utf16().chain(std::iter::once(0)).collect();
+    let result = unsafe {
+        MessageBoxW(
+            std::ptr::null_mut(),
+            message_wide.as_ptr(),
+            title_wide.as_ptr(),
+            MB_YESNO | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND,
+        )
+    };
+    result == IDYES
+}
+
+#[cfg(not(target_os = "windows"))]
+fn show_startup_update_prompt(_language: &str, _version: &str) -> bool {
+    false
+}
+
+fn schedule_startup_update_check<R: Runtime>(app: AppHandle<R>, language: String) {
+    tauri::async_runtime::spawn(async move {
+        let updater = match app.updater() {
+            Ok(updater) => updater,
+            Err(error) => {
+                eprintln!("[Updater] failed to initialize updater: {error}");
+                return;
+            }
+        };
+
+        let update = match updater.check().await {
+            Ok(update) => update,
+            Err(error) => {
+                eprintln!("[Updater] startup check failed: {error}");
+                return;
+            }
+        };
+
+        let Some(update) = update else {
+            return;
+        };
+
+        if show_startup_update_prompt(&language, &update.version) {
+            show_settings_window(&app);
+        }
+    });
+}
+
 fn toggle_main_window<R: Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         let visible = window.is_visible().unwrap_or(false);
@@ -6215,6 +6287,7 @@ fn reset_settings(
             remember_main_window_size: Some(defaults.window.remember_main_window_size),
             launch_on_system_startup: Some(defaults.window.launch_on_system_startup),
             silent_startup: Some(defaults.window.silent_startup),
+            check_updates_on_startup: Some(defaults.window.check_updates_on_startup),
         }),
         selection_assistant: Some(SelectionAssistantSettingsPatch {
             enabled: Some(defaults.selection_assistant.enabled),
@@ -6885,6 +6958,10 @@ pub fn run() {
                     "Failed to register OCR shortcut {}: {error}. Shortcut may be occupied by another app.",
                     settings.shortcuts.toggle_ocr
                 );
+            }
+
+            if settings.window.check_updates_on_startup {
+                schedule_startup_update_check(app_handle.clone(), settings.language.clone());
             }
 
             start_selection_detector_thread(app_handle.clone());

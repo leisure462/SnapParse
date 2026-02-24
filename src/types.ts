@@ -39,6 +39,7 @@ export interface WindowSettings {
   rememberMainWindowSize: boolean;
   launchOnSystemStartup: boolean;
   silentStartup: boolean;
+  checkUpdatesOnStartup: boolean;
 }
 
 export interface SelectionAssistantSettings {
@@ -149,6 +150,7 @@ export interface WindowSettingsPatch {
   rememberMainWindowSize?: boolean;
   launchOnSystemStartup?: boolean;
   silentStartup?: boolean;
+  checkUpdatesOnStartup?: boolean;
 }
 
 export interface SelectionAssistantSettingsPatch {
