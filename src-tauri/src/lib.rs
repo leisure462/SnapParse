@@ -5452,32 +5452,14 @@ fn open_search_with_text(app: AppHandle, text: String) -> Result<(), CommandErro
 fn set_result_window_pinned_cmd(
     app: AppHandle,
     pinned: bool,
-    settings_state: State<'_, AppSettingsState>,
-    history_state: State<'_, Mutex<ClipboardState>>,
 ) -> Result<bool, CommandError> {
-    let enforce_pinned = settings_state
-        .data
-        .lock()
-        .map(|settings| settings.selection_assistant.result_window_always_on_top)
-        .unwrap_or(false);
-    let next_pinned = if enforce_pinned { true } else { pinned };
-
     if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
         window
-            .set_always_on_top(next_pinned)
+            .set_always_on_top(pinned)
             .map_err(|error| CommandError::Settings(error.to_string()))?;
     }
 
-    let patch = SettingsPatch {
-        selection_assistant: Some(SelectionAssistantSettingsPatch {
-            result_window_always_on_top: Some(next_pinned),
-            ..SelectionAssistantSettingsPatch::default()
-        }),
-        ..SettingsPatch::default()
-    };
-    let _ = update_settings_internal(&app, &settings_state, &history_state, patch)?;
-
-    Ok(next_pinned)
+    Ok(pinned)
 }
 
 #[tauri::command]
@@ -5504,19 +5486,7 @@ fn minimize_selection_result_window(app: AppHandle) -> Result<(), CommandError> 
 }
 
 #[tauri::command]
-fn close_selection_result_window(
-    app: AppHandle,
-    settings_state: State<'_, AppSettingsState>,
-) -> Result<(), CommandError> {
-    let enforce_pinned = settings_state
-        .data
-        .lock()
-        .map(|settings| settings.selection_assistant.result_window_always_on_top)
-        .unwrap_or(false);
-    if enforce_pinned {
-        return Ok(());
-    }
-
+fn close_selection_result_window(app: AppHandle) -> Result<(), CommandError> {
     let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) else {
         return Err(CommandError::Settings(
             "Selection result window not found".to_string(),
@@ -5996,32 +5966,14 @@ fn get_ocr_result_window_pinned_cmd(settings_state: State<'_, AppSettingsState>)
 fn set_ocr_result_window_pinned_cmd(
     app: AppHandle,
     pinned: bool,
-    settings_state: State<'_, AppSettingsState>,
-    history_state: State<'_, Mutex<ClipboardState>>,
 ) -> Result<bool, CommandError> {
-    let enforce_pinned = settings_state
-        .data
-        .lock()
-        .map(|settings| settings.ocr.result_window_always_on_top)
-        .unwrap_or(false);
-    let next_pinned = if enforce_pinned { true } else { pinned };
-
     if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
         window
-            .set_always_on_top(next_pinned)
+            .set_always_on_top(pinned)
             .map_err(|error| CommandError::Settings(error.to_string()))?;
     }
 
-    let patch = SettingsPatch {
-        ocr: Some(OcrSettingsPatch {
-            result_window_always_on_top: Some(next_pinned),
-            ..OcrSettingsPatch::default()
-        }),
-        ..SettingsPatch::default()
-    };
-    let _ = update_settings_internal(&app, &settings_state, &history_state, patch)?;
-
-    Ok(next_pinned)
+    Ok(pinned)
 }
 
 #[tauri::command]
@@ -6038,19 +5990,7 @@ fn minimize_ocr_result_window_cmd(app: AppHandle) -> Result<(), CommandError> {
 }
 
 #[tauri::command]
-fn close_ocr_result_window_cmd(
-    app: AppHandle,
-    settings_state: State<'_, AppSettingsState>,
-) -> Result<(), CommandError> {
-    let enforce_pinned = settings_state
-        .data
-        .lock()
-        .map(|settings| settings.ocr.result_window_always_on_top)
-        .unwrap_or(false);
-    if enforce_pinned {
-        return Ok(());
-    }
-
+fn close_ocr_result_window_cmd(app: AppHandle) -> Result<(), CommandError> {
     let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) else {
         return Err(CommandError::Settings(
             "OCR result window not found".to_string(),

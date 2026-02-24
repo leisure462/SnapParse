@@ -2330,23 +2330,78 @@ select {
   min-height: 90px;
 }
 
-.shortcut-recorder {
-  margin-top: calc(var(--grid) * 1);
+.shortcut-grid {
+  margin-top: calc(var(--grid) * 0.9);
+  display: grid;
+  gap: calc(var(--grid) * 0.72);
+}
+
+.shortcut-item {
+  border-radius: 12px;
+  border: 1px solid var(--settings-control-border);
+  background: var(--settings-inset-bg);
+  padding: calc(var(--grid) * 0.78);
+  display: grid;
+  gap: calc(var(--grid) * 0.68);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.shortcut-item.recording {
+  border-color: color-mix(in srgb, var(--primary) 72%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 34%, transparent);
+}
+
+.shortcut-item-head {
   display: flex;
-  gap: calc(var(--grid) * 1);
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: calc(var(--grid) * 0.8);
+  min-width: 0;
+}
+
+.shortcut-item-title {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--grid) * 0.6);
+  min-width: 0;
+}
+
+.shortcut-item-title svg {
+  color: var(--primary);
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.shortcut-item-title h3 {
+  margin: 0;
+  color: var(--text-high);
+  font-size: var(--settings-font-md);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.shortcut-item-title p {
+  margin: calc(var(--grid) * 0.26) 0 0;
+  color: var(--text-mid);
+  font-size: var(--settings-font-xs);
+  line-height: 1.35;
 }
 
 .shortcut-value {
-  min-width: 140px;
-  border-radius: var(--radius-pill);
-  padding: calc(var(--grid) * 0.55) calc(var(--grid) * 0.95);
+  min-width: 138px;
+  border-radius: 999px;
+  padding: calc(var(--grid) * 0.46) calc(var(--grid) * 0.88);
   background: var(--settings-pill-bg);
   border: 1px solid var(--settings-pill-border);
   box-shadow: none;
   color: var(--text-high);
   font-size: var(--settings-font-sm);
+  font-family: "Consolas", "SFMono-Regular", "Roboto Mono", monospace;
+  text-align: center;
+}
+
+.shortcut-item .tonal-btn {
+  justify-self: flex-start;
 }
 
 .settings-json {
@@ -2410,6 +2465,22 @@ select {
 
   .agent-modal-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .shortcut-item-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .shortcut-value {
+    min-width: 0;
+    width: 100%;
+    text-align: left;
+  }
+
+  .shortcut-item .tonal-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 

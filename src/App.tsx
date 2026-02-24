@@ -1751,7 +1751,6 @@ function SelectionBarWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const { settings, updateSettings } = settingsApi;
   const [result, setResult] = useState<SelectionResultPayload | null>(null);
-  const pinLockedBySetting = settings.selectionAssistant.resultWindowAlwaysOnTop;
   const [isPinnedTop, setIsPinnedTop] = useState(
     () => settings.selectionAssistant.resultWindowAlwaysOnTop
   );
@@ -1776,12 +1775,6 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
         setIsPinnedTop(settings.selectionAssistant.resultWindowAlwaysOnTop);
       });
   }, [settings.selectionAssistant.resultWindowAlwaysOnTop]);
-
-  useEffect(() => {
-    if (pinLockedBySetting) {
-      setIsPinnedTop(true);
-    }
-  }, [pinLockedBySetting]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -1821,10 +1814,6 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }, []);
 
   async function togglePinTop() {
-    if (pinLockedBySetting) {
-      setIsPinnedTop(true);
-      return;
-    }
     const next = !isPinnedTop;
     try {
       const value = await invoke<boolean>("set_result_window_pinned_cmd", { pinned: next });
@@ -1843,9 +1832,6 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }
 
   async function closeResultWindow() {
-    if (pinLockedBySetting) {
-      return;
-    }
     stopTtsPlayback();
     try {
       await invoke("close_selection_result_window");
@@ -2123,18 +2109,10 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               className={`icon-btn${isPinnedTop ? " active" : ""}`}
               onClick={() => void togglePinTop()}
               aria-label={isPinnedTop ? "Disable always on top" : "Enable always on top"}
-              disabled={pinLockedBySetting}
-              title={pinLockedBySetting ? "已由设置锁定为置顶" : undefined}
             >
               {isPinnedTop ? <PinOff size={14} /> : <Pin size={14} />}
             </button>
-            <button
-              className="icon-btn"
-              onClick={() => void closeResultWindow()}
-              aria-label="Close"
-              disabled={pinLockedBySetting}
-              title={pinLockedBySetting ? "置顶锁定时不可关闭" : undefined}
-            >
+            <button className="icon-btn" onClick={() => void closeResultWindow()} aria-label="Close">
               <X size={14} />
             </button>
           </div>
@@ -2386,7 +2364,6 @@ function OcrCaptureWindow() {
 function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const { settings } = settingsApi;
   const [result, setResult] = useState<OcrResultPayload | null>(null);
-  const pinLockedBySetting = settings.ocr.resultWindowAlwaysOnTop;
   const [isPinnedTop, setIsPinnedTop] = useState(() => settings.ocr.resultWindowAlwaysOnTop);
   const latestRequestIdRef = useRef("");
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2405,12 +2382,6 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
         setIsPinnedTop(settings.ocr.resultWindowAlwaysOnTop);
       });
   }, [settings.ocr.resultWindowAlwaysOnTop]);
-
-  useEffect(() => {
-    if (pinLockedBySetting) {
-      setIsPinnedTop(true);
-    }
-  }, [pinLockedBySetting]);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -2469,10 +2440,6 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const MetaIcon = resultMeta.icon;
 
   async function togglePinTop() {
-    if (pinLockedBySetting) {
-      setIsPinnedTop(true);
-      return;
-    }
     const next = !isPinnedTop;
     try {
       const value = await invoke<boolean>("set_ocr_result_window_pinned_cmd", { pinned: next });
@@ -2491,9 +2458,6 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }
 
   async function closeWindow() {
-    if (pinLockedBySetting) {
-      return;
-    }
     stopTtsPlayback();
     try {
       await invoke("close_ocr_result_window_cmd");
@@ -2730,21 +2694,13 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               className={`icon-btn${isPinnedTop ? " active" : ""}`}
               onClick={() => void togglePinTop()}
               aria-label={isPinnedTop ? "Disable always on top" : "Enable always on top"}
-              disabled={pinLockedBySetting}
-              title={pinLockedBySetting ? "已由设置锁定为置顶" : undefined}
             >
               {isPinnedTop ? <PinOff size={14} /> : <Pin size={14} />}
             </button>
             <button className="icon-btn" onClick={() => void minimizeWindow()} aria-label="Minimize">
               <Minus size={14} />
             </button>
-            <button
-              className="icon-btn"
-              onClick={() => void closeWindow()}
-              aria-label="Close"
-              disabled={pinLockedBySetting}
-              title={pinLockedBySetting ? "置顶锁定时不可关闭" : undefined}
-            >
+            <button className="icon-btn" onClick={() => void closeWindow()} aria-label="Close">
               <X size={14} />
             </button>
           </div>
@@ -4603,41 +4559,60 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
             <article className="settings-card">
               <h2>全局快捷键</h2>
               <p className="help-text">点击按钮后按下组合键（至少包含 Ctrl/Alt/Shift/Meta）。</p>
+              <div className="shortcut-grid">
+                <div className={`shortcut-item${recordingMainShortcut ? " recording" : ""}`}>
+                  <div className="shortcut-item-head">
+                    <div className="shortcut-item-title">
+                      <Keyboard size={14} />
+                      <div>
+                        <h3>粘贴窗口</h3>
+                        <p>打开或隐藏剪贴板窗口</p>
+                      </div>
+                    </div>
+                    <div className="shortcut-value">{settings.shortcuts.toggleMain}</div>
+                  </div>
+                  <button
+                    className={`tonal-btn${recordingMainShortcut ? " recording" : ""}`}
+                    onClick={() => {
+                      setRecordingOcrShortcut(false);
+                      setRecordingMainShortcut((prev) => !prev);
+                      setStatus((prev) =>
+                        recordingMainShortcut ? prev : "正在录制粘贴窗口快捷键，按 Esc 可取消"
+                      );
+                    }}
+                    disabled={updating || recordingOcrShortcut}
+                  >
+                    <Keyboard size={14} />
+                    <span>{recordingMainShortcut ? "录制中..." : "录制快捷键"}</span>
+                  </button>
+                </div>
 
-              <div className="shortcut-recorder">
-                <button
-                  className={`tonal-btn${recordingMainShortcut ? " recording" : ""}`}
-                  onClick={() => {
-                    setRecordingOcrShortcut(false);
-                    setRecordingMainShortcut((prev) => !prev);
-                    setStatus((prev) =>
-                      recordingMainShortcut ? prev : "正在录制粘贴窗口快捷键，按 Esc 可取消"
-                    );
-                  }}
-                  disabled={updating || recordingOcrShortcut}
-                >
-                  <Keyboard size={14} />
-                  <span>{recordingMainShortcut ? "录制中..." : "录制粘贴窗口快捷键"}</span>
-                </button>
-                <div className="shortcut-value">{settings.shortcuts.toggleMain}</div>
-              </div>
-
-              <div className="shortcut-recorder">
-                <button
-                  className={`tonal-btn${recordingOcrShortcut ? " recording" : ""}`}
-                  onClick={() => {
-                    setRecordingMainShortcut(false);
-                    setRecordingOcrShortcut((prev) => !prev);
-                    setStatus((prev) =>
-                      recordingOcrShortcut ? prev : "正在录制 OCR 快捷键，按 Esc 可取消"
-                    );
-                  }}
-                  disabled={updating || recordingMainShortcut}
-                >
-                  <ScanSearch size={14} />
-                  <span>{recordingOcrShortcut ? "录制中..." : "录制 OCR 快捷键"}</span>
-                </button>
-                <div className="shortcut-value">{settings.shortcuts.toggleOcr}</div>
+                <div className={`shortcut-item${recordingOcrShortcut ? " recording" : ""}`}>
+                  <div className="shortcut-item-head">
+                    <div className="shortcut-item-title">
+                      <ScanSearch size={14} />
+                      <div>
+                        <h3>智能 OCR</h3>
+                        <p>启动 OCR 截图识别流程</p>
+                      </div>
+                    </div>
+                    <div className="shortcut-value">{settings.shortcuts.toggleOcr}</div>
+                  </div>
+                  <button
+                    className={`tonal-btn${recordingOcrShortcut ? " recording" : ""}`}
+                    onClick={() => {
+                      setRecordingMainShortcut(false);
+                      setRecordingOcrShortcut((prev) => !prev);
+                      setStatus((prev) =>
+                        recordingOcrShortcut ? prev : "正在录制 OCR 快捷键，按 Esc 可取消"
+                      );
+                    }}
+                    disabled={updating || recordingMainShortcut}
+                  >
+                    <ScanSearch size={14} />
+                    <span>{recordingOcrShortcut ? "录制中..." : "录制快捷键"}</span>
+                  </button>
+                </div>
               </div>
             </article>
           </section>
