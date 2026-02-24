@@ -111,6 +111,7 @@ const OCR_CAPTURE_BLUR_SUPPRESS_MS: u64 = 1_100;
 const MODEL_REQUEST_MAX_ATTEMPTS: usize = 3;
 const MODEL_REQUEST_RETRY_BASE_DELAY_MS: u64 = 140;
 const MODEL_REQUEST_RETRY_MAX_DELAY_MS: u64 = 850;
+const GLM_OCR_TEST_IMAGE_URL: &str = "https://cdn.bigmodel.cn/static/logo/introduction.png";
 static EDGE_TTS_AUTO_INSTALL_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 const EDGE_TTS_INSTALL_IN_PROGRESS: &str = "__EDGE_TTS_INSTALL_IN_PROGRESS__";
 #[cfg(target_os = "windows")]
@@ -153,10 +154,10 @@ enum FilterKind {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 enum ThemePreset {
-    #[serde(rename = "blue", alias = "black", alias = "md2-dark", alias = "midnight")]
+    #[serde(rename = "blue", alias = "md2-dark", alias = "midnight")]
     Blue,
     #[default]
-    #[serde(rename = "deep-black")]
+    #[serde(rename = "deep-black", alias = "black", alias = "dark")]
     DeepBlack,
     #[serde(rename = "gray", alias = "graphite")]
     Gray,
@@ -249,7 +250,7 @@ struct LlmSettings {
 impl Default for LlmSettings {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             base_url: "https://api.openai.com/v1/chat/completions".to_string(),
             api_key: String::new(),
             model: "gpt-4o-mini".to_string(),
@@ -1382,6 +1383,7 @@ fn normalize_settings(settings: &mut AppSettings) {
     if settings.llm.base_url.is_empty() {
         settings.llm.base_url = "https://api.openai.com/v1/chat/completions".to_string();
     }
+    settings.llm.enabled = true;
     settings.llm.model = settings.llm.model.trim().to_string();
     if settings.llm.model.is_empty() {
         settings.llm.model = "gpt-4o-mini".to_string();
@@ -1525,9 +1527,7 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
     }
 
     if let Some(llm_patch) = patch.llm {
-        if let Some(enabled) = llm_patch.enabled {
-            settings.llm.enabled = enabled;
-        }
+        let _ = llm_patch.enabled;
         if let Some(base_url) = llm_patch.base_url {
             settings.llm.base_url = base_url;
         }
@@ -1701,7 +1701,7 @@ fn normalize_enum_value_in_object(
     key: &str,
     allowed: &[&str],
     default: &str,
-) {
+) -> bool {
     let normalized = object
         .get(key)
         .and_then(|value| value.as_str())
@@ -1717,15 +1717,137 @@ fn normalize_enum_value_in_object(
             key.to_string(),
             serde_json::Value::String(default.to_string()),
         );
+        return true;
     }
+
+    false
 }
 
-fn normalize_settings_json_value(value: &mut serde_json::Value) {
-    let Some(root) = value.as_object_mut() else {
-        return;
+fn parse_bool_like_json(value: &serde_json::Value) -> Option<bool> {
+    if let Some(flag) = value.as_bool() {
+        return Some(flag);
+    }
+    if let Some(number) = value.as_i64() {
+        return Some(number != 0);
+    }
+    if let Some(text) = value.as_str() {
+        return match text.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" | "on" => Some(true),
+            "0" | "false" | "no" | "off" => Some(false),
+            _ => None,
+        };
+    }
+    None
+}
+
+fn assign_window_bool_if_missing(
+    window_obj: &mut serde_json::Map<String, serde_json::Value>,
+    target_key: &str,
+    flag: bool,
+) -> bool {
+    let has_valid_value = window_obj
+        .get(target_key)
+        .and_then(parse_bool_like_json)
+        .is_some();
+    if has_valid_value {
+        return false;
+    }
+    window_obj.insert(target_key.to_string(), serde_json::Value::Bool(flag));
+    true
+}
+
+fn migrate_legacy_theme_preset(root: &mut serde_json::Map<String, serde_json::Value>) -> bool {
+    let incoming = root
+        .get("themePreset")
+        .and_then(|value| value.as_str())
+        .map(|value| value.trim().to_ascii_lowercase())
+        .or_else(|| {
+            root.get("theme")
+                .and_then(|value| value.as_str())
+                .map(|value| value.trim().to_ascii_lowercase())
+        });
+
+    let Some(theme) = incoming else {
+        return false;
     };
 
-    normalize_enum_value_in_object(
+    let mapped = match theme.as_str() {
+        "black" | "dark" => "deep-black",
+        "md2-dark" | "midnight" => "blue",
+        "graphite" => "gray",
+        "daylight" | "sunrise" | "amber-mist" => "white",
+        "blue" | "deep-black" | "gray" | "white" => theme.as_str(),
+        _ => return false,
+    };
+
+    let current = root
+        .get("themePreset")
+        .and_then(|value| value.as_str())
+        .map(|value| value.trim().to_ascii_lowercase());
+    if current.as_deref() == Some(mapped) {
+        return false;
+    }
+
+    root.insert(
+        "themePreset".to_string(),
+        serde_json::Value::String(mapped.to_string()),
+    );
+    true
+}
+
+fn migrate_legacy_window_settings(root: &mut serde_json::Map<String, serde_json::Value>) -> bool {
+    let mut window_obj = root
+        .remove("window")
+        .and_then(|value| value.as_object().cloned())
+        .unwrap_or_default();
+
+    let mut changed = false;
+
+    for (legacy_key, target_key) in [
+        ("launchOnSystemStartup", "launchOnSystemStartup"),
+        ("launchOnStartup", "launchOnSystemStartup"),
+        ("launch_on_system_startup", "launchOnSystemStartup"),
+        ("silentStartup", "silentStartup"),
+        ("silentOnStartup", "silentStartup"),
+        ("silent_startup", "silentStartup"),
+        ("checkUpdatesOnStartup", "checkUpdatesOnStartup"),
+        ("checkUpdatesOnLaunch", "checkUpdatesOnStartup"),
+        ("check_updates_on_startup", "checkUpdatesOnStartup"),
+        ("autoHideOnBlur", "autoHideOnBlur"),
+        ("auto_hide_on_blur", "autoHideOnBlur"),
+        ("rememberPosition", "rememberPosition"),
+        ("remember_position", "rememberPosition"),
+        ("rememberMainWindowSize", "rememberMainWindowSize"),
+        ("remember_main_window_size", "rememberMainWindowSize"),
+    ] {
+        let root_flag = root.get(legacy_key).and_then(parse_bool_like_json);
+        let nested_flag = window_obj.get(legacy_key).and_then(parse_bool_like_json);
+        if let Some(flag) = root_flag {
+            changed |= assign_window_bool_if_missing(&mut window_obj, target_key, flag);
+        }
+        if let Some(flag) = nested_flag {
+            changed |= assign_window_bool_if_missing(&mut window_obj, target_key, flag);
+        }
+    }
+
+    if !window_obj.is_empty() {
+        root.insert("window".to_string(), serde_json::Value::Object(window_obj));
+    }
+
+    changed
+}
+
+fn normalize_settings_json_value(value: &mut serde_json::Value) -> bool {
+    let Some(root) = value.as_object_mut() else {
+        return false;
+    };
+
+    let mut changed = false;
+
+    changed |= migrate_legacy_theme_preset(root);
+    changed |= migrate_legacy_window_settings(root);
+
+    changed |= normalize_enum_value_in_object(
         root,
         "themePreset",
         &[
@@ -1748,7 +1870,7 @@ fn normalize_settings_json_value(value: &mut serde_json::Value) {
         .get_mut("selectionAssistant")
         .and_then(|value| value.as_object_mut())
     {
-        normalize_enum_value_in_object(
+        changed |= normalize_enum_value_in_object(
             selection,
             "mode",
             &["auto-detect", "copy-trigger"],
@@ -1760,13 +1882,13 @@ fn normalize_settings_json_value(value: &mut serde_json::Value) {
         .get_mut("history")
         .and_then(|value| value.as_object_mut())
     {
-        normalize_enum_value_in_object(
+        changed |= normalize_enum_value_in_object(
             history,
             "defaultCategory",
             &["all", "text", "link", "image", "favorite"],
             "all",
         );
-        normalize_enum_value_in_object(
+        changed |= normalize_enum_value_in_object(
             history,
             "pasteBehavior",
             &["copy-only", "copy-and-hide"],
@@ -1775,7 +1897,7 @@ fn normalize_settings_json_value(value: &mut serde_json::Value) {
     }
 
     if let Some(ocr) = root.get_mut("ocr").and_then(|value| value.as_object_mut()) {
-        normalize_enum_value_in_object(
+        changed |= normalize_enum_value_in_object(
             ocr,
             "defaultAction",
             &["translate", "summarize", "polish", "explain", "custom"],
@@ -1784,13 +1906,15 @@ fn normalize_settings_json_value(value: &mut serde_json::Value) {
     }
 
     if let Some(tts) = root.get_mut("tts").and_then(|value| value.as_object_mut()) {
-        normalize_enum_value_in_object(
+        changed |= normalize_enum_value_in_object(
             tts,
             "runtimeMode",
             &["dual-fallback", "edge-cli-only", "python-module-only"],
             "dual-fallback",
         );
     }
+
+    changed
 }
 
 fn merge_json_value_by_shape(target: &mut serde_json::Value, incoming: &serde_json::Value) {
@@ -1816,22 +1940,19 @@ fn merge_json_value_by_shape(target: &mut serde_json::Value, incoming: &serde_js
 }
 
 fn parse_settings_from_text(text: &str) -> Result<(AppSettings, bool), CommandError> {
-    if let Ok(mut settings) = serde_json::from_str::<AppSettings>(text) {
-        normalize_settings(&mut settings);
-        return Ok((settings, false));
-    }
-
-    let incoming = serde_json::from_str::<serde_json::Value>(text)
+    let mut incoming = serde_json::from_str::<serde_json::Value>(text)
         .map_err(|error| CommandError::Serialization(error.to_string()))?;
+    let direct_parse_ok = serde_json::from_str::<AppSettings>(text).is_ok();
+    let repaired_json = normalize_settings_json_value(&mut incoming);
+
     let mut merged = serde_json::to_value(AppSettings::default())
         .map_err(|error| CommandError::Serialization(error.to_string()))?;
     merge_json_value_by_shape(&mut merged, &incoming);
-    normalize_settings_json_value(&mut merged);
 
     let mut settings = serde_json::from_value::<AppSettings>(merged)
         .map_err(|error| CommandError::Serialization(error.to_string()))?;
     normalize_settings(&mut settings);
-    Ok((settings, true))
+    Ok((settings, repaired_json || !direct_parse_ok))
 }
 
 fn file_modified_epoch_ms(path: &Path) -> u64 {
@@ -5009,6 +5130,59 @@ async fn call_vision_ocr(
     })))
 }
 
+async fn test_openai_compatible_model(
+    client: &reqwest::Client,
+    base_url: &str,
+    api_key: &str,
+    model: &str,
+    timeout_ms: u64,
+) -> Result<String, CommandError> {
+    let request_body = json!({
+        "model": model,
+        "temperature": 0,
+        "max_tokens": 32,
+        "stream": false,
+        "messages": [
+            {"role": "system", "content": "Reply with OK only."},
+            {"role": "user", "content": "API health check"}
+        ]
+    });
+
+    let response = client
+        .post(base_url.trim())
+        .timeout(Duration::from_millis(timeout_ms))
+        .header(AUTHORIZATION, format!("Bearer {}", api_key.trim()))
+        .header(CONTENT_TYPE, "application/json")
+        .json(&request_body)
+        .send()
+        .await
+        .map_err(|error| CommandError::Settings(error.to_string()))?;
+
+    let status = response.status();
+    let raw_body = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(CommandError::Settings(format!(
+            "API 调用失败（{}）: {}",
+            status,
+            format_response_body_for_error(&raw_body)
+        )));
+    }
+
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw_body) {
+        let content = extract_llm_text_content(&value).trim().to_string();
+        if !content.is_empty() {
+            return Ok(content);
+        }
+    }
+
+    let fallback = raw_body.trim();
+    if !fallback.is_empty() {
+        return Ok(fallback.chars().take(80).collect());
+    }
+
+    Ok("OK".to_string())
+}
+
 fn show_window_by_label<R: Runtime>(app: &AppHandle<R>, label: &str, focus: bool) {
     if let Some(window) = app.get_webview_window(label) {
         let _ = window.show();
@@ -6867,6 +7041,72 @@ fn get_settings(settings_state: State<'_, AppSettingsState>) -> Result<AppSettin
 }
 
 #[tauri::command]
+async fn test_llm_api_cmd(
+    settings_state: State<'_, AppSettingsState>,
+    http_client_state: State<'_, HttpClientState>,
+) -> Result<String, CommandError> {
+    let snapshot = settings_state
+        .data
+        .lock()
+        .map_err(|_| CommandError::Lock)?
+        .clone();
+
+    if snapshot.llm.api_key.trim().is_empty() {
+        return Err(CommandError::Settings(
+            "请先填写大模型 API Key".to_string(),
+        ));
+    }
+
+    test_openai_compatible_model(
+        &http_client_state.client,
+        &snapshot.llm.base_url,
+        &snapshot.llm.api_key,
+        &snapshot.llm.model,
+        snapshot.llm.timeout_ms,
+    )
+    .await
+}
+
+#[tauri::command]
+async fn test_ocr_vision_api_cmd(
+    settings_state: State<'_, AppSettingsState>,
+    http_client_state: State<'_, HttpClientState>,
+) -> Result<String, CommandError> {
+    let snapshot = settings_state
+        .data
+        .lock()
+        .map_err(|_| CommandError::Lock)?
+        .clone();
+    let vision = snapshot.ocr.vision;
+
+    if vision.api_key.trim().is_empty() {
+        return Err(CommandError::Settings(
+            "请先填写 OCR 视觉模型 API Key".to_string(),
+        ));
+    }
+
+    if should_use_glm_layout_parsing(&vision) {
+        let text =
+            call_glm_layout_parsing_ocr(&http_client_state.client, &vision, GLM_OCR_TEST_IMAGE_URL)
+                .await?;
+        let normalized = text.trim();
+        if normalized.is_empty() {
+            return Ok("OK".to_string());
+        }
+        return Ok(normalized.chars().take(80).collect());
+    }
+
+    test_openai_compatible_model(
+        &http_client_state.client,
+        &vision.base_url,
+        &vision.api_key,
+        &vision.model,
+        vision.timeout_ms,
+    )
+    .await
+}
+
+#[tauri::command]
 fn pick_history_storage_folder() -> Result<Option<String>, CommandError> {
     let selected = FileDialog::new()
         .set_title("选择复制内容存储文件夹")
@@ -8026,6 +8266,8 @@ pub fn run() {
             minimize_ocr_result_window_cmd,
             close_ocr_result_window_cmd,
             get_settings,
+            test_llm_api_cmd,
+            test_ocr_vision_api_cmd,
             pick_history_storage_folder,
             update_settings,
             reset_settings,

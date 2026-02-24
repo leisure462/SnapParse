@@ -142,7 +142,7 @@ const FALLBACK_SETTINGS: AppSettings = {
     resultWindowAlwaysOnTop: true
   },
   llm: {
-    enabled: false,
+    enabled: true,
     baseUrl: "https://api.openai.com/v1/chat/completions",
     apiKey: "",
     model: "gpt-4o-mini",
@@ -653,6 +653,8 @@ function parseThemePreset(value: unknown): ThemePreset {
     case "deep-black":
       return "deep-black";
     case "black":
+    case "dark":
+      return "deep-black";
     case "md2-dark":
     case "midnight":
       return "blue";
@@ -665,6 +667,14 @@ function parseThemePreset(value: unknown): ThemePreset {
     default:
       return "deep-black";
   }
+}
+
+function readLegacyBoolean(
+  input: Record<string, unknown>,
+  key: string
+): boolean | undefined {
+  const value = input[key];
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function parsePasteBehavior(value: unknown): PasteBehavior {
@@ -832,6 +842,21 @@ interface SettingsApi {
 }
 
 function sanitizeSettings(input: AppSettings): AppSettings {
+  const rawInput = input as unknown as Record<string, unknown>;
+  const rawWindow =
+    rawInput.window && typeof rawInput.window === "object" && !Array.isArray(rawInput.window)
+      ? (rawInput.window as Record<string, unknown>)
+      : null;
+  const legacyLaunchOnSystemStartup =
+    readLegacyBoolean(rawInput, "launchOnSystemStartup") ??
+    (rawWindow ? readLegacyBoolean(rawWindow, "launchOnSystemStartup") : undefined);
+  const legacySilentStartup =
+    readLegacyBoolean(rawInput, "silentStartup") ??
+    (rawWindow ? readLegacyBoolean(rawWindow, "silentStartup") : undefined);
+  const legacyCheckUpdatesOnStartup =
+    readLegacyBoolean(rawInput, "checkUpdatesOnStartup") ??
+    (rawWindow ? readLegacyBoolean(rawWindow, "checkUpdatesOnStartup") : undefined);
+
   const sanitizedCustomAgents = normalizeCustomAgents(input.agents?.custom ?? []);
   const sanitizedBarOrder = normalizeSelectionBarOrder(
     input.agents?.barOrder,
@@ -852,11 +877,15 @@ function sanitizeSettings(input: AppSettings): AppSettings {
         FALLBACK_SETTINGS.window.rememberMainWindowSize,
       launchOnSystemStartup:
         input.window?.launchOnSystemStartup ??
+        legacyLaunchOnSystemStartup ??
         FALLBACK_SETTINGS.window.launchOnSystemStartup,
       silentStartup:
-        input.window?.silentStartup ?? FALLBACK_SETTINGS.window.silentStartup,
+        input.window?.silentStartup ??
+        legacySilentStartup ??
+        FALLBACK_SETTINGS.window.silentStartup,
       checkUpdatesOnStartup:
         input.window?.checkUpdatesOnStartup ??
+        legacyCheckUpdatesOnStartup ??
         FALLBACK_SETTINGS.window.checkUpdatesOnStartup
     },
     selectionAssistant: {
@@ -921,7 +950,7 @@ function sanitizeSettings(input: AppSettings): AppSettings {
       )
     },
     llm: {
-      enabled: Boolean(input.llm?.enabled ?? FALLBACK_SETTINGS.llm.enabled),
+      enabled: true,
       baseUrl: input.llm?.baseUrl?.trim() || FALLBACK_SETTINGS.llm.baseUrl,
       apiKey: input.llm?.apiKey ?? FALLBACK_SETTINGS.llm.apiKey,
       model: input.llm?.model?.trim() || FALLBACK_SETTINGS.llm.model,
@@ -2892,6 +2921,8 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const [runningApps, setRunningApps] = useState<string[]>([]);
   const [runningAppsLoading, setRunningAppsLoading] = useState(false);
   const [runningAppsFilter, setRunningAppsFilter] = useState("");
+  const [testingLlmApi, setTestingLlmApi] = useState(false);
+  const [testingOcrApi, setTestingOcrApi] = useState(false);
   const [numberDrafts, setNumberDrafts] = useState<
     Partial<
       Record<
@@ -3271,6 +3302,32 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       setStatus(String(invokeError));
     } finally {
       setRunningAppsLoading(false);
+    }
+  }
+
+  async function testLlmApiConfig() {
+    if (testingLlmApi) return;
+    setTestingLlmApi(true);
+    try {
+      const summary = await invoke<string>("test_llm_api_cmd");
+      setStatus(summary ? `大模型 API 测试通过：${summary}` : "大模型 API 测试通过");
+    } catch (invokeError) {
+      setStatus(String(invokeError));
+    } finally {
+      setTestingLlmApi(false);
+    }
+  }
+
+  async function testOcrApiConfig() {
+    if (testingOcrApi) return;
+    setTestingOcrApi(true);
+    try {
+      const summary = await invoke<string>("test_ocr_vision_api_cmd");
+      setStatus(summary ? `OCR 模型 API 测试通过：${summary}` : "OCR 模型 API 测试通过");
+    } catch (invokeError) {
+      setStatus(String(invokeError));
+    } finally {
+      setTestingOcrApi(false);
     }
   }
 
@@ -3949,9 +4006,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                       key={item.key}
                       className="bar-order-item"
                     >
-                      <span className="bar-order-handle" aria-hidden="true">
-                        <ChevronsUpDown size={13} />
-                      </span>
                       <Icon size={13} />
                       <span className="bar-order-label">{label}</span>
                       <div className="bar-order-actions">
@@ -4268,17 +4322,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
             <article className="settings-card">
               <h2>大模型 API（OpenAI-compatible）</h2>
-              <label className="check-row">
-                <span>启用模型调用</span>
-                <input
-                  className="md2-check"
-                  type="checkbox"
-                  checked={settings.llm.enabled}
-                  onChange={(event) => {
-                    void applyPatch({ llm: { enabled: event.target.checked } });
-                  }}
-                />
-              </label>
 
               <div className="filled-control">
                 <label htmlFor="llm-base-url">Base URL</label>
@@ -4335,6 +4378,17 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                     );
                   }}
                 />
+              </div>
+              <div className="settings-inline-actions">
+                <button
+                  type="button"
+                  className="path-picker-btn"
+                  onClick={() => void testLlmApiConfig()}
+                  disabled={testingLlmApi || updating}
+                >
+                  <Zap size={13} />
+                  <span>{testingLlmApi ? "测试中..." : "测试 API 配置"}</span>
+                </button>
               </div>
             </article>
 
@@ -4436,8 +4490,7 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                     void applyPatch({
                       ocr: {
                         vision: {
-                          apiKey: event.target.value,
-                          enabled: event.target.value.trim().length > 0
+                          apiKey: event.target.value
                         }
                       }
                     });
@@ -4588,6 +4641,17 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                   }}
                 />
               </div>
+              <div className="settings-inline-actions">
+                <button
+                  type="button"
+                  className="path-picker-btn"
+                  onClick={() => void testOcrApiConfig()}
+                  disabled={testingOcrApi || updating}
+                >
+                  <Zap size={13} />
+                  <span>{testingOcrApi ? "测试中..." : "测试 API 配置"}</span>
+                </button>
+              </div>
             </article>
           </section>
         )}
@@ -4701,7 +4765,7 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               <p className="help-text">点击按钮后按下组合键（至少包含 Ctrl/Alt/Shift/Meta）。</p>
               <div className="shortcut-grid">
                 <div className={`shortcut-item${recordingMainShortcut ? " recording" : ""}`}>
-                  <div className="shortcut-item-head">
+                  <div className="shortcut-item-row">
                     <div className="shortcut-item-title">
                       <Keyboard size={14} />
                       <div>
@@ -4709,26 +4773,25 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                         <p>打开或隐藏剪贴板窗口</p>
                       </div>
                     </div>
-                    <div className="shortcut-value">{settings.shortcuts.toggleMain}</div>
+                    <button
+                      type="button"
+                      className={`shortcut-capture-btn${recordingMainShortcut ? " recording" : ""}`}
+                      onClick={() => {
+                        setRecordingOcrShortcut(false);
+                        setRecordingMainShortcut((prev) => !prev);
+                        setStatus((prev) =>
+                          recordingMainShortcut ? prev : "正在录制粘贴窗口快捷键，按 Esc 可取消"
+                        );
+                      }}
+                      disabled={updating || recordingOcrShortcut}
+                    >
+                      {recordingMainShortcut ? "录制中... 按 Esc 取消" : settings.shortcuts.toggleMain}
+                    </button>
                   </div>
-                  <button
-                    className={`tonal-btn${recordingMainShortcut ? " recording" : ""}`}
-                    onClick={() => {
-                      setRecordingOcrShortcut(false);
-                      setRecordingMainShortcut((prev) => !prev);
-                      setStatus((prev) =>
-                        recordingMainShortcut ? prev : "正在录制粘贴窗口快捷键，按 Esc 可取消"
-                      );
-                    }}
-                    disabled={updating || recordingOcrShortcut}
-                  >
-                    <Keyboard size={14} />
-                    <span>{recordingMainShortcut ? "录制中..." : "录制快捷键"}</span>
-                  </button>
                 </div>
 
                 <div className={`shortcut-item${recordingOcrShortcut ? " recording" : ""}`}>
-                  <div className="shortcut-item-head">
+                  <div className="shortcut-item-row">
                     <div className="shortcut-item-title">
                       <ScanSearch size={14} />
                       <div>
@@ -4736,22 +4799,21 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                         <p>启动 OCR 截图识别流程</p>
                       </div>
                     </div>
-                    <div className="shortcut-value">{settings.shortcuts.toggleOcr}</div>
+                    <button
+                      type="button"
+                      className={`shortcut-capture-btn${recordingOcrShortcut ? " recording" : ""}`}
+                      onClick={() => {
+                        setRecordingMainShortcut(false);
+                        setRecordingOcrShortcut((prev) => !prev);
+                        setStatus((prev) =>
+                          recordingOcrShortcut ? prev : "正在录制 OCR 快捷键，按 Esc 可取消"
+                        );
+                      }}
+                      disabled={updating || recordingMainShortcut}
+                    >
+                      {recordingOcrShortcut ? "录制中... 按 Esc 取消" : settings.shortcuts.toggleOcr}
+                    </button>
                   </div>
-                  <button
-                    className={`tonal-btn${recordingOcrShortcut ? " recording" : ""}`}
-                    onClick={() => {
-                      setRecordingMainShortcut(false);
-                      setRecordingOcrShortcut((prev) => !prev);
-                      setStatus((prev) =>
-                        recordingOcrShortcut ? prev : "正在录制 OCR 快捷键，按 Esc 可取消"
-                      );
-                    }}
-                    disabled={updating || recordingMainShortcut}
-                  >
-                    <ScanSearch size={14} />
-                    <span>{recordingOcrShortcut ? "录制中..." : "录制快捷键"}</span>
-                  </button>
                 </div>
               </div>
             </article>

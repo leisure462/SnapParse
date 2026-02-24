@@ -2257,7 +2257,7 @@ select {
 .bar-order-item {
   min-height: 34px;
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: calc(var(--grid) * 0.48);
   padding: calc(var(--grid) * 0.45) calc(var(--grid) * 0.62);
@@ -2265,13 +2265,6 @@ select {
   border: 1px solid var(--settings-control-border);
   background: var(--settings-control-bg);
   user-select: none;
-}
-
-.bar-order-handle {
-  display: inline-grid;
-  place-items: center;
-  color: var(--text-mid);
-  cursor: default;
 }
 
 .bar-order-actions {
@@ -2348,7 +2341,7 @@ select {
   background: var(--settings-inset-bg);
   padding: calc(var(--grid) * 0.78);
   display: grid;
-  gap: calc(var(--grid) * 0.68);
+  gap: calc(var(--grid) * 0.4);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
@@ -2357,11 +2350,11 @@ select {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 34%, transparent);
 }
 
-.shortcut-item-head {
+.shortcut-item-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: calc(var(--grid) * 0.8);
+  gap: calc(var(--grid) * 0.7);
   min-width: 0;
 }
 
@@ -2393,21 +2386,43 @@ select {
   line-height: 1.35;
 }
 
-.shortcut-value {
-  min-width: 138px;
-  border-radius: 999px;
-  padding: calc(var(--grid) * 0.46) calc(var(--grid) * 0.88);
-  background: var(--settings-pill-bg);
-  border: 1px solid var(--settings-pill-border);
-  box-shadow: none;
+.shortcut-capture-btn {
+  min-width: 176px;
+  max-width: 228px;
+  min-height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--settings-control-border);
+  background: var(--settings-control-bg);
   color: var(--text-high);
   font-size: var(--settings-font-sm);
   font-family: "Consolas", "SFMono-Regular", "Roboto Mono", monospace;
   text-align: center;
+  line-height: 1.15;
+  padding: calc(var(--grid) * 0.56) calc(var(--grid) * 0.9);
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
-.shortcut-item .tonal-btn {
-  justify-self: flex-start;
+.shortcut-capture-btn:hover:not(:disabled) {
+  border-color: var(--settings-control-line-focus);
+  background: var(--settings-control-hover);
+}
+
+.shortcut-capture-btn.recording {
+  border-color: color-mix(in srgb, var(--primary) 72%, transparent);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  color: var(--icon-on-accent);
+}
+
+.shortcut-capture-btn:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.settings-inline-actions {
+  margin-top: calc(var(--grid) * 0.35);
+  display: flex;
+  justify-content: flex-end;
 }
 
 .settings-json {
@@ -2473,20 +2488,14 @@ select {
     grid-template-columns: 1fr;
   }
 
-  .shortcut-item-head {
+  .shortcut-item-row {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .shortcut-value {
+  .shortcut-capture-btn {
     min-width: 0;
     width: 100%;
-    text-align: left;
-  }
-
-  .shortcut-item .tonal-btn {
-    width: 100%;
-    justify-content: center;
   }
 }
 
