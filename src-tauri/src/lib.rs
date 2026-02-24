@@ -48,7 +48,7 @@ use windows_sys::Win32::System::DataExchange::GetClipboardSequenceNumber;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP,
-    VK_CONTROL, VK_INSERT, VK_LBUTTON, VK_SHIFT,
+    VK_CONTROL, VK_ESCAPE, VK_INSERT, VK_LBUTTON, VK_SHIFT,
 };
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
@@ -64,6 +64,7 @@ const SETTINGS_FILENAME: &str = "settings.json";
 const SETTINGS_BACKUP_FILENAME: &str = "settings.bak.json";
 const HISTORY_FILENAME: &str = "clipboard_history.json";
 const SETTINGS_UPDATED_EVENT: &str = "snapparse://settings-updated";
+const SETTINGS_WINDOW_SHOWN_EVENT: &str = "snapparse://settings-window-shown";
 const SELECTION_DETECTED_EVENT: &str = "snapparse://selection-detected";
 const SELECTION_RESULT_UPDATED_EVENT: &str = "snapparse://selection-result-updated";
 const SELECTION_ERROR_EVENT: &str = "snapparse://selection-error";
@@ -2261,6 +2262,16 @@ fn is_left_mouse_pressed() -> bool {
 
 #[cfg(not(target_os = "windows"))]
 fn is_left_mouse_pressed() -> bool {
+    false
+}
+
+#[cfg(target_os = "windows")]
+fn is_escape_pressed() -> bool {
+    (unsafe { GetAsyncKeyState(VK_ESCAPE as i32) } as u16 & 0x8000) != 0
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_escape_pressed() -> bool {
     false
 }
 
@@ -4549,6 +4560,7 @@ fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
 
 fn show_settings_window<R: Runtime>(app: &AppHandle<R>) {
     show_window_by_label(app, SETTINGS_WINDOW_LABEL, true);
+    let _ = app.emit(SETTINGS_WINDOW_SHOWN_EVENT, true);
 }
 
 fn toggle_main_window<R: Runtime>(app: &AppHandle<R>) {
@@ -5126,6 +5138,7 @@ fn start_selection_detector_thread(app: AppHandle) {
     std::thread::spawn(move || {
         let mut last_mouse_down = false;
         let mut last_outside_click_mouse_down = false;
+        let mut last_escape_down = false;
         let mut detect_phase = SelectionDetectPhase::Idle;
         let mut mouse_down_started_at_ms: u64 = 0;
         let mut mouse_down_position: Option<PhysicalPosition<i32>> = None;
@@ -5137,6 +5150,28 @@ fn start_selection_detector_thread(app: AppHandle) {
             std::thread::sleep(Duration::from_millis(120));
 
             let mouse_down_now = is_left_mouse_pressed();
+            let escape_down_now = is_escape_pressed();
+
+            if escape_down_now && !last_escape_down {
+                let mut should_cancel_capture = false;
+                if let Some(ocr_runtime) = app.try_state::<OcrRuntimeState>() {
+                    should_cancel_capture = ocr_runtime.capture_active.load(Ordering::Relaxed);
+                    if should_cancel_capture {
+                        ocr_runtime.capture_active.store(false, Ordering::Relaxed);
+                        ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
+                        if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
+                            *snapshot = None;
+                        }
+                    }
+                }
+
+                if should_cancel_capture {
+                    hide_ocr_capture_window(&app);
+                    emit_ocr_capture_canceled(&app);
+                }
+            }
+            last_escape_down = escape_down_now;
+
             let selection_bar_visible = app
                 .get_webview_window(SELECTION_BAR_WINDOW_LABEL)
                 .and_then(|window| window.is_visible().ok())

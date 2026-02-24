@@ -3087,6 +3087,12 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       })();
     };
 
+    const triggerCheckOnSettingsEntry = () => {
+      autoUpdateEntryArmedRef.current = true;
+      notifiedUpdateVersionInEntryRef.current = null;
+      triggerCheckForCurrentEntry();
+    };
+
     const onVisibility = () => {
       if (document.hidden) {
         autoUpdateEntryArmedRef.current = true;
@@ -3096,11 +3102,44 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       triggerCheckForCurrentEntry();
     };
 
-    triggerCheckForCurrentEntry();
-    window.addEventListener("focus", triggerCheckForCurrentEntry);
+    let unlistenSettingsShown: (() => void) | null = null;
+    let visibilityPollTimer: number | null = null;
+    let lastKnownWindowVisible = true;
+    void getCurrentWebviewWindow()
+      .listen<boolean>("snapparse://settings-window-shown", () => {
+        triggerCheckOnSettingsEntry();
+      })
+      .then((off) => {
+        unlistenSettingsShown = off;
+      });
+
+    visibilityPollTimer = window.setInterval(() => {
+      void getCurrentWebviewWindow()
+        .isVisible()
+        .then((visible) => {
+          if (!visible && lastKnownWindowVisible) {
+            autoUpdateEntryArmedRef.current = true;
+            notifiedUpdateVersionInEntryRef.current = null;
+          }
+          if (visible && !lastKnownWindowVisible) {
+            triggerCheckOnSettingsEntry();
+          }
+          lastKnownWindowVisible = visible;
+        })
+        .catch(() => {
+          // ignore visibility polling failures
+        });
+    }, 900);
+
+    triggerCheckOnSettingsEntry();
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.removeEventListener("focus", triggerCheckForCurrentEntry);
+      if (unlistenSettingsShown) {
+        unlistenSettingsShown();
+      }
+      if (visibilityPollTimer !== null) {
+        window.clearInterval(visibilityPollTimer);
+      }
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [settings.window.checkUpdatesOnStartup]);
