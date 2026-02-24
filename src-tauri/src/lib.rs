@@ -4759,6 +4759,29 @@ fn sync_autostart_with_settings<R: Runtime>(
     Ok(())
 }
 
+fn schedule_autostart_sync_retry<R: Runtime>(app: AppHandle<R>) {
+    std::thread::spawn(move || {
+        for _ in 0..30 {
+            if app.try_state::<AutoLaunchManager>().is_none() {
+                std::thread::sleep(Duration::from_millis(250));
+                continue;
+            }
+
+            let settings_snapshot = app
+                .try_state::<AppSettingsState>()
+                .and_then(|state| state.data.lock().ok().map(|settings| settings.clone()));
+
+            if let Some(settings) = settings_snapshot {
+                if let Err(error) = sync_autostart_with_settings(&app, &settings) {
+                    eprintln!("[AutoStart] delayed sync failed: {error}");
+                }
+            }
+            return;
+        }
+        eprintln!("[AutoStart] delayed sync skipped: manager state unavailable");
+    });
+}
+
 fn parse_tasklist_executable_name(line: &str) -> Option<String> {
     let trimmed = line.trim();
     if trimmed.is_empty() {
@@ -6880,21 +6903,9 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             let path = settings_file_path(&app_handle)?;
-            let mut settings = load_settings(&path);
+            let settings = load_settings(&path);
             let is_autostart_launch =
                 std::env::args().any(|arg| arg.eq_ignore_ascii_case(AUTOSTART_ARG));
-
-            if is_autostart_launch && !settings.window.launch_on_system_startup {
-                settings.window.launch_on_system_startup = true;
-            } else if !is_autostart_launch {
-                if let Some(manager) = app_handle.try_state::<AutoLaunchManager>() {
-                    if let Ok(enabled) = manager.is_enabled() {
-                        if settings.window.launch_on_system_startup != enabled {
-                            settings.window.launch_on_system_startup = enabled;
-                        }
-                    }
-                }
-            }
 
             let _ = persist_settings(&path, &settings);
             let initial_history = load_history_snapshot(&app_handle, &settings);
@@ -6932,6 +6943,7 @@ pub fn run() {
             if let Err(error) = sync_autostart_with_settings(&app_handle, &settings) {
                 eprintln!("Failed to sync auto-start state: {error}");
             }
+            schedule_autostart_sync_retry(app_handle.clone());
 
             if let Err(error) = create_tray(&app_handle) {
                 eprintln!("Failed to create tray icon: {error}");
