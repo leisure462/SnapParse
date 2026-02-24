@@ -3,7 +3,7 @@ use std::{
     collections::{HashSet, VecDeque},
     fs,
     hash::{Hash, Hasher},
-    io::Cursor,
+    io::{Cursor, ErrorKind},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
@@ -32,7 +32,6 @@ use tauri::{
 };
 use tauri_plugin_autostart::AutoLaunchManager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
-use tauri_plugin_updater::UpdaterExt;
 use thiserror::Error;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::Foundation::{CloseHandle, HWND, POINT, RECT};
@@ -54,8 +53,7 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId,
-    IsIconic, IsWindow, MessageBoxW, SetForegroundWindow, ShowWindow, IDYES,
-    MB_ICONINFORMATION, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNO, SW_RESTORE,
+    IsIconic, IsWindow, SetForegroundWindow, ShowWindow, SW_RESTORE,
 };
 
 const SETTINGS_VERSION: u32 = 8;
@@ -1650,6 +1648,53 @@ fn settings_backup_path(path: &Path) -> PathBuf {
     backup
 }
 
+fn history_backup_path(path: &Path) -> PathBuf {
+    let mut backup = path.to_path_buf();
+    let base_name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(HISTORY_FILENAME);
+    backup.set_file_name(format!("{base_name}.bak"));
+    backup
+}
+
+fn parse_history_entries(text: &str, max_items: usize) -> Result<VecDeque<ClipboardEntry>, CommandError> {
+    let mut items = serde_json::from_str::<Vec<ClipboardEntry>>(text)
+        .map_err(|error| CommandError::Serialization(error.to_string()))?;
+    items.retain(|item| item.kind == ClipboardKind::Image || !item.content.trim().is_empty());
+
+    let mut history = VecDeque::from(items);
+    trim_history(&mut history, max_items);
+    normalize_history_order(&mut history);
+    Ok(history)
+}
+
+fn read_text_with_retry(path: &Path) -> Result<String, std::io::Error> {
+    const RETRY_COUNT: usize = 20;
+    const RETRY_DELAY_MS: u64 = 120;
+    let mut last_error: Option<std::io::Error> = None;
+
+    for attempt in 0..RETRY_COUNT {
+        match fs::read_to_string(path) {
+            Ok(value) => return Ok(value),
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    ErrorKind::PermissionDenied | ErrorKind::WouldBlock | ErrorKind::Interrupted
+                ) && attempt + 1 < RETRY_COUNT =>
+            {
+                last_error = Some(error);
+                std::thread::sleep(Duration::from_millis(RETRY_DELAY_MS));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+
+    Err(last_error.unwrap_or_else(|| {
+        std::io::Error::new(ErrorKind::Other, "history file read failed after retries")
+    }))
+}
+
 fn resolve_history_file_path<R: Runtime>(
     app: &AppHandle<R>,
     settings: &AppSettings,
@@ -1698,32 +1743,81 @@ fn persist_history_snapshot<R: Runtime>(
     entries: &[ClipboardEntry],
 ) -> Result<(), CommandError> {
     let history_path = resolve_history_file_path(app, settings)?;
+    let backup_path = history_backup_path(&history_path);
+    if history_path.exists() {
+        let _ = fs::copy(&history_path, backup_path);
+    }
     let payload = serde_json::to_string_pretty(entries)
         .map_err(|error| CommandError::Serialization(error.to_string()))?;
-    fs::write(history_path, payload).map_err(|error| CommandError::Settings(error.to_string()))
+    let temp_path = history_path.with_extension("tmp");
+    fs::write(&temp_path, &payload).map_err(|error| CommandError::Settings(error.to_string()))?;
+
+    if history_path.exists() {
+        let _ = fs::remove_file(&history_path);
+    }
+
+    match fs::rename(&temp_path, &history_path) {
+        Ok(_) => Ok(()),
+        Err(_) => {
+            // Fallback for platforms/scenarios where atomic rename replacement fails.
+            fs::write(&history_path, payload)
+                .map_err(|error| CommandError::Settings(error.to_string()))?;
+            let _ = fs::remove_file(&temp_path);
+            Ok(())
+        }
+    }
 }
 
 fn load_history_snapshot<R: Runtime>(
     app: &AppHandle<R>,
     settings: &AppSettings,
-) -> VecDeque<ClipboardEntry> {
+) -> Result<VecDeque<ClipboardEntry>, CommandError> {
     let history_path = match resolve_history_file_path(app, settings) {
         Ok(path) => path,
-        Err(_) => return VecDeque::new(),
+        Err(error) => return Err(error),
     };
 
-    let text = match fs::read_to_string(history_path) {
-        Ok(value) => value,
-        Err(_) => return VecDeque::new(),
+    let primary_text = match read_text_with_retry(&history_path) {
+        Ok(value) => Some(value),
+        Err(error) if error.kind() == ErrorKind::NotFound => None,
+        Err(error) => {
+            eprintln!(
+                "[History] failed reading primary snapshot {}: {}",
+                history_path.display(),
+                error
+            );
+            None
+        }
     };
 
-    let mut items = serde_json::from_str::<Vec<ClipboardEntry>>(&text).unwrap_or_default();
-    items.retain(|item| item.kind == ClipboardKind::Image || !item.content.trim().is_empty());
+    if let Some(text) = primary_text {
+        match parse_history_entries(&text, settings.history.max_items) {
+            Ok(history) => return Ok(history),
+            Err(error) => {
+                eprintln!(
+                    "[History] primary snapshot parse failed {}: {}",
+                    history_path.display(),
+                    error
+                );
+            }
+        }
+    }
 
-    let mut history = VecDeque::from(items);
-    trim_history(&mut history, settings.history.max_items);
-    normalize_history_order(&mut history);
-    history
+    let backup_path = history_backup_path(&history_path);
+    match read_text_with_retry(&backup_path) {
+        Ok(text) => match parse_history_entries(&text, settings.history.max_items) {
+            Ok(history) => Ok(history),
+            Err(error) => Err(CommandError::Settings(format!(
+                "History backup parse failed ({}): {error}",
+                backup_path.display()
+            ))),
+        },
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(VecDeque::new()),
+        Err(error) => Err(CommandError::Settings(format!(
+            "History snapshot read failed ({}): {error}",
+            history_path.display()
+        ))),
+    }
 }
 
 fn persist_settings_state(settings_state: &AppSettingsState) -> Result<(), CommandError> {
@@ -4455,70 +4549,6 @@ fn show_settings_window<R: Runtime>(app: &AppHandle<R>) {
     show_window_by_label(app, SETTINGS_WINDOW_LABEL, true);
 }
 
-#[cfg(target_os = "windows")]
-fn show_startup_update_prompt(language: &str, version: &str) -> bool {
-    let is_english = language.eq_ignore_ascii_case("en-US");
-    let title = if is_english {
-        "SnapParse Update Available"
-    } else {
-        "SnapParse 更新提醒"
-    };
-    let message = if is_english {
-        format!(
-            "A new version (v{version}) is available.\nOpen \"About & Diagnostics\" now to update?"
-        )
-    } else {
-        format!(
-            "检测到新版本 v{version}。\n是否现在打开“关于与诊断”页面进行更新？"
-        )
-    };
-
-    let title_wide: Vec<u16> = title.encode_utf16().chain(std::iter::once(0)).collect();
-    let message_wide: Vec<u16> = message.encode_utf16().chain(std::iter::once(0)).collect();
-    let result = unsafe {
-        MessageBoxW(
-            std::ptr::null_mut(),
-            message_wide.as_ptr(),
-            title_wide.as_ptr(),
-            MB_YESNO | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND,
-        )
-    };
-    result == IDYES
-}
-
-#[cfg(not(target_os = "windows"))]
-fn show_startup_update_prompt(_language: &str, _version: &str) -> bool {
-    false
-}
-
-fn schedule_startup_update_check<R: Runtime>(app: AppHandle<R>, language: String) {
-    tauri::async_runtime::spawn(async move {
-        let updater = match app.updater() {
-            Ok(updater) => updater,
-            Err(error) => {
-                eprintln!("[Updater] failed to initialize updater: {error}");
-                return;
-            }
-        };
-
-        let update = match updater.check().await {
-            Ok(update) => update,
-            Err(error) => {
-                eprintln!("[Updater] startup check failed: {error}");
-                return;
-            }
-        };
-
-        let Some(update) = update else {
-            return;
-        };
-
-        if show_startup_update_prompt(&language, &update.version) {
-            show_settings_window(&app);
-        }
-    });
-}
-
 fn toggle_main_window<R: Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
         let visible = window.is_visible().unwrap_or(false);
@@ -6908,7 +6938,14 @@ pub fn run() {
                 std::env::args().any(|arg| arg.eq_ignore_ascii_case(AUTOSTART_ARG));
 
             let _ = persist_settings(&path, &settings);
-            let initial_history = load_history_snapshot(&app_handle, &settings);
+            let (initial_history, should_persist_history_snapshot) =
+                match load_history_snapshot(&app_handle, &settings) {
+                    Ok(history) => (history, true),
+                    Err(error) => {
+                        eprintln!("[History] startup load failed: {error}");
+                        (VecDeque::new(), false)
+                    }
+                };
 
             app.manage(AppSettingsState {
                 file_path: path,
@@ -6920,8 +6957,13 @@ pub fn run() {
                     history.history = initial_history.clone();
                 };
             }
-            let _ =
-                persist_history_snapshot(&app_handle, &settings, &initial_history.iter().cloned().collect::<Vec<_>>());
+            if should_persist_history_snapshot {
+                let _ = persist_history_snapshot(
+                    &app_handle,
+                    &settings,
+                    &initial_history.iter().cloned().collect::<Vec<_>>(),
+                );
+            }
 
             let initially_pinned = app_handle
                 .get_webview_window(MAIN_WINDOW_LABEL)
@@ -6970,10 +7012,6 @@ pub fn run() {
                     "Failed to register OCR shortcut {}: {error}. Shortcut may be occupied by another app.",
                     settings.shortcuts.toggle_ocr
                 );
-            }
-
-            if settings.window.check_updates_on_startup {
-                schedule_startup_update_check(app_handle.clone(), settings.language.clone());
             }
 
             start_selection_detector_thread(app_handle.clone());

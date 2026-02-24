@@ -2864,9 +2864,10 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     };
   }, []);
 
-  async function checkForAppUpdates(options?: { silent?: boolean }) {
+  async function checkForAppUpdates(options?: { silent?: boolean; notifyOnAvailable?: boolean }) {
     if (updateChecking || updateInstalling) return;
     const silent = Boolean(options?.silent);
+    const notifyOnAvailable = Boolean(options?.notifyOnAvailable);
     setUpdateChecking(true);
     setUpdateDownloadProgress(null);
     try {
@@ -2884,6 +2885,15 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       setAvailableUpdateVersion(update.version || null);
       setAvailableUpdateNotes((update.body || "").trim());
       setUpdateStatusText(`发现新版本 v${update.version}，可直接下载并安装`);
+      if (notifyOnAvailable) {
+        setActiveGroup("about");
+        const updateVersion = update.version || "latest";
+        const message =
+          settings.language === "en-US"
+            ? `A new version (v${updateVersion}) is available. You can update it in About & Diagnostics.`
+            : `检测到新版本 v${updateVersion}，可在“关于与诊断”中下载并安装。`;
+        window.alert(message);
+      }
     } catch (invokeError) {
       setUpdateStatusText(`检查更新失败：${String(invokeError)}`);
     } finally {
@@ -3026,12 +3036,16 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     void refreshRunningApps();
   }, [activeGroup, runningApps.length, runningAppsLoading]);
 
+  const checkedUpdateOnSettingsEntryRef = useRef(false);
   useEffect(() => {
-    if (activeGroup !== "about") return;
-    if (updateChecking || updateInstalling) return;
-    if (updateStatusText !== "尚未检查更新") return;
-    void checkForAppUpdates({ silent: true });
-  }, [activeGroup, updateChecking, updateInstalling, updateStatusText]);
+    if (!settings.window.checkUpdatesOnStartup) {
+      checkedUpdateOnSettingsEntryRef.current = false;
+      return;
+    }
+    if (checkedUpdateOnSettingsEntryRef.current) return;
+    checkedUpdateOnSettingsEntryRef.current = true;
+    void checkForAppUpdates({ silent: true, notifyOnAvailable: true });
+  }, [settings.window.checkUpdatesOnStartup]);
 
   async function applyPatch(patch: AppSettingsPatch, successMessage = "设置已更新") {
     const result = await updateSettings(patch);
