@@ -12,12 +12,11 @@ export interface ClipboardEntry {
 export type FilterKind = "all" | ClipboardKind | "favorite";
 
 export type ThemePreset =
-  | "md2-dark"
-  | "midnight"
-  | "graphite"
-  | "daylight"
-  | "sunrise"
-  | "amber-mist";
+  | "blue"
+  | "deep-black"
+  | "black"
+  | "gray"
+  | "white";
 export type AppLanguage = "zh-CN" | "en-US";
 export type PasteBehavior = "copy-only" | "copy-and-hide";
 export type SelectionTriggerMode = "auto-detect" | "copy-trigger";

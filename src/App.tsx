@@ -118,7 +118,7 @@ const TTS_RATE_PERCENT_RANGE = { min: -50, max: 100 };
 
 const FALLBACK_SETTINGS: AppSettings = {
   version: 8,
-  themePreset: "md2-dark",
+  themePreset: "deep-black",
   language: "zh-CN",
   window: {
     autoHideOnBlur: true,
@@ -298,12 +298,10 @@ const FILTER_OPTIONS: FilterOption[] = [
 ];
 
 const THEME_OPTIONS: ThemeOption[] = [
-  { key: "md2-dark", label: "Fluent Dark" },
-  { key: "midnight", label: "Fluent Midnight" },
-  { key: "graphite", label: "Fluent Graphite" },
-  { key: "daylight", label: "Fluent Daylight" },
-  { key: "sunrise", label: "Fluent Sunrise" },
-  { key: "amber-mist", label: "Fluent Amber" }
+  { key: "blue", label: "Blue" },
+  { key: "deep-black", label: "Black" },
+  { key: "gray", label: "Gray" },
+  { key: "white", label: "White" }
 ];
 
 const PASTE_BEHAVIOR_OPTIONS: Array<{ key: PasteBehavior; label: string }> = [
@@ -646,7 +644,27 @@ function parseFilter(value: unknown): FilterKind {
 }
 
 function parseThemePreset(value: unknown): ThemePreset {
-  return THEME_OPTIONS.some((item) => item.key === value) ? (value as ThemePreset) : "md2-dark";
+  if (THEME_OPTIONS.some((item) => item.key === value)) {
+    return value as ThemePreset;
+  }
+  switch (value) {
+    case "blue":
+      return "blue";
+    case "deep-black":
+      return "deep-black";
+    case "black":
+    case "md2-dark":
+    case "midnight":
+      return "blue";
+    case "graphite":
+      return "gray";
+    case "daylight":
+    case "sunrise":
+    case "amber-mist":
+      return "white";
+    default:
+      return "deep-black";
+  }
 }
 
 function parsePasteBehavior(value: unknown): PasteBehavior {
@@ -1015,16 +1033,48 @@ function sanitizeSettings(input: AppSettings): AppSettings {
   };
 }
 
+function mergeSettingsPatch<T>(base: T, patch: unknown): T {
+  if (patch === undefined) {
+    return base;
+  }
+  if (patch === null || typeof patch !== "object" || Array.isArray(patch)) {
+    return patch as T;
+  }
+  const baseObject =
+    base && typeof base === "object" && !Array.isArray(base)
+      ? (base as Record<string, unknown>)
+      : {};
+  const result: Record<string, unknown> = { ...baseObject };
+  for (const [key, value] of Object.entries(patch as Record<string, unknown>)) {
+    if (value === undefined) continue;
+    const current = baseObject[key];
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      result[key] = mergeSettingsPatch(current, value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result as T;
+}
+
 function useAppSettings(): SettingsApi {
   const [settings, setSettings] = useState<AppSettings>(FALLBACK_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const settingsRef = useRef<AppSettings>(FALLBACK_SETTINGS);
+  const updateTokenRef = useRef(0);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   const refresh = useCallback(async () => {
     try {
       const remote = await invoke<AppSettings>("get_settings");
-      setSettings(sanitizeSettings(remote));
+      const safe = sanitizeSettings(remote);
+      settingsRef.current = safe;
+      setSettings(safe);
       setError(null);
     } catch (invokeError) {
       setError(String(invokeError));
@@ -1051,7 +1101,9 @@ function useAppSettings(): SettingsApi {
         SETTINGS_UPDATED_EVENT,
         (event) => {
           if (!active) return;
-          setSettings(sanitizeSettings(event.payload));
+          const safe = sanitizeSettings(event.payload);
+          settingsRef.current = safe;
+          setSettings(safe);
         }
       );
     } catch {
@@ -1067,18 +1119,32 @@ function useAppSettings(): SettingsApi {
   }, []);
 
   const updateSettings = useCallback(async (patch: AppSettingsPatch) => {
+    const previous = settingsRef.current;
+    const optimistic = sanitizeSettings(mergeSettingsPatch(previous, patch));
+    settingsRef.current = optimistic;
+    setSettings(optimistic);
     setUpdating(true);
+    const token = ++updateTokenRef.current;
     try {
       const remote = await invoke<AppSettings>("update_settings", { patch });
       const safe = sanitizeSettings(remote);
-      setSettings(safe);
-      setError(null);
+      if (token === updateTokenRef.current) {
+        settingsRef.current = safe;
+        setSettings(safe);
+        setError(null);
+      }
       return safe;
     } catch (invokeError) {
-      setError(String(invokeError));
+      if (token === updateTokenRef.current) {
+        settingsRef.current = previous;
+        setSettings(previous);
+        setError(String(invokeError));
+      }
       return null;
     } finally {
-      setUpdating(false);
+      if (token === updateTokenRef.current) {
+        setUpdating(false);
+      }
     }
   }, []);
 
@@ -1487,21 +1553,23 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
             role="button"
             tabIndex={0}
           >
-            <button
-              className={`favorite-btn${entry.pinned ? " active" : ""}`}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                void toggleFavorite(entry.id);
-              }}
-              aria-label={entry.pinned ? "取消收藏" : "收藏"}
-              title={entry.pinned ? "取消收藏" : "收藏"}
-            >
-              <Star size={12} />
-            </button>
             <header>
               <time>{formatDate(entry.copiedAt)}</time>
-              <div className="tag">{kindLabel(entry.kind)}</div>
+              <div className="clip-item-actions">
+                <div className="tag">{kindLabel(entry.kind)}</div>
+                <button
+                  className={`favorite-btn${entry.pinned ? " active" : ""}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void toggleFavorite(entry.id);
+                  }}
+                  aria-label={entry.pinned ? "取消收藏" : "收藏"}
+                  title={entry.pinned ? "取消收藏" : "收藏"}
+                >
+                  <Star size={12} />
+                </button>
+              </div>
             </header>
 
             {entry.kind === "image" && entry.imageDataUrl ? (
@@ -2230,6 +2298,7 @@ function OcrCaptureWindow() {
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentPoint, setCurrentPoint] = useState<{ x: number; y: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   const selectionRect = useMemo(() => {
     if (!startPoint || !currentPoint) return null;
@@ -2247,6 +2316,7 @@ function OcrCaptureWindow() {
 
   const cancelCapture = useCallback(async () => {
     resetSelection();
+    submittingRef.current = false;
     setSubmitting(false);
     try {
       await invoke("cancel_ocr_capture_cmd");
@@ -2257,18 +2327,16 @@ function OcrCaptureWindow() {
 
   const submitCapture = useCallback(
     (rect: { left: number; top: number; width: number; height: number }) => {
-      if (submitting) return;
+      if (submittingRef.current) return;
       if (rect.width < 4 || rect.height < 4) {
         resetSelection();
         return;
       }
 
+      submittingRef.current = true;
       setSubmitting(true);
       resetSelection();
-      setSubmitting(false);
 
-      // Do not await full OCR processing here; backend may stream for a long time.
-      // Releasing capture UI immediately avoids blocking the next capture cycle.
       void invoke("complete_ocr_capture_cmd", {
         area: {
           x: rect.left,
@@ -2276,16 +2344,21 @@ function OcrCaptureWindow() {
           width: rect.width,
           height: rect.height
         }
-      }).catch(async (invokeError) => {
-        console.error("[OcrCaptureWindow] complete capture failed:", invokeError);
-        try {
-          await invoke("cancel_ocr_capture_cmd");
-        } catch {
-          // ignore
-        }
-      });
+      })
+        .catch(async (invokeError) => {
+          console.error("[OcrCaptureWindow] complete capture failed:", invokeError);
+          try {
+            await invoke("cancel_ocr_capture_cmd");
+          } catch {
+            // ignore
+          }
+        })
+        .finally(() => {
+          submittingRef.current = false;
+          setSubmitting(false);
+        });
     },
-    [resetSelection, submitting]
+    [resetSelection]
   );
 
   useEffect(() => {
@@ -2305,6 +2378,7 @@ function OcrCaptureWindow() {
     void getCurrentWebviewWindow()
       .listen("snapparse://ocr-capture-started", () => {
         resetSelection();
+        submittingRef.current = false;
         setSubmitting(false);
       })
       .then((off) => {
@@ -2313,6 +2387,7 @@ function OcrCaptureWindow() {
     void getCurrentWebviewWindow()
       .listen("snapparse://ocr-capture-canceled", () => {
         resetSelection();
+        submittingRef.current = false;
         setSubmitting(false);
       })
       .then((off) => {
@@ -3144,9 +3219,9 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     };
   }, [settings.window.checkUpdatesOnStartup]);
 
-  async function applyPatch(patch: AppSettingsPatch, successMessage = "设置已更新") {
+  async function applyPatch(patch: AppSettingsPatch, successMessage?: string) {
     const result = await updateSettings(patch);
-    if (result) {
+    if (result && successMessage) {
       setStatus(successMessage);
     }
   }
@@ -3735,6 +3810,7 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                 <select
                   id="theme-preset"
                   className="md2-select"
+                  aria-label="主题预设"
                   disabled={updating}
                   value={settings.themePreset}
                   onChange={(event) => {
@@ -3753,6 +3829,7 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                 <select
                   id="lang"
                   className="md2-select"
+                  aria-label="界面语言"
                   disabled={updating}
                   value={settings.language}
                   onChange={(event) => {

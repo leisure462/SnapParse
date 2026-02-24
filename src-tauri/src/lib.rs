@@ -84,7 +84,7 @@ const MIN_MAIN_WINDOW_HEIGHT: u32 = 360;
 const MAX_MAIN_WINDOW_WIDTH: u32 = 560;
 const MAX_MAIN_WINDOW_HEIGHT: u32 = 980;
 const DEFAULT_SELECTION_BAR_WIDTH: u32 = 330;
-const SELECTION_BAR_HEIGHT: u32 = 40;
+const SELECTION_BAR_HEIGHT: u32 = 44;
 const DEFAULT_SELECTION_RESULT_WINDOW_WIDTH: u32 = 430;
 const DEFAULT_SELECTION_RESULT_WINDOW_HEIGHT: u32 = 304;
 const MIN_SELECTION_RESULT_WINDOW_WIDTH: u32 = 320;
@@ -97,7 +97,7 @@ const MIN_OCR_RESULT_WINDOW_WIDTH: u32 = 320;
 const MIN_OCR_RESULT_WINDOW_HEIGHT: u32 = 380;
 const MAX_OCR_RESULT_WINDOW_WIDTH: u32 = 900;
 const MAX_OCR_RESULT_WINDOW_HEIGHT: u32 = 1100;
-const STREAM_EMIT_THROTTLE_MS: u64 = 36;
+const STREAM_EMIT_THROTTLE_MS: u64 = 24;
 const DEFAULT_TTS_VOICE_ZH_CN: &str = "zh-CN-XiaoxiaoNeural";
 const DEFAULT_TTS_VOICE_EN_US: &str = "en-US-JennyNeural";
 const DEFAULT_SELECTION_BAR_AUTO_HIDE_MS: u64 = 5_000;
@@ -108,6 +108,9 @@ const TASK_REPLACED_ERROR: &str = "__TASK_REPLACED__";
 const SELECTION_REPEAT_DEDUPE_WINDOW_MS: u64 = 900;
 const SELECTION_TEXT_COOLDOWN_MS: u64 = 2_500;
 const OCR_CAPTURE_BLUR_SUPPRESS_MS: u64 = 1_100;
+const MODEL_REQUEST_MAX_ATTEMPTS: usize = 3;
+const MODEL_REQUEST_RETRY_BASE_DELAY_MS: u64 = 140;
+const MODEL_REQUEST_RETRY_MAX_DELAY_MS: u64 = 850;
 static EDGE_TTS_AUTO_INSTALL_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 const EDGE_TTS_INSTALL_IN_PROGRESS: &str = "__EDGE_TTS_INSTALL_IN_PROGRESS__";
 #[cfg(target_os = "windows")]
@@ -137,9 +140,10 @@ enum ClipboardKind {
     Image,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 enum FilterKind {
+    #[default]
     All,
     Text,
     Link,
@@ -147,58 +151,39 @@ enum FilterKind {
     Favorite,
 }
 
-impl Default for FilterKind {
-    fn default() -> Self {
-        Self::All
-    }
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 enum ThemePreset {
-    Md2Dark,
-    Midnight,
-    Graphite,
-    Daylight,
-    Sunrise,
-    AmberMist,
+    #[serde(rename = "blue", alias = "black", alias = "md2-dark", alias = "midnight")]
+    Blue,
+    #[default]
+    #[serde(rename = "deep-black")]
+    DeepBlack,
+    #[serde(rename = "gray", alias = "graphite")]
+    Gray,
+    #[serde(rename = "white", alias = "daylight", alias = "sunrise", alias = "amber-mist")]
+    White,
 }
 
-impl Default for ThemePreset {
-    fn default() -> Self {
-        Self::Md2Dark
-    }
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "kebab-case")]
 enum PasteBehavior {
     CopyOnly,
+    #[default]
     CopyAndHide,
 }
 
-impl Default for PasteBehavior {
-    fn default() -> Self {
-        Self::CopyAndHide
-    }
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "kebab-case")]
 enum SelectionTriggerMode {
+    #[default]
     AutoDetect,
     CopyTrigger,
 }
 
-impl Default for SelectionTriggerMode {
-    fn default() -> Self {
-        Self::AutoDetect
-    }
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "kebab-case")]
 enum OcrDefaultAction {
+    #[default]
     Translate,
     Summarize,
     Polish,
@@ -206,24 +191,13 @@ enum OcrDefaultAction {
     Custom,
 }
 
-impl Default for OcrDefaultAction {
-    fn default() -> Self {
-        Self::Translate
-    }
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "kebab-case")]
 enum TtsRuntimeMode {
+    #[default]
     DualFallback,
     EdgeCliOnly,
     PythonModuleOnly,
-}
-
-impl Default for TtsRuntimeMode {
-    fn default() -> Self {
-        Self::DualFallback
-    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -518,7 +492,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             version: SETTINGS_VERSION,
-            theme_preset: ThemePreset::Md2Dark,
+            theme_preset: ThemePreset::DeepBlack,
             language: "zh-CN".to_string(),
             window: WindowSettings::default(),
             selection_assistant: SelectionAssistantSettings::default(),
@@ -910,6 +884,57 @@ fn now_epoch_millis() -> u64 {
         .unwrap_or(0)
 }
 
+fn should_retry_http_status(status: reqwest::StatusCode) -> bool {
+    let code = status.as_u16();
+    status.is_server_error() || matches!(code, 408 | 409 | 425 | 429)
+}
+
+fn should_retry_network_error(error: &reqwest::Error) -> bool {
+    error.is_timeout() || error.is_connect() || error.is_request() || error.is_body()
+}
+
+fn retry_backoff_delay_ms(attempt: usize) -> u64 {
+    let multiplier = 1u64 << attempt.min(4);
+    MODEL_REQUEST_RETRY_BASE_DELAY_MS
+        .saturating_mul(multiplier)
+        .min(MODEL_REQUEST_RETRY_MAX_DELAY_MS)
+}
+
+async fn sleep_with_backoff(attempt: usize) {
+    let delay = retry_backoff_delay_ms(attempt);
+    if delay == 0 {
+        return;
+    }
+    let _ = tauri::async_runtime::spawn_blocking(move || {
+        std::thread::sleep(Duration::from_millis(delay));
+    })
+    .await;
+}
+
+async fn sleep_for_ms(ms: u64) {
+    if ms == 0 {
+        return;
+    }
+    let _ = tauri::async_runtime::spawn_blocking(move || {
+        std::thread::sleep(Duration::from_millis(ms));
+    })
+    .await;
+}
+
+fn format_response_body_for_error(raw_body: &str) -> String {
+    let trimmed = raw_body.trim();
+    if trimmed.is_empty() {
+        return "Empty response body".to_string();
+    }
+
+    const MAX_CHARS: usize = 1200;
+    let mut output = trimmed.chars().take(MAX_CHARS).collect::<String>();
+    if trimmed.chars().nth(MAX_CHARS).is_some() {
+        output.push_str("...");
+    }
+    output
+}
+
 fn with_history_lock<'a>(
     state: &'a State<'_, Mutex<ClipboardState>>,
 ) -> Result<std::sync::MutexGuard<'a, ClipboardState>, CommandError> {
@@ -1136,7 +1161,7 @@ fn trim_name_by_units(value: &str, max_units: u32) -> String {
 }
 
 fn is_builtin_selection_bar_key(value: &str) -> bool {
-    BUILTIN_SELECTION_BAR_KEYS.iter().any(|item| *item == value)
+    BUILTIN_SELECTION_BAR_KEYS.contains(&value)
 }
 
 fn parse_custom_selection_bar_key(value: &str) -> Option<&str> {
@@ -1247,10 +1272,8 @@ fn normalize_settings(settings: &mut AppSettings) {
     let mut height = settings
         .main_window_height
         .unwrap_or(DEFAULT_MAIN_WINDOW_HEIGHT);
-    if previous_version < WINDOW_LAYOUT_MIGRATION_VERSION {
-        width = DEFAULT_MAIN_WINDOW_WIDTH;
-        height = DEFAULT_MAIN_WINDOW_HEIGHT;
-    } else if (width == 420 && height == 720)
+    if previous_version < WINDOW_LAYOUT_MIGRATION_VERSION
+        || (width == 420 && height == 720)
         || (width == 380 && height == 620)
         || (width == 340 && height == 560)
         || width >= 900
@@ -1694,7 +1717,7 @@ fn read_text_with_retry(path: &Path) -> Result<String, std::io::Error> {
     }
 
     Err(last_error.unwrap_or_else(|| {
-        std::io::Error::new(ErrorKind::Other, "history file read failed after retries")
+        std::io::Error::other("history file read failed after retries")
     }))
 }
 
@@ -1775,10 +1798,7 @@ fn load_history_snapshot<R: Runtime>(
     app: &AppHandle<R>,
     settings: &AppSettings,
 ) -> Result<VecDeque<ClipboardEntry>, CommandError> {
-    let history_path = match resolve_history_file_path(app, settings) {
-        Ok(path) => path,
-        Err(error) => return Err(error),
-    };
+    let history_path = resolve_history_file_path(app, settings)?;
 
     let primary_text = match read_text_with_retry(&history_path) {
         Ok(value) => Some(value),
@@ -1917,10 +1937,10 @@ fn send_system_paste_shortcut(hwnd_raw: isize) -> Result<(), CommandError> {
     std::thread::sleep(Duration::from_millis(18));
 
     let mut inputs = [
-        keyboard_input(VK_CONTROL as u16, false),
+        keyboard_input(VK_CONTROL, false),
         keyboard_input(VK_VIRTUAL_V, false),
         keyboard_input(VK_VIRTUAL_V, true),
-        keyboard_input(VK_CONTROL as u16, true),
+        keyboard_input(VK_CONTROL, true),
     ];
 
     let sent = unsafe {
@@ -1948,8 +1968,8 @@ fn send_system_paste_shortcut(_hwnd_raw: isize) -> Result<(), CommandError> {
 #[cfg(target_os = "windows")]
 fn send_system_copy_shortcut(hwnd_raw: isize) -> Result<(), CommandError> {
     const VK_VIRTUAL_C: u16 = 0x43;
-    const VK_VIRTUAL_INSERT: u16 = VK_INSERT as u16;
-    const VK_VIRTUAL_SHIFT: u16 = VK_SHIFT as u16;
+    const VK_VIRTUAL_INSERT: u16 = VK_INSERT;
+    const VK_VIRTUAL_SHIFT: u16 = VK_SHIFT;
 
     if hwnd_raw == 0 {
         return Err(CommandError::Settings(
@@ -1973,20 +1993,20 @@ fn send_system_copy_shortcut(hwnd_raw: isize) -> Result<(), CommandError> {
 
     if is_windows_terminal_window(hwnd_raw) {
         let mut primary = [
-            keyboard_input(VK_CONTROL as u16, false),
+            keyboard_input(VK_CONTROL, false),
             keyboard_input(VK_VIRTUAL_SHIFT, false),
             keyboard_input(VK_VIRTUAL_C, false),
             keyboard_input(VK_VIRTUAL_C, true),
             keyboard_input(VK_VIRTUAL_SHIFT, true),
-            keyboard_input(VK_CONTROL as u16, true),
+            keyboard_input(VK_CONTROL, true),
         ];
         let primary_sent = send(&mut primary);
         std::thread::sleep(Duration::from_millis(10));
         let mut fallback = [
-            keyboard_input(VK_CONTROL as u16, false),
+            keyboard_input(VK_CONTROL, false),
             keyboard_input(VK_VIRTUAL_INSERT, false),
             keyboard_input(VK_VIRTUAL_INSERT, true),
-            keyboard_input(VK_CONTROL as u16, true),
+            keyboard_input(VK_CONTROL, true),
         ];
         let fallback_sent = send(&mut fallback);
         if primary_sent || fallback_sent {
@@ -1999,10 +2019,10 @@ fn send_system_copy_shortcut(hwnd_raw: isize) -> Result<(), CommandError> {
 
     if is_console_like_window(hwnd_raw) {
         let mut fallback = [
-            keyboard_input(VK_CONTROL as u16, false),
+            keyboard_input(VK_CONTROL, false),
             keyboard_input(VK_VIRTUAL_INSERT, false),
             keyboard_input(VK_VIRTUAL_INSERT, true),
-            keyboard_input(VK_CONTROL as u16, true),
+            keyboard_input(VK_CONTROL, true),
         ];
         if send(&mut fallback) {
             return Ok(());
@@ -2013,10 +2033,10 @@ fn send_system_copy_shortcut(hwnd_raw: isize) -> Result<(), CommandError> {
     }
 
     let mut inputs = [
-        keyboard_input(VK_CONTROL as u16, false),
+        keyboard_input(VK_CONTROL, false),
         keyboard_input(VK_VIRTUAL_C, false),
         keyboard_input(VK_VIRTUAL_C, true),
-        keyboard_input(VK_CONTROL as u16, true),
+        keyboard_input(VK_CONTROL, true),
     ];
     if send(&mut inputs) {
         Ok(())
@@ -2127,7 +2147,7 @@ fn is_windows_terminal_window(_hwnd_raw: isize) -> bool {
 
 #[cfg(target_os = "windows")]
 fn send_console_copy_shortcut(hwnd_raw: isize) -> Result<(), CommandError> {
-    const VK_VIRTUAL_INSERT: u16 = VK_INSERT as u16;
+    const VK_VIRTUAL_INSERT: u16 = VK_INSERT;
 
     if hwnd_raw == 0 {
         return Err(CommandError::Settings(
@@ -2150,10 +2170,10 @@ fn send_console_copy_shortcut(hwnd_raw: isize) -> Result<(), CommandError> {
     };
 
     let mut copy_insert = [
-        keyboard_input(VK_CONTROL as u16, false),
+        keyboard_input(VK_CONTROL, false),
         keyboard_input(VK_VIRTUAL_INSERT, false),
         keyboard_input(VK_VIRTUAL_INSERT, true),
-        keyboard_input(VK_CONTROL as u16, true),
+        keyboard_input(VK_CONTROL, true),
     ];
     if send(&mut copy_insert) {
         return Ok(());
@@ -2757,33 +2777,33 @@ fn apply_main_window_position<R: Runtime>(app: &AppHandle<R>) {
 }
 
 fn selection_bar_width_for_settings(settings: &AppSettings) -> u32 {
-    const GAP_NORMAL: u32 = 3;
+    const GAP_NORMAL: u32 = 4;
     const GAP_COMPACT: u32 = 3;
-    const SHELL_PADDING_NORMAL: u32 = 12;
-    const SHELL_PADDING_COMPACT: u32 = 10;
+    const SHELL_PADDING_NORMAL: u32 = 22;
+    const SHELL_PADDING_COMPACT: u32 = 18;
     const BRAND_WIDTH: u32 = 16;
-    const ITEM_COMPACT_WIDTH: u32 = 22;
+    const ITEM_COMPACT_WIDTH: u32 = 26;
     const ITEM_ICON_WIDTH: u32 = 13;
-    const ITEM_TEXT_GAP: u32 = 3;
-    const ITEM_PADDING_X: u32 = 10;
-    const WIDTH_SAFETY_BUFFER: u32 = 6;
+    const ITEM_TEXT_GAP: u32 = 4;
+    const ITEM_PADDING_X: u32 = 18;
+    const WIDTH_SAFETY_BUFFER: u32 = 64;
     let compact_mode = settings.selection_assistant.compact_mode;
 
     let estimate_label_width = |label: &str| -> u32 {
         let mut width = 0f32;
         for ch in label.chars() {
             width += if is_cjk_char(ch) {
-                10.8
+                11.4
             } else if ch.is_ascii_uppercase() {
-                7.1
+                7.6
             } else if ch.is_ascii_lowercase() {
-                6.4
+                6.8
             } else if ch.is_ascii_digit() {
-                6.2
+                6.5
             } else if ch.is_ascii_whitespace() {
-                3.6
+                3.8
             } else {
-                7.4
+                7.8
             };
         }
         width.ceil() as u32
@@ -2793,7 +2813,7 @@ fn selection_bar_width_for_settings(settings: &AppSettings) -> u32 {
         if compact_mode {
             return ITEM_COMPACT_WIDTH;
         }
-        let label_width = estimate_label_width(label).clamp(12, 96);
+        let label_width = estimate_label_width(label).clamp(12, 128);
         ITEM_PADDING_X
             .saturating_add(ITEM_ICON_WIDTH)
             .saturating_add(ITEM_TEXT_GAP)
@@ -2846,25 +2866,17 @@ fn selection_bar_width_for_settings(settings: &AppSettings) -> u32 {
     } else {
         SHELL_PADDING_NORMAL
     };
-    let trailing_text_padding_compensation = if compact_mode || action_count == 0 {
-        0
-    } else {
-        // CSS removes the right padding on the last text button to make
-        // right-edge text inset equal to the left icon inset.
-        5
-    };
     let gap_width = item_count.saturating_sub(1).saturating_mul(gap);
     let estimated = BRAND_WIDTH
         .saturating_add(action_width)
         .saturating_add(gap_width)
         .saturating_add(shell_padding)
-        .saturating_add(WIDTH_SAFETY_BUFFER)
-        .saturating_sub(trailing_text_padding_compensation);
+        .saturating_add(WIDTH_SAFETY_BUFFER);
 
     if compact_mode {
-        estimated.clamp(132, 520)
+        estimated.clamp(148, 760)
     } else {
-        estimated.clamp(180, 920)
+        estimated.clamp(220, 1600)
     }
 }
 
@@ -2914,20 +2926,19 @@ fn emit_ocr_error<R: Runtime>(app: &AppHandle<R>, message: &str) {
 
 fn window_background_color_for_theme(theme: ThemePreset) -> Color {
     match theme {
-        ThemePreset::Md2Dark => Color(30, 30, 30, 255),
-        ThemePreset::Midnight => Color(21, 29, 45, 255),
-        ThemePreset::Graphite => Color(32, 32, 32, 255),
-        ThemePreset::Daylight => Color(255, 255, 255, 255),
-        ThemePreset::Sunrise => Color(255, 253, 251, 255),
-        ThemePreset::AmberMist => Color(255, 254, 251, 255),
+        ThemePreset::Blue => Color(18, 28, 45, 255),
+        ThemePreset::DeepBlack => Color(10, 10, 10, 255),
+        ThemePreset::Gray => Color(38, 40, 44, 255),
+        ThemePreset::White => Color(255, 255, 255, 255),
     }
 }
 
 #[cfg(target_os = "windows")]
-fn apply_native_rounded_corners<R: Runtime>(window: &tauri::WebviewWindow<R>) {
+fn apply_native_result_window_corner_preference<R: Runtime>(window: &tauri::WebviewWindow<R>) {
     let Ok(hwnd) = window.hwnd() else {
         return;
     };
+    // Use native rounded window corners for stable rendering on Windows.
     let preference: i32 = DWMWCP_ROUND;
     unsafe {
         let _ = DwmSetWindowAttribute(
@@ -2940,17 +2951,17 @@ fn apply_native_rounded_corners<R: Runtime>(window: &tauri::WebviewWindow<R>) {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn apply_native_rounded_corners<R: Runtime>(_window: &tauri::WebviewWindow<R>) {}
+fn apply_native_result_window_corner_preference<R: Runtime>(_window: &tauri::WebviewWindow<R>) {}
 
 fn apply_result_windows_background<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) {
     let color = Some(window_background_color_for_theme(settings.theme_preset));
     if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
         let _ = window.set_background_color(color);
-        apply_native_rounded_corners(&window);
+        apply_native_result_window_corner_preference(&window);
     }
     if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
         let _ = window.set_background_color(color);
-        apply_native_rounded_corners(&window);
+        apply_native_result_window_corner_preference(&window);
     }
 }
 
@@ -3221,7 +3232,7 @@ fn open_in_default_browser(url: &str) -> Result<(), CommandError> {
             .args(["/C", "start", "", url])
             .spawn()
             .map_err(|error| CommandError::Settings(error.to_string()))?;
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -4053,26 +4064,69 @@ async fn call_glm_layout_parsing_ocr(
                 "file": file_payload
             });
 
-            let response = client
-                .post(&endpoint)
-                .timeout(Duration::from_millis(vision.timeout_ms))
-                .header(AUTHORIZATION, auth_header.as_str())
-                .header(CONTENT_TYPE, "application/json")
-                .json(&request_body)
-                .send()
-                .await
-                .map_err(|error| CommandError::Settings(error.to_string()))?;
+            let mut final_status: Option<reqwest::StatusCode> = None;
+            let mut final_value: serde_json::Value = json!({});
+            let mut final_raw_body = String::new();
 
-            let status = response.status();
-            let value: serde_json::Value = response
-                .json()
-                .await
-                .unwrap_or_else(|_| json!({ "error": "Unknown GLM OCR response" }));
+            for attempt in 0..MODEL_REQUEST_MAX_ATTEMPTS {
+                let response = match client
+                    .post(&endpoint)
+                    .timeout(Duration::from_millis(vision.timeout_ms))
+                    .header(AUTHORIZATION, auth_header.as_str())
+                    .header(CONTENT_TYPE, "application/json")
+                    .json(&request_body)
+                    .send()
+                    .await
+                {
+                    Ok(resp) => resp,
+                    Err(error) => {
+                        if should_retry_network_error(&error)
+                            && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS
+                        {
+                            last_error = Some(error.to_string());
+                            sleep_with_backoff(attempt).await;
+                            continue;
+                        }
+                        return Err(CommandError::Settings(error.to_string()));
+                    }
+                };
+
+                let status = response.status();
+                let raw_body = response.text().await.unwrap_or_default();
+                let parsed_value = serde_json::from_str::<serde_json::Value>(&raw_body)
+                    .unwrap_or_else(|_| {
+                        if raw_body.trim().is_empty() {
+                            json!({ "error": "Unknown GLM OCR response" })
+                        } else {
+                            json!({ "raw": format_response_body_for_error(&raw_body) })
+                        }
+                    });
+
+                final_status = Some(status);
+                final_value = parsed_value;
+                final_raw_body = raw_body;
+
+                if should_retry_http_status(status) && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS {
+                    sleep_with_backoff(attempt).await;
+                    continue;
+                }
+                break;
+            }
+
+            let Some(status) = final_status else {
+                continue;
+            };
+            let value = final_value;
 
             if !status.is_success() {
+                let detail = if final_raw_body.trim().is_empty() {
+                    value.to_string()
+                } else {
+                    format_response_body_for_error(&final_raw_body)
+                };
                 last_error = Some(format!(
                     "GLM OCR 调用失败（{}）: {}",
-                    status, value
+                    status, detail
                 ));
                 let is_auth_error = status.as_u16() == 401 || status.as_u16() == 403;
                 if auth_index == 0 && !is_auth_error {
@@ -4125,6 +4179,89 @@ fn extract_stream_delta_text(value: &serde_json::Value) -> String {
     String::new()
 }
 
+fn is_stream_payload_finished(value: &serde_json::Value) -> bool {
+    value
+        .get("choices")
+        .and_then(|choices| choices.get(0))
+        .and_then(|choice| choice.get("finish_reason"))
+        .and_then(|reason| reason.as_str())
+        .map(|reason| !reason.is_empty())
+        .unwrap_or(false)
+}
+
+fn process_stream_data_payload(
+    payload: &str,
+    content: &mut String,
+    on_delta: &mut impl FnMut(&str) -> bool,
+) -> Result<bool, CommandError> {
+    if payload.is_empty() {
+        return Ok(false);
+    }
+    if payload == "[DONE]" {
+        return Ok(true);
+    }
+
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) else {
+        return Ok(false);
+    };
+
+    if let Some(error) = value.get("error") {
+        return Err(CommandError::Settings(format!("模型流式响应错误: {error}")));
+    }
+
+    let delta = extract_stream_delta_text(&value);
+    if !delta.is_empty() {
+        content.push_str(&delta);
+        if !on_delta(&delta) {
+            return Err(CommandError::Settings(TASK_REPLACED_ERROR.to_string()));
+        }
+    }
+
+    Ok(is_stream_payload_finished(&value))
+}
+
+fn parse_sse_text_content(
+    body: &str,
+    on_delta: &mut impl FnMut(&str) -> bool,
+) -> Result<(String, bool), CommandError> {
+    let mut content = String::new();
+    let mut event_data = String::new();
+    let mut saw_data = false;
+
+    let mut flush_event = |event_data: &mut String,
+                           content: &mut String,
+                           saw_data: &mut bool|
+     -> Result<bool, CommandError> {
+        if event_data.trim().is_empty() {
+            event_data.clear();
+            return Ok(false);
+        }
+        *saw_data = true;
+        let payload = event_data.trim().to_string();
+        event_data.clear();
+        process_stream_data_payload(&payload, content, on_delta)
+    };
+
+    for raw_line in body.lines() {
+        let line = raw_line.trim_end_matches('\r');
+        if line.trim().is_empty() {
+            if flush_event(&mut event_data, &mut content, &mut saw_data)? {
+                return Ok((content, true));
+            }
+            continue;
+        }
+        if let Some(payload) = line.strip_prefix("data:") {
+            if !event_data.is_empty() {
+                event_data.push('\n');
+            }
+            event_data.push_str(payload.trim_start());
+        }
+    }
+
+    let done = flush_event(&mut event_data, &mut content, &mut saw_data)?;
+    Ok((content, saw_data || done))
+}
+
 async fn call_llm_for_action(
     client: &reqwest::Client,
     llm: &LlmSettings,
@@ -4149,122 +4286,193 @@ async fn call_llm_for_action(
             {"role": "user", "content": user_prompt}
         ]
     });
+    let mut last_error: Option<String> = None;
 
-    let mut response = client
-        .post(llm.base_url.trim())
-        .timeout(Duration::from_millis(llm.timeout_ms))
-        .header(AUTHORIZATION, format!("Bearer {}", llm.api_key.trim()))
-        .header(CONTENT_TYPE, "application/json")
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|error| CommandError::Settings(error.to_string()))?;
-
-    let status = response.status();
-    if !status.is_success() {
-        let value: serde_json::Value = response
-            .json()
+    for attempt in 0..MODEL_REQUEST_MAX_ATTEMPTS {
+        let mut response = match client
+            .post(llm.base_url.trim())
+            .timeout(Duration::from_millis(llm.timeout_ms))
+            .header(AUTHORIZATION, format!("Bearer {}", llm.api_key.trim()))
+            .header(CONTENT_TYPE, "application/json")
+            .json(&request_body)
+            .send()
             .await
-            .unwrap_or_else(|_| json!({ "error": "Unknown model error response" }));
-        return Err(CommandError::Settings(format!(
-            "模型接口调用失败（{}）: {}",
-            status, value
-        )));
-    }
-
-    let content_type = response
-        .headers()
-        .get(CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    let mut content = String::new();
-
-    if content_type.contains("text/event-stream") {
-        let mut done = false;
-        let mut line_buf = String::new();
-
-        while let Some(chunk) = response
-            .chunk()
-            .await
-            .map_err(|error| CommandError::Settings(error.to_string()))?
         {
-            line_buf.push_str(&String::from_utf8_lossy(&chunk));
-            while let Some(line_end) = line_buf.find('\n') {
-                let line = line_buf[..line_end].trim().to_string();
-                line_buf.drain(..=line_end);
-
-                if line.is_empty() || !line.starts_with("data:") {
+            Ok(resp) => resp,
+            Err(error) => {
+                if should_retry_network_error(&error)
+                    && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS
+                {
+                    last_error = Some(error.to_string());
+                    sleep_with_backoff(attempt).await;
                     continue;
                 }
+                return Err(CommandError::Settings(error.to_string()));
+            }
+        };
 
-                let payload = line[5..].trim();
-                if payload == "[DONE]" {
-                    done = true;
-                    break;
-                }
+        let status = response.status();
+        if !status.is_success() {
+            let raw_body = response.text().await.unwrap_or_default();
+            let message = format!(
+                "模型接口调用失败（{}）: {}",
+                status,
+                format_response_body_for_error(&raw_body)
+            );
+            if should_retry_http_status(status) && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS {
+                last_error = Some(message);
+                sleep_with_backoff(attempt).await;
+                continue;
+            }
+            return Err(CommandError::Settings(message));
+        }
 
-                let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) else {
-                    continue;
+        let content_type = response
+            .headers()
+            .get(CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        let mut content = String::new();
+
+        if content_type.contains("text/event-stream") {
+            let mut line_buf = String::new();
+            let mut event_data = String::new();
+            let mut stream_raw = String::new();
+            let mut stream_done = false;
+            let mut should_retry_stream = false;
+
+            let mut flush_event =
+                |event_data: &mut String, content: &mut String| -> Result<bool, CommandError> {
+                    if event_data.trim().is_empty() {
+                        event_data.clear();
+                        return Ok(false);
+                    }
+                    let payload = event_data.trim().to_string();
+                    event_data.clear();
+                    process_stream_data_payload(&payload, content, &mut on_delta)
                 };
 
-                if let Some(error) = value.get("error") {
-                    return Err(CommandError::Settings(format!("模型流式响应错误: {error}")));
-                }
-
-                let delta = extract_stream_delta_text(&value);
-                if delta.is_empty() {
-                    let finished = value
-                        .get("choices")
-                        .and_then(|choices| choices.get(0))
-                        .and_then(|choice| choice.get("finish_reason"))
-                        .and_then(|reason| reason.as_str())
-                        .map(|reason| !reason.is_empty())
-                        .unwrap_or(false);
-                    if finished {
-                        done = true;
-                        break;
+            loop {
+                let chunk = match response.chunk().await {
+                    Ok(value) => value,
+                    Err(error) => {
+                        if content.is_empty()
+                            && should_retry_network_error(&error)
+                            && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS
+                        {
+                            should_retry_stream = true;
+                            last_error = Some(error.to_string());
+                            break;
+                        }
+                        return Err(CommandError::Settings(error.to_string()));
                     }
-                    continue;
+                };
+
+                let Some(chunk) = chunk else {
+                    break;
+                };
+
+                let chunk_text = String::from_utf8_lossy(&chunk);
+                stream_raw.push_str(&chunk_text);
+                line_buf.push_str(&chunk_text);
+
+                while let Some(line_end) = line_buf.find('\n') {
+                    let raw_line = line_buf[..line_end].to_string();
+                    line_buf.drain(..=line_end);
+                    let line = raw_line.trim_end_matches('\r');
+
+                    if line.trim().is_empty() {
+                        if flush_event(&mut event_data, &mut content)? {
+                            stream_done = true;
+                            break;
+                        }
+                        continue;
+                    }
+
+                    if let Some(payload) = line.strip_prefix("data:") {
+                        if !event_data.is_empty() {
+                            event_data.push('\n');
+                        }
+                        event_data.push_str(payload.trim_start());
+                    }
                 }
 
-                content.push_str(&delta);
-                if !on_delta(&delta) {
-                    return Err(CommandError::Settings(TASK_REPLACED_ERROR.to_string()));
-                }
-
-                let finished = value
-                    .get("choices")
-                    .and_then(|choices| choices.get(0))
-                    .and_then(|choice| choice.get("finish_reason"))
-                    .and_then(|reason| reason.as_str())
-                    .map(|reason| !reason.is_empty())
-                    .unwrap_or(false);
-                if finished {
-                    done = true;
+                if stream_done {
                     break;
                 }
             }
 
-            if done {
-                break;
+            if should_retry_stream {
+                sleep_with_backoff(attempt).await;
+                continue;
+            }
+
+            if !stream_done {
+                let tail = line_buf.trim_end_matches('\r').trim();
+                if let Some(payload) = tail.strip_prefix("data:") {
+                    if !event_data.is_empty() {
+                        event_data.push('\n');
+                    }
+                    event_data.push_str(payload.trim_start());
+                }
+                if !event_data.trim().is_empty() {
+                    let _ = flush_event(&mut event_data, &mut content)?;
+                }
+            }
+
+            if content.trim().is_empty() && !stream_raw.trim().is_empty() {
+                let (fallback_content, saw_sse) = parse_sse_text_content(&stream_raw, &mut on_delta)?;
+                if saw_sse {
+                    content = fallback_content;
+                } else if let Ok(value) = serde_json::from_str::<serde_json::Value>(&stream_raw) {
+                    content = extract_llm_text_content(&value);
+                }
+            }
+        } else {
+            let body_text = match response.text().await {
+                Ok(value) => value,
+                Err(error) => {
+                    if should_retry_network_error(&error)
+                        && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS
+                    {
+                        last_error = Some(error.to_string());
+                        sleep_with_backoff(attempt).await;
+                        continue;
+                    }
+                    return Err(CommandError::Settings(error.to_string()));
+                }
+            };
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&body_text) {
+                content = extract_llm_text_content(&value);
+            }
+            if content.trim().is_empty() {
+                let (fallback_content, saw_sse) = parse_sse_text_content(&body_text, &mut on_delta)?;
+                if saw_sse {
+                    content = fallback_content;
+                } else {
+                    content = body_text.trim().to_string();
+                }
             }
         }
-    } else {
-        let value: serde_json::Value = response
-            .json()
-            .await
-            .map_err(|error| CommandError::Serialization(error.to_string()))?;
-        content = extract_llm_text_content(&value);
+
+        let normalized = content.trim().to_string();
+        if !normalized.is_empty() {
+            return Ok(normalized);
+        }
+
+        let message = "模型返回内容为空，请检查模型和提示词配置".to_string();
+        if attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS {
+            last_error = Some(message);
+            sleep_with_backoff(attempt).await;
+            continue;
+        }
+        return Err(CommandError::Settings(message));
     }
 
-    if content.is_empty() {
-        return Err(CommandError::Settings(
-            "模型返回内容为空，请检查模型和提示词配置".to_string(),
-        ));
-    }
-
-    Ok(content)
+    Err(CommandError::Settings(
+        last_error.unwrap_or_else(|| "模型接口调用失败，请稍后重试".to_string()),
+    ))
 }
 
 fn rgba_image_to_data_url(image: &RgbaImage) -> Result<String, CommandError> {
@@ -4424,43 +4632,77 @@ async fn call_vision_ocr(
             }
         ]
     });
-
-    let response = client
-        .post(vision.base_url.trim())
-        .timeout(Duration::from_millis(vision.timeout_ms))
-        .header(
-            AUTHORIZATION,
-            build_auth_header_value(&vision.api_key, true),
-        )
-        .header(CONTENT_TYPE, "application/json")
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|error| CommandError::Settings(error.to_string()))?;
-
-    let status = response.status();
-    if !status.is_success() {
-        let value: serde_json::Value = response
-            .json()
+    let mut last_error: Option<String> = None;
+    for attempt in 0..MODEL_REQUEST_MAX_ATTEMPTS {
+        let response = match client
+            .post(vision.base_url.trim())
+            .timeout(Duration::from_millis(vision.timeout_ms))
+            .header(
+                AUTHORIZATION,
+                build_auth_header_value(&vision.api_key, true),
+            )
+            .header(CONTENT_TYPE, "application/json")
+            .json(&request_body)
+            .send()
             .await
-            .unwrap_or_else(|_| json!({ "error": "Unknown vision model response" }));
-        return Err(CommandError::Settings(format!(
-            "OCR 视觉模型调用失败（{}）: {}",
-            status, value
-        )));
+        {
+            Ok(resp) => resp,
+            Err(error) => {
+                if should_retry_network_error(&error)
+                    && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS
+                {
+                    last_error = Some(error.to_string());
+                    sleep_with_backoff(attempt).await;
+                    continue;
+                }
+                return Err(CommandError::Settings(error.to_string()));
+            }
+        };
+
+        let status = response.status();
+        let raw_body = response.text().await.unwrap_or_default();
+        if !status.is_success() {
+            let message = format!(
+                "OCR 视觉模型调用失败（{}）: {}",
+                status,
+                format_response_body_for_error(&raw_body)
+            );
+            if should_retry_http_status(status) && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS {
+                last_error = Some(message);
+                sleep_with_backoff(attempt).await;
+                continue;
+            }
+            return Err(CommandError::Settings(message));
+        }
+
+        let value = match serde_json::from_str::<serde_json::Value>(&raw_body) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                if attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS {
+                    last_error = Some(error.to_string());
+                    sleep_with_backoff(attempt).await;
+                    continue;
+                }
+                return Err(CommandError::Serialization(error.to_string()));
+            }
+        };
+        let text = extract_llm_text_content(&value);
+        if !text.trim().is_empty() {
+            return Ok(text.trim().to_string());
+        }
+
+        let message = "OCR 识别结果为空，请调整截图区域或模型配置".to_string();
+        if attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS {
+            last_error = Some(message);
+            sleep_with_backoff(attempt).await;
+            continue;
+        }
+        return Err(CommandError::Settings(message));
     }
 
-    let value: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|error| CommandError::Serialization(error.to_string()))?;
-    let text = extract_llm_text_content(&value);
-    if text.trim().is_empty() {
-        return Err(CommandError::Settings(
-            "OCR 识别结果为空，请调整截图区域或模型配置".to_string(),
-        ));
-    }
-    Ok(text.trim().to_string())
+    Err(CommandError::Settings(last_error.unwrap_or_else(|| {
+        "OCR 视觉模型调用失败，请稍后重试".to_string()
+    })))
 }
 
 fn show_window_by_label<R: Runtime>(app: &AppHandle<R>, label: &str, focus: bool) {
@@ -4648,9 +4890,8 @@ fn apply_shortcut_change<R: Runtime>(
         return Ok(());
     }
 
-    register_or_replace_shortcut(app, Some(previous), next, action).or_else(|error| {
+    register_or_replace_shortcut(app, Some(previous), next, action).inspect_err(|_error| {
         let _ = register_or_replace_shortcut(app, Some(next), previous, action);
-        Err(error)
     })
 }
 
@@ -4884,9 +5125,9 @@ fn list_running_apps_cmd() -> Result<Vec<String>, CommandError> {
                 items.push(name);
             }
         }
-        items.sort_by(|a, b| a.to_ascii_lowercase().cmp(&b.to_ascii_lowercase()));
+        items.sort_by_key(|a| a.to_ascii_lowercase());
         items.truncate(600);
-        return Ok(items);
+        Ok(items)
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -6069,7 +6310,7 @@ async fn complete_ocr_capture_cmd(
         *capture_snapshot = None;
     }
     hide_ocr_capture_window(&app);
-    std::thread::sleep(Duration::from_millis(8));
+    sleep_for_ms(8).await;
 
     let request_id = now_id();
     let mut ocr_payload = OcrResultPayload {
@@ -6180,7 +6421,7 @@ async fn complete_ocr_capture_cmd(
                 .custom
                 .iter()
                 .find(|item| item.id == custom_id)
-                .or_else(|| snapshot.agents.custom.iter().next())
+                .or_else(|| snapshot.agents.custom.first())
                 .cloned()
                 .ok_or_else(|| CommandError::Settings("未找到可用的自定义 Agent".to_string()))?;
             custom_agent_name = Some(agent.name.clone());
