@@ -2843,6 +2843,11 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const [updateChecking, setUpdateChecking] = useState(false);
   const [updateInstalling, setUpdateInstalling] = useState(false);
   const [updateDownloadProgress, setUpdateDownloadProgress] = useState<number | null>(null);
+  const updateCheckBusyRef = useRef(false);
+  const updateInstallBusyRef = useRef(false);
+  const lastAutoUpdateCheckAtRef = useRef(0);
+  const autoUpdateEntryArmedRef = useRef(true);
+  const notifiedUpdateVersionInEntryRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (error) {
@@ -2869,7 +2874,8 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }, []);
 
   async function checkForAppUpdates(options?: { silent?: boolean; notifyOnAvailable?: boolean }) {
-    if (updateChecking || updateInstalling) return;
+    if (updateCheckBusyRef.current || updateInstallBusyRef.current) return;
+    updateCheckBusyRef.current = true;
     const silent = Boolean(options?.silent);
     const notifyOnAvailable = Boolean(options?.notifyOnAvailable);
     setUpdateChecking(true);
@@ -2890,23 +2896,28 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       setAvailableUpdateNotes((update.body || "").trim());
       setUpdateStatusText(`发现新版本 v${update.version}，可直接下载并安装`);
       if (notifyOnAvailable) {
-        setActiveGroup("about");
-        const updateVersion = update.version || "latest";
-        const message =
-          settings.language === "en-US"
-            ? `A new version (v${updateVersion}) is available. You can update it in About & Diagnostics.`
-            : `检测到新版本 v${updateVersion}，可在“关于与诊断”中下载并安装。`;
-        window.alert(message);
+        const updateVersion = (update.version || "latest").trim() || "latest";
+        if (notifiedUpdateVersionInEntryRef.current !== updateVersion) {
+          notifiedUpdateVersionInEntryRef.current = updateVersion;
+          setActiveGroup("about");
+          const message =
+            settings.language === "en-US"
+              ? `A new version (v${updateVersion}) is available. You can update it in About & Diagnostics.`
+              : `检测到新版本 v${updateVersion}，可在“关于与诊断”中下载并安装。`;
+          window.alert(message);
+        }
       }
     } catch (invokeError) {
       setUpdateStatusText(`检查更新失败：${String(invokeError)}`);
     } finally {
+      updateCheckBusyRef.current = false;
       setUpdateChecking(false);
     }
   }
 
   async function downloadAndInstallAppUpdate() {
-    if (updateChecking || updateInstalling) return;
+    if (updateCheckBusyRef.current || updateInstallBusyRef.current) return;
+    updateInstallBusyRef.current = true;
     setUpdateInstalling(true);
     setUpdateDownloadProgress(0);
     try {
@@ -2966,6 +2977,7 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     } catch (invokeError) {
       setUpdateStatusText(`安装更新失败：${String(invokeError)}`);
     } finally {
+      updateInstallBusyRef.current = false;
       setUpdateInstalling(false);
     }
   }
@@ -3040,11 +3052,16 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     void refreshRunningApps();
   }, [activeGroup, runningApps.length, runningAppsLoading]);
 
-  const lastAutoUpdateCheckAtRef = useRef(0);
   useEffect(() => {
-    if (!settings.window.checkUpdatesOnStartup) return;
+    if (!settings.window.checkUpdatesOnStartup) {
+      autoUpdateEntryArmedRef.current = true;
+      notifiedUpdateVersionInEntryRef.current = null;
+      return;
+    }
 
-    const triggerCheck = () => {
+    const triggerCheckForCurrentEntry = () => {
+      if (!autoUpdateEntryArmedRef.current) return;
+      autoUpdateEntryArmedRef.current = false;
       void (async () => {
         let visible = true;
         let focused = true;
@@ -3055,28 +3072,35 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
         } catch {
           focused = document.hasFocus();
         }
-        if (!visible || !focused) return;
+        if (!visible || !focused) {
+          autoUpdateEntryArmedRef.current = true;
+          return;
+        }
 
         const now = Date.now();
         if (now - lastAutoUpdateCheckAtRef.current < 1500) {
+          autoUpdateEntryArmedRef.current = true;
           return;
         }
         lastAutoUpdateCheckAtRef.current = now;
-        void checkForAppUpdates({ silent: true, notifyOnAvailable: true });
+        await checkForAppUpdates({ silent: true, notifyOnAvailable: true });
       })();
     };
 
     const onVisibility = () => {
-      if (!document.hidden) {
-        triggerCheck();
+      if (document.hidden) {
+        autoUpdateEntryArmedRef.current = true;
+        notifiedUpdateVersionInEntryRef.current = null;
+        return;
       }
+      triggerCheckForCurrentEntry();
     };
 
-    triggerCheck();
-    window.addEventListener("focus", triggerCheck);
+    triggerCheckForCurrentEntry();
+    window.addEventListener("focus", triggerCheckForCurrentEntry);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.removeEventListener("focus", triggerCheck);
+      window.removeEventListener("focus", triggerCheckForCurrentEntry);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [settings.window.checkUpdatesOnStartup]);
