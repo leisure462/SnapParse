@@ -713,6 +713,18 @@ struct AppSettingsState {
     data: Mutex<AppSettings>,
 }
 
+struct SettingsLoadResult {
+    settings: AppSettings,
+    source_path: PathBuf,
+    should_persist: bool,
+}
+
+struct HistoryLoadResult {
+    history: VecDeque<ClipboardEntry>,
+    source_path: Option<PathBuf>,
+    should_persist: bool,
+}
+
 struct HttpClientState {
     client: reqwest::Client,
 }
@@ -1684,6 +1696,199 @@ fn history_backup_path(path: &Path) -> PathBuf {
     backup
 }
 
+fn normalize_enum_value_in_object(
+    object: &mut serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    allowed: &[&str],
+    default: &str,
+) {
+    let normalized = object
+        .get(key)
+        .and_then(|value| value.as_str())
+        .map(|value| value.trim().to_ascii_lowercase());
+
+    let should_replace = match normalized {
+        Some(value) => !allowed.iter().any(|candidate| *candidate == value),
+        None => true,
+    };
+
+    if should_replace {
+        object.insert(
+            key.to_string(),
+            serde_json::Value::String(default.to_string()),
+        );
+    }
+}
+
+fn normalize_settings_json_value(value: &mut serde_json::Value) {
+    let Some(root) = value.as_object_mut() else {
+        return;
+    };
+
+    normalize_enum_value_in_object(
+        root,
+        "themePreset",
+        &[
+            "blue",
+            "deep-black",
+            "gray",
+            "white",
+            "black",
+            "md2-dark",
+            "midnight",
+            "graphite",
+            "daylight",
+            "sunrise",
+            "amber-mist",
+        ],
+        "deep-black",
+    );
+
+    if let Some(selection) = root
+        .get_mut("selectionAssistant")
+        .and_then(|value| value.as_object_mut())
+    {
+        normalize_enum_value_in_object(
+            selection,
+            "mode",
+            &["auto-detect", "copy-trigger"],
+            "auto-detect",
+        );
+    }
+
+    if let Some(history) = root
+        .get_mut("history")
+        .and_then(|value| value.as_object_mut())
+    {
+        normalize_enum_value_in_object(
+            history,
+            "defaultCategory",
+            &["all", "text", "link", "image", "favorite"],
+            "all",
+        );
+        normalize_enum_value_in_object(
+            history,
+            "pasteBehavior",
+            &["copy-only", "copy-and-hide"],
+            "copy-and-hide",
+        );
+    }
+
+    if let Some(ocr) = root.get_mut("ocr").and_then(|value| value.as_object_mut()) {
+        normalize_enum_value_in_object(
+            ocr,
+            "defaultAction",
+            &["translate", "summarize", "polish", "explain", "custom"],
+            "translate",
+        );
+    }
+
+    if let Some(tts) = root.get_mut("tts").and_then(|value| value.as_object_mut()) {
+        normalize_enum_value_in_object(
+            tts,
+            "runtimeMode",
+            &["dual-fallback", "edge-cli-only", "python-module-only"],
+            "dual-fallback",
+        );
+    }
+}
+
+fn merge_json_value_by_shape(target: &mut serde_json::Value, incoming: &serde_json::Value) {
+    if let (Some(target_map), Some(incoming_map)) = (target.as_object_mut(), incoming.as_object()) {
+        for (key, incoming_value) in incoming_map {
+            if let Some(target_value) = target_map.get_mut(key) {
+                merge_json_value_by_shape(target_value, incoming_value);
+            } else {
+                target_map.insert(key.clone(), incoming_value.clone());
+            }
+        }
+        return;
+    }
+
+    let should_replace = target.is_null()
+        || (target.is_array() && incoming.is_array())
+        || (target.is_string() && incoming.is_string())
+        || (target.is_boolean() && incoming.is_boolean())
+        || (target.is_number() && incoming.is_number());
+    if should_replace {
+        *target = incoming.clone();
+    }
+}
+
+fn parse_settings_from_text(text: &str) -> Result<(AppSettings, bool), CommandError> {
+    if let Ok(mut settings) = serde_json::from_str::<AppSettings>(text) {
+        normalize_settings(&mut settings);
+        return Ok((settings, false));
+    }
+
+    let incoming = serde_json::from_str::<serde_json::Value>(text)
+        .map_err(|error| CommandError::Serialization(error.to_string()))?;
+    let mut merged = serde_json::to_value(AppSettings::default())
+        .map_err(|error| CommandError::Serialization(error.to_string()))?;
+    merge_json_value_by_shape(&mut merged, &incoming);
+    normalize_settings_json_value(&mut merged);
+
+    let mut settings = serde_json::from_value::<AppSettings>(merged)
+        .map_err(|error| CommandError::Serialization(error.to_string()))?;
+    normalize_settings(&mut settings);
+    Ok((settings, true))
+}
+
+fn file_modified_epoch_ms(path: &Path) -> u64 {
+    fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+        .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn is_likely_snapparse_dir(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| {
+            let lowered = name.to_ascii_lowercase();
+            lowered.contains("snapparse") || lowered.contains("clipboard")
+        })
+        .unwrap_or(false)
+}
+
+fn discover_legacy_storage_dirs(settings_path: &Path) -> Vec<PathBuf> {
+    let Some(current_dir) = settings_path.parent() else {
+        return Vec::new();
+    };
+    let Some(parent_dir) = current_dir.parent() else {
+        return Vec::new();
+    };
+
+    let mut dirs = Vec::<PathBuf>::new();
+    if let Ok(entries) = fs::read_dir(parent_dir) {
+        for entry in entries.flatten() {
+            let candidate = entry.path();
+            if !candidate.is_dir() || candidate == current_dir {
+                continue;
+            }
+            if !is_likely_snapparse_dir(&candidate) {
+                continue;
+            }
+            dirs.push(candidate);
+        }
+    }
+    dirs.sort_by_key(|path| std::cmp::Reverse(file_modified_epoch_ms(path)));
+    dirs
+}
+
+fn dedupe_paths_keep_order(input: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut seen = HashSet::<PathBuf>::new();
+    let mut output = Vec::<PathBuf>::new();
+    for item in input {
+        if seen.insert(item.clone()) {
+            output.push(item);
+        }
+    }
+    output
+}
+
 fn parse_history_entries(text: &str, max_items: usize) -> Result<VecDeque<ClipboardEntry>, CommandError> {
     let mut items = serde_json::from_str::<Vec<ClipboardEntry>>(text)
         .map_err(|error| CommandError::Serialization(error.to_string()))?;
@@ -1721,34 +1926,33 @@ fn read_text_with_retry(path: &Path) -> Result<String, std::io::Error> {
     }))
 }
 
+fn resolve_history_path_from_base_dir(storage_path: &str, base_dir: &Path) -> PathBuf {
+    let trimmed = storage_path.trim();
+    if trimmed.is_empty() {
+        return base_dir.join(HISTORY_FILENAME);
+    }
+
+    let mut path = PathBuf::from(trimmed);
+    if path.is_relative() {
+        path = base_dir.join(path);
+    }
+
+    if !trimmed.to_ascii_lowercase().ends_with(".json") {
+        path.push(HISTORY_FILENAME);
+    }
+    path
+}
+
 fn resolve_history_file_path<R: Runtime>(
     app: &AppHandle<R>,
     settings: &AppSettings,
 ) -> Result<PathBuf, CommandError> {
-    let custom = settings.history.storage_path.trim();
-    if custom.is_empty() {
-        let mut dir = app
-            .path()
-            .app_config_dir()
-            .map_err(|error| CommandError::Settings(error.to_string()))?;
-        fs::create_dir_all(&dir).map_err(|error| CommandError::Settings(error.to_string()))?;
-        dir.push(HISTORY_FILENAME);
-        return Ok(dir);
-    }
-
-    let mut path = PathBuf::from(custom);
-    if path.is_relative() {
-        let mut base = app
-            .path()
-            .app_config_dir()
-            .map_err(|error| CommandError::Settings(error.to_string()))?;
-        base.push(path);
-        path = base;
-    }
-
-    if !custom.to_ascii_lowercase().ends_with(".json") {
-        path.push(HISTORY_FILENAME);
-    }
+    let config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| CommandError::Settings(error.to_string()))?;
+    fs::create_dir_all(&config_dir).map_err(|error| CommandError::Settings(error.to_string()))?;
+    let path = resolve_history_path_from_base_dir(&settings.history.storage_path, &config_dir);
 
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| CommandError::Settings(error.to_string()))?;
@@ -1760,7 +1964,31 @@ fn resolve_history_file_path<R: Runtime>(
 fn persist_settings(path: &Path, settings: &AppSettings) -> Result<(), CommandError> {
     let payload = serde_json::to_string_pretty(settings)
         .map_err(|error| CommandError::Serialization(error.to_string()))?;
-    fs::write(path, payload).map_err(|error| CommandError::Settings(error.to_string()))
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| CommandError::Settings(error.to_string()))?;
+    }
+
+    let backup_path = settings_backup_path(path);
+    if path.exists() {
+        let _ = fs::copy(path, &backup_path);
+    }
+
+    let temp_path = path.with_extension("tmp");
+    fs::write(&temp_path, &payload).map_err(|error| CommandError::Settings(error.to_string()))?;
+
+    if path.exists() {
+        let _ = fs::remove_file(path);
+    }
+
+    match fs::rename(&temp_path, path) {
+        Ok(_) => Ok(()),
+        Err(_) => {
+            fs::write(path, payload).map_err(|error| CommandError::Settings(error.to_string()))?;
+            let _ = fs::remove_file(&temp_path);
+            Ok(())
+        }
+    }
 }
 
 fn persist_history_snapshot<R: Runtime>(
@@ -1797,50 +2025,79 @@ fn persist_history_snapshot<R: Runtime>(
 fn load_history_snapshot<R: Runtime>(
     app: &AppHandle<R>,
     settings: &AppSettings,
-) -> Result<VecDeque<ClipboardEntry>, CommandError> {
-    let history_path = resolve_history_file_path(app, settings)?;
+    canonical_settings_path: &Path,
+    settings_source_path: &Path,
+) -> Result<HistoryLoadResult, CommandError> {
+    let canonical_history_path = resolve_history_file_path(app, settings)?;
 
-    let primary_text = match read_text_with_retry(&history_path) {
-        Ok(value) => Some(value),
-        Err(error) if error.kind() == ErrorKind::NotFound => None,
-        Err(error) => {
-            eprintln!(
-                "[History] failed reading primary snapshot {}: {}",
-                history_path.display(),
-                error
-            );
-            None
+    if let Ok(text) = read_text_with_retry(&canonical_history_path) {
+        if let Ok(history) = parse_history_entries(&text, settings.history.max_items) {
+            return Ok(HistoryLoadResult {
+                history,
+                source_path: Some(canonical_history_path),
+                should_persist: false,
+            });
         }
-    };
+        eprintln!(
+            "[History] primary snapshot parse failed {}",
+            canonical_history_path.display()
+        );
+    }
 
-    if let Some(text) = primary_text {
-        match parse_history_entries(&text, settings.history.max_items) {
-            Ok(history) => return Ok(history),
-            Err(error) => {
-                eprintln!(
-                    "[History] primary snapshot parse failed {}: {}",
-                    history_path.display(),
-                    error
-                );
+    let canonical_backup_path = history_backup_path(&canonical_history_path);
+    if let Ok(text) = read_text_with_retry(&canonical_backup_path) {
+        if let Ok(history) = parse_history_entries(&text, settings.history.max_items) {
+            return Ok(HistoryLoadResult {
+                history,
+                source_path: Some(canonical_backup_path),
+                should_persist: true,
+            });
+        }
+        eprintln!(
+            "[History] backup snapshot parse failed {}",
+            canonical_backup_path.display()
+        );
+    }
+
+    let mut fallback_candidates = Vec::<PathBuf>::new();
+    if let (Some(source_dir), Some(canonical_dir)) =
+        (settings_source_path.parent(), canonical_settings_path.parent())
+    {
+        if source_dir != canonical_dir {
+            let source_history_path =
+                resolve_history_path_from_base_dir(&settings.history.storage_path, source_dir);
+            fallback_candidates.push(source_history_path.clone());
+            fallback_candidates.push(history_backup_path(&source_history_path));
+        }
+    }
+
+    for legacy_dir in discover_legacy_storage_dirs(canonical_settings_path) {
+        let legacy_history_path =
+            resolve_history_path_from_base_dir(&settings.history.storage_path, &legacy_dir);
+        fallback_candidates.push(legacy_history_path.clone());
+        fallback_candidates.push(history_backup_path(&legacy_history_path));
+    }
+
+    let mut fallback_candidates = dedupe_paths_keep_order(fallback_candidates);
+    fallback_candidates.sort_by_key(|path| std::cmp::Reverse(file_modified_epoch_ms(path)));
+
+    for candidate in fallback_candidates {
+        if let Ok(text) = read_text_with_retry(&candidate) {
+            if let Ok(history) = parse_history_entries(&text, settings.history.max_items) {
+                return Ok(HistoryLoadResult {
+                    history,
+                    source_path: Some(candidate),
+                    should_persist: true,
+                });
             }
         }
     }
 
-    let backup_path = history_backup_path(&history_path);
-    match read_text_with_retry(&backup_path) {
-        Ok(text) => match parse_history_entries(&text, settings.history.max_items) {
-            Ok(history) => Ok(history),
-            Err(error) => Err(CommandError::Settings(format!(
-                "History backup parse failed ({}): {error}",
-                backup_path.display()
-            ))),
-        },
-        Err(error) if error.kind() == ErrorKind::NotFound => Ok(VecDeque::new()),
-        Err(error) => Err(CommandError::Settings(format!(
-            "History snapshot read failed ({}): {error}",
-            history_path.display()
-        ))),
-    }
+    Ok(HistoryLoadResult {
+        history: VecDeque::new(),
+        source_path: None,
+        should_persist: false,
+    })
 }
 
 fn persist_settings_state(settings_state: &AppSettingsState) -> Result<(), CommandError> {
@@ -1852,15 +2109,62 @@ fn persist_settings_state(settings_state: &AppSettingsState) -> Result<(), Comma
     persist_settings(&settings_state.file_path, &snapshot)
 }
 
-fn load_settings(path: &Path) -> AppSettings {
-    let text = match fs::read_to_string(path) {
-        Ok(value) => value,
-        Err(_) => return AppSettings::default(),
-    };
+fn load_settings(path: &Path) -> SettingsLoadResult {
+    let canonical_path = path.to_path_buf();
+    let canonical_backup = settings_backup_path(path);
+    let mut candidate_paths = vec![canonical_path.clone(), canonical_backup.clone()];
+    for legacy_dir in discover_legacy_storage_dirs(path) {
+        candidate_paths.push(legacy_dir.join(SETTINGS_FILENAME));
+        candidate_paths.push(legacy_dir.join(SETTINGS_BACKUP_FILENAME));
+    }
+    candidate_paths = dedupe_paths_keep_order(candidate_paths);
 
-    let mut settings = serde_json::from_str::<AppSettings>(&text).unwrap_or_default();
-    normalize_settings(&mut settings);
-    settings
+    // Try canonical file and backup first to avoid restoring stale legacy snapshots.
+    for candidate in [&canonical_path, &canonical_backup] {
+        if let Ok(text) = read_text_with_retry(candidate) {
+            match parse_settings_from_text(&text) {
+                Ok((settings, repaired)) => {
+                    return SettingsLoadResult {
+                        settings,
+                        source_path: candidate.clone(),
+                        should_persist: repaired || candidate.as_path() != canonical_path.as_path(),
+                    };
+                }
+                Err(error) => {
+                    eprintln!("[Settings] parse failed {}: {}", candidate.display(), error);
+                }
+            }
+        }
+    }
+
+    let mut legacy_candidates = candidate_paths
+        .into_iter()
+        .filter(|candidate| candidate != &canonical_path && candidate != &canonical_backup)
+        .collect::<Vec<_>>();
+    legacy_candidates.sort_by_key(|candidate| std::cmp::Reverse(file_modified_epoch_ms(candidate)));
+
+    for candidate in legacy_candidates {
+        if let Ok(text) = read_text_with_retry(&candidate) {
+            match parse_settings_from_text(&text) {
+                Ok((settings, _repaired)) => {
+                    return SettingsLoadResult {
+                        settings,
+                        source_path: candidate,
+                        should_persist: true,
+                    };
+                }
+                Err(error) => {
+                    eprintln!("[Settings] parse failed {}: {}", candidate.display(), error);
+                }
+            }
+        }
+    }
+
+    SettingsLoadResult {
+        settings: AppSettings::default(),
+        source_path: canonical_path,
+        should_persist: true,
+    }
 }
 
 fn emit_settings_updated<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) {
@@ -7189,19 +7493,37 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
             let path = settings_file_path(&app_handle)?;
-            let settings = load_settings(&path);
+            let settings_load = load_settings(&path);
+            let settings = settings_load.settings.clone();
             let is_autostart_launch =
                 std::env::args().any(|arg| arg.eq_ignore_ascii_case(AUTOSTART_ARG));
 
-            let _ = persist_settings(&path, &settings);
-            let (initial_history, should_persist_history_snapshot) =
-                match load_history_snapshot(&app_handle, &settings) {
-                    Ok(history) => (history, true),
-                    Err(error) => {
-                        eprintln!("[History] startup load failed: {error}");
-                        (VecDeque::new(), false)
+            if settings_load.should_persist {
+                if settings_load.source_path != path {
+                    eprintln!(
+                        "[Settings] recovered from {}",
+                        settings_load.source_path.display()
+                    );
+                }
+                let _ = persist_settings(&path, &settings);
+            }
+            let history_load = match load_history_snapshot(
+                &app_handle,
+                &settings,
+                &path,
+                &settings_load.source_path,
+            ) {
+                Ok(result) => result,
+                Err(error) => {
+                    eprintln!("[History] startup load failed: {error}");
+                    HistoryLoadResult {
+                        history: VecDeque::new(),
+                        source_path: None,
+                        should_persist: false,
                     }
-                };
+                }
+            };
+            let initial_history = history_load.history.clone();
 
             app.manage(AppSettingsState {
                 file_path: path,
@@ -7213,7 +7535,13 @@ pub fn run() {
                     history.history = initial_history.clone();
                 };
             }
-            if should_persist_history_snapshot {
+            if history_load.should_persist {
+                if let Some(source_path) = history_load.source_path.as_ref() {
+                    eprintln!(
+                        "[History] migrated snapshot from {}",
+                        source_path.display()
+                    );
+                }
                 let _ = persist_history_snapshot(
                     &app_handle,
                     &settings,
