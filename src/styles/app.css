@@ -2422,7 +2422,26 @@ select {
 .settings-inline-actions {
   margin-top: calc(var(--grid) * 0.35);
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--grid) * 0.8);
+}
+
+.inline-action-result {
+  margin: 0;
+  min-height: 18px;
+  flex: 1 1 auto;
+  color: var(--text-mid);
+  font-size: var(--settings-font-xs);
+  line-height: 1.25;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-inline-actions .path-picker-btn {
+  flex: 0 0 auto;
 }
 
 .settings-json {

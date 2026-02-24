@@ -2923,6 +2923,8 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const [runningAppsFilter, setRunningAppsFilter] = useState("");
   const [testingLlmApi, setTestingLlmApi] = useState(false);
   const [testingOcrApi, setTestingOcrApi] = useState(false);
+  const [llmApiTestFeedback, setLlmApiTestFeedback] = useState("");
+  const [ocrApiTestFeedback, setOcrApiTestFeedback] = useState("");
   const [numberDrafts, setNumberDrafts] = useState<
     Partial<
       Record<
@@ -3308,11 +3310,16 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   async function testLlmApiConfig() {
     if (testingLlmApi) return;
     setTestingLlmApi(true);
+    setLlmApiTestFeedback("");
     try {
       const summary = await invoke<string>("test_llm_api_cmd");
-      setStatus(summary ? `大模型 API 测试通过：${summary}` : "大模型 API 测试通过");
+      const nextFeedback = summary ? `测试通过：${summary}` : "测试通过";
+      setStatus(`大模型 API ${nextFeedback}`);
+      setLlmApiTestFeedback(nextFeedback);
     } catch (invokeError) {
-      setStatus(String(invokeError));
+      const nextFeedback = String(invokeError);
+      setStatus(nextFeedback);
+      setLlmApiTestFeedback(nextFeedback);
     } finally {
       setTestingLlmApi(false);
     }
@@ -3321,11 +3328,16 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   async function testOcrApiConfig() {
     if (testingOcrApi) return;
     setTestingOcrApi(true);
+    setOcrApiTestFeedback("");
     try {
       const summary = await invoke<string>("test_ocr_vision_api_cmd");
-      setStatus(summary ? `OCR 模型 API 测试通过：${summary}` : "OCR 模型 API 测试通过");
+      const nextFeedback = summary ? `测试通过：${summary}` : "测试通过";
+      setStatus(`OCR 模型 API ${nextFeedback}`);
+      setOcrApiTestFeedback(nextFeedback);
     } catch (invokeError) {
-      setStatus(String(invokeError));
+      const nextFeedback = String(invokeError);
+      setStatus(nextFeedback);
+      setOcrApiTestFeedback(nextFeedback);
     } finally {
       setTestingOcrApi(false);
     }
@@ -4380,6 +4392,9 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                 />
               </div>
               <div className="settings-inline-actions">
+                <p className="inline-action-result" aria-live="polite">
+                  {llmApiTestFeedback}
+                </p>
                 <button
                   type="button"
                   className="path-picker-btn"
@@ -4642,6 +4657,9 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                 />
               </div>
               <div className="settings-inline-actions">
+                <p className="inline-action-result" aria-live="polite">
+                  {ocrApiTestFeedback}
+                </p>
                 <button
                   type="button"
                   className="path-picker-btn"

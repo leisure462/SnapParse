@@ -1,3 +1,5 @@
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::{
     borrow::Cow,
     collections::{HashSet, VecDeque},
@@ -12,8 +14,6 @@ use std::{
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
 
 use arboard::{Clipboard, ImageData};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -27,8 +27,9 @@ use serde_json::json;
 use tauri::{
     menu::MenuBuilder,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    window::Color, AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, Position, Runtime,
-    Size, State, WindowEvent,
+    window::Color,
+    AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, Position, Runtime, Size, State,
+    WindowEvent,
 };
 use tauri_plugin_autostart::AutoLaunchManager;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
@@ -40,11 +41,11 @@ use windows_sys::Win32::Graphics::Dwm::{
     DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
 };
 #[cfg(target_os = "windows")]
+use windows_sys::Win32::System::DataExchange::GetClipboardSequenceNumber;
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::System::Threading::{
     OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
 };
-#[cfg(target_os = "windows")]
-use windows_sys::Win32::System::DataExchange::GetClipboardSequenceNumber;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP,
@@ -129,8 +130,14 @@ const TRAY_MENU_OCR_ID: &str = "tray-open-ocr";
 const TRAY_MENU_SETTINGS_ID: &str = "tray-open-settings";
 const TRAY_MENU_QUIT_ID: &str = "tray-quit";
 const AUTOSTART_ARG: &str = "--autostart";
-const BUILTIN_SELECTION_BAR_KEYS: [&str; 6] =
-    ["copy", "summarize", "polish", "explain", "translate", "search"];
+const BUILTIN_SELECTION_BAR_KEYS: [&str; 6] = [
+    "copy",
+    "summarize",
+    "polish",
+    "explain",
+    "translate",
+    "search",
+];
 const MAX_ENABLED_SELECTION_BAR_ITEMS: usize = 8;
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -161,7 +168,12 @@ enum ThemePreset {
     DeepBlack,
     #[serde(rename = "gray", alias = "graphite")]
     Gray,
-    #[serde(rename = "white", alias = "daylight", alias = "sunrise", alias = "amber-mist")]
+    #[serde(
+        rename = "white",
+        alias = "daylight",
+        alias = "sunrise",
+        alias = "amber-mist"
+    )]
     White,
 }
 
@@ -1178,7 +1190,10 @@ fn is_builtin_selection_bar_key(value: &str) -> bool {
 }
 
 fn parse_custom_selection_bar_key(value: &str) -> Option<&str> {
-    value.strip_prefix("custom:").map(str::trim).filter(|item| !item.is_empty())
+    value
+        .strip_prefix("custom:")
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
 }
 
 fn builtin_selection_bar_order() -> Vec<SelectionBarItemConfig> {
@@ -1457,7 +1472,8 @@ fn normalize_settings(settings: &mut AppSettings) {
         .take(30)
         .collect();
     let raw_bar_order = std::mem::take(&mut settings.agents.bar_order);
-    settings.agents.bar_order = normalize_selection_bar_order(raw_bar_order, &settings.agents.custom);
+    settings.agents.bar_order =
+        normalize_selection_bar_order(raw_bar_order, &settings.agents.custom);
 }
 
 fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
@@ -2010,9 +2026,114 @@ fn dedupe_paths_keep_order(input: Vec<PathBuf>) -> Vec<PathBuf> {
     output
 }
 
-fn parse_history_entries(text: &str, max_items: usize) -> Result<VecDeque<ClipboardEntry>, CommandError> {
-    let mut items = serde_json::from_str::<Vec<ClipboardEntry>>(text)
-        .map_err(|error| CommandError::Serialization(error.to_string()))?;
+fn parse_history_kind(value: &serde_json::Value) -> Option<ClipboardKind> {
+    let raw = value.as_str()?.trim().to_ascii_lowercase();
+    match raw.as_str() {
+        "text" => Some(ClipboardKind::Text),
+        "link" => Some(ClipboardKind::Link),
+        "image" => Some(ClipboardKind::Image),
+        _ => None,
+    }
+}
+
+fn parse_history_timestamp(value: &serde_json::Value) -> Option<DateTime<Utc>> {
+    if let Some(text) = value.as_str() {
+        if let Ok(parsed) = DateTime::parse_from_rfc3339(text.trim()) {
+            return Some(parsed.with_timezone(&Utc));
+        }
+        return None;
+    }
+
+    let numeric = value.as_i64()?;
+    if numeric > 4_000_000_000 {
+        DateTime::<Utc>::from_timestamp_millis(numeric)
+    } else {
+        DateTime::<Utc>::from_timestamp(numeric, 0)
+    }
+}
+
+fn parse_history_entry_compat(raw: &serde_json::Value) -> Option<ClipboardEntry> {
+    let object = raw.as_object()?;
+    let content = object
+        .get("content")
+        .and_then(|value| value.as_str())
+        .or_else(|| object.get("text").and_then(|value| value.as_str()))
+        .unwrap_or_default()
+        .to_string();
+    let image_data_url = object
+        .get("imageDataUrl")
+        .and_then(|value| value.as_str())
+        .or_else(|| object.get("image").and_then(|value| value.as_str()))
+        .map(str::to_string);
+
+    let kind = object
+        .get("kind")
+        .and_then(parse_history_kind)
+        .or_else(|| {
+            if image_data_url.is_some() {
+                Some(ClipboardKind::Image)
+            } else if content.contains("://") {
+                Some(ClipboardKind::Link)
+            } else {
+                Some(ClipboardKind::Text)
+            }
+        })?;
+
+    let copied_at = object
+        .get("copiedAt")
+        .and_then(parse_history_timestamp)
+        .or_else(|| object.get("copied_at").and_then(parse_history_timestamp))
+        .or_else(|| object.get("createdAt").and_then(parse_history_timestamp))
+        .or_else(|| object.get("timestamp").and_then(parse_history_timestamp))
+        .unwrap_or_else(Utc::now);
+
+    let pinned = object
+        .get("pinned")
+        .and_then(parse_bool_like_json)
+        .unwrap_or(false);
+    let id = object
+        .get("id")
+        .and_then(|value| value.as_str())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(now_id);
+
+    Some(ClipboardEntry {
+        id,
+        kind,
+        content,
+        image_data_url,
+        copied_at,
+        pinned,
+    })
+}
+
+fn parse_history_entries(
+    text: &str,
+    max_items: usize,
+) -> Result<VecDeque<ClipboardEntry>, CommandError> {
+    let mut items = match serde_json::from_str::<Vec<ClipboardEntry>>(text) {
+        Ok(parsed) => parsed,
+        Err(_) => {
+            let raw_value = serde_json::from_str::<serde_json::Value>(text)
+                .map_err(|error| CommandError::Serialization(error.to_string()))?;
+            let raw_items = raw_value.as_array().ok_or_else(|| {
+                CommandError::Serialization("History snapshot must be a JSON array".to_string())
+            })?;
+            let mut repaired = Vec::<ClipboardEntry>::with_capacity(raw_items.len());
+            for raw_item in raw_items {
+                if let Ok(entry) = serde_json::from_value::<ClipboardEntry>(raw_item.clone()) {
+                    repaired.push(entry);
+                    continue;
+                }
+                if let Some(entry) = parse_history_entry_compat(raw_item) {
+                    repaired.push(entry);
+                }
+            }
+            repaired
+        }
+    };
     items.retain(|item| item.kind == ClipboardKind::Image || !item.content.trim().is_empty());
 
     let mut history = VecDeque::from(items);
@@ -2042,9 +2163,8 @@ fn read_text_with_retry(path: &Path) -> Result<String, std::io::Error> {
         }
     }
 
-    Err(last_error.unwrap_or_else(|| {
-        std::io::Error::other("history file read failed after retries")
-    }))
+    Err(last_error
+        .unwrap_or_else(|| std::io::Error::other("history file read failed after retries")))
 }
 
 fn resolve_history_path_from_base_dir(storage_path: &str, base_dir: &Path) -> PathBuf {
@@ -2064,15 +2184,24 @@ fn resolve_history_path_from_base_dir(storage_path: &str, base_dir: &Path) -> Pa
     path
 }
 
-fn resolve_history_file_path<R: Runtime>(
-    app: &AppHandle<R>,
-    settings: &AppSettings,
-) -> Result<PathBuf, CommandError> {
-    let config_dir = app
+fn app_config_history_file_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, CommandError> {
+    let mut config_dir = app
         .path()
         .app_config_dir()
         .map_err(|error| CommandError::Settings(error.to_string()))?;
     fs::create_dir_all(&config_dir).map_err(|error| CommandError::Settings(error.to_string()))?;
+    config_dir.push(HISTORY_FILENAME);
+    Ok(config_dir)
+}
+
+fn resolve_history_file_path<R: Runtime>(
+    app: &AppHandle<R>,
+    settings: &AppSettings,
+) -> Result<PathBuf, CommandError> {
+    let config_dir = app_config_history_file_path(app)?
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| CommandError::Settings("Invalid app config directory".to_string()))?;
     let path = resolve_history_path_from_base_dir(&settings.history.storage_path, &config_dir);
 
     if let Some(parent) = path.parent() {
@@ -2117,29 +2246,56 @@ fn persist_history_snapshot<R: Runtime>(
     settings: &AppSettings,
     entries: &[ClipboardEntry],
 ) -> Result<(), CommandError> {
-    let history_path = resolve_history_file_path(app, settings)?;
-    let backup_path = history_backup_path(&history_path);
-    if history_path.exists() {
-        let _ = fs::copy(&history_path, backup_path);
-    }
     let payload = serde_json::to_string_pretty(entries)
         .map_err(|error| CommandError::Serialization(error.to_string()))?;
-    let temp_path = history_path.with_extension("tmp");
-    fs::write(&temp_path, &payload).map_err(|error| CommandError::Settings(error.to_string()))?;
-
-    if history_path.exists() {
-        let _ = fs::remove_file(&history_path);
-    }
-
-    match fs::rename(&temp_path, &history_path) {
-        Ok(_) => Ok(()),
-        Err(_) => {
-            // Fallback for platforms/scenarios where atomic rename replacement fails.
-            fs::write(&history_path, payload)
+    let write_snapshot = |path: &Path, payload: &str| -> Result<(), CommandError> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
                 .map_err(|error| CommandError::Settings(error.to_string()))?;
-            let _ = fs::remove_file(&temp_path);
+        }
+        let backup_path = history_backup_path(path);
+        if path.exists() {
+            let _ = fs::copy(path, backup_path);
+        }
+
+        let temp_path = path.with_extension("tmp");
+        fs::write(&temp_path, payload)
+            .map_err(|error| CommandError::Settings(error.to_string()))?;
+
+        if path.exists() {
+            let _ = fs::remove_file(path);
+        }
+
+        match fs::rename(&temp_path, path) {
+            Ok(_) => Ok(()),
+            Err(_) => {
+                fs::write(path, payload)
+                    .map_err(|error| CommandError::Settings(error.to_string()))?;
+                let _ = fs::remove_file(&temp_path);
+                Ok(())
+            }
+        }
+    };
+
+    let primary_path = resolve_history_file_path(app, settings)?;
+    let app_config_path = app_config_history_file_path(app)?;
+    let primary_result = write_snapshot(&primary_path, &payload);
+    let mirror_result = if app_config_path != primary_path {
+        write_snapshot(&app_config_path, &payload)
+    } else {
+        Ok(())
+    };
+
+    match (primary_result, mirror_result) {
+        (Ok(_), _) => Ok(()),
+        (Err(primary_error), Ok(_)) => {
+            eprintln!(
+                "[History] primary snapshot write failed, mirrored to app config: {}",
+                primary_error
+            );
             Ok(())
         }
+        (Err(primary_error), Err(_mirror_error)) => Err(primary_error),
     }
 }
 
@@ -2150,12 +2306,21 @@ fn load_history_snapshot<R: Runtime>(
     settings_source_path: &Path,
 ) -> Result<HistoryLoadResult, CommandError> {
     let canonical_history_path = resolve_history_file_path(app, settings)?;
+    let app_config_history_path = app_config_history_file_path(app)?;
+    let mut empty_history_candidate: Option<HistoryLoadResult> = None;
 
     if let Ok(text) = read_text_with_retry(&canonical_history_path) {
         if let Ok(history) = parse_history_entries(&text, settings.history.max_items) {
-            return Ok(HistoryLoadResult {
+            if !history.is_empty() {
+                return Ok(HistoryLoadResult {
+                    history,
+                    source_path: Some(canonical_history_path.clone()),
+                    should_persist: false,
+                });
+            }
+            empty_history_candidate = Some(HistoryLoadResult {
                 history,
-                source_path: Some(canonical_history_path),
+                source_path: Some(canonical_history_path.clone()),
                 should_persist: false,
             });
         }
@@ -2168,11 +2333,20 @@ fn load_history_snapshot<R: Runtime>(
     let canonical_backup_path = history_backup_path(&canonical_history_path);
     if let Ok(text) = read_text_with_retry(&canonical_backup_path) {
         if let Ok(history) = parse_history_entries(&text, settings.history.max_items) {
-            return Ok(HistoryLoadResult {
-                history,
-                source_path: Some(canonical_backup_path),
-                should_persist: true,
-            });
+            if !history.is_empty() {
+                return Ok(HistoryLoadResult {
+                    history,
+                    source_path: Some(canonical_backup_path.clone()),
+                    should_persist: true,
+                });
+            }
+            if empty_history_candidate.is_none() {
+                empty_history_candidate = Some(HistoryLoadResult {
+                    history,
+                    source_path: Some(canonical_backup_path.clone()),
+                    should_persist: true,
+                });
+            }
         }
         eprintln!(
             "[History] backup snapshot parse failed {}",
@@ -2181,9 +2355,14 @@ fn load_history_snapshot<R: Runtime>(
     }
 
     let mut fallback_candidates = Vec::<PathBuf>::new();
-    if let (Some(source_dir), Some(canonical_dir)) =
-        (settings_source_path.parent(), canonical_settings_path.parent())
-    {
+    if app_config_history_path != canonical_history_path {
+        fallback_candidates.push(app_config_history_path.clone());
+        fallback_candidates.push(history_backup_path(&app_config_history_path));
+    }
+    if let (Some(source_dir), Some(canonical_dir)) = (
+        settings_source_path.parent(),
+        canonical_settings_path.parent(),
+    ) {
         if source_dir != canonical_dir {
             let source_history_path =
                 resolve_history_path_from_base_dir(&settings.history.storage_path, source_dir);
@@ -2205,13 +2384,26 @@ fn load_history_snapshot<R: Runtime>(
     for candidate in fallback_candidates {
         if let Ok(text) = read_text_with_retry(&candidate) {
             if let Ok(history) = parse_history_entries(&text, settings.history.max_items) {
-                return Ok(HistoryLoadResult {
-                    history,
-                    source_path: Some(candidate),
-                    should_persist: true,
-                });
+                if !history.is_empty() {
+                    return Ok(HistoryLoadResult {
+                        history,
+                        source_path: Some(candidate),
+                        should_persist: true,
+                    });
+                }
+                if empty_history_candidate.is_none() {
+                    empty_history_candidate = Some(HistoryLoadResult {
+                        history,
+                        source_path: Some(candidate),
+                        should_persist: true,
+                    });
+                }
             }
         }
+    }
+
+    if let Some(candidate) = empty_history_candidate {
+        return Ok(candidate);
     }
 
     Ok(HistoryLoadResult {
@@ -2746,7 +2938,11 @@ fn is_point_likely_window_title_bar(hwnd_raw: isize, point: PhysicalPosition<i32
         return false;
     }
 
-    let title_band_height = if is_console_like_window(hwnd_raw) { 56 } else { 42 };
+    let title_band_height = if is_console_like_window(hwnd_raw) {
+        56
+    } else {
+        42
+    };
     point.y < rect.top.saturating_add(title_band_height)
 }
 
@@ -2826,9 +3022,9 @@ fn write_clipboard_text_with_retry(value: &str) -> Result<(), CommandError> {
         }
     }
 
-    Err(CommandError::Clipboard(
-        last_error.unwrap_or_else(|| "failed to write clipboard text".to_string()),
-    ))
+    Err(CommandError::Clipboard(last_error.unwrap_or_else(|| {
+        "failed to write clipboard text".to_string()
+    })))
 }
 
 #[cfg(target_os = "windows")]
@@ -2861,7 +3057,10 @@ fn try_capture_console_selection_for_copy(hwnd_raw: isize, fallback_text: &str) 
 }
 
 #[cfg(not(target_os = "windows"))]
-fn try_capture_console_selection_for_copy(_hwnd_raw: isize, _fallback_text: &str) -> Option<String> {
+fn try_capture_console_selection_for_copy(
+    _hwnd_raw: isize,
+    _fallback_text: &str,
+) -> Option<String> {
     None
 }
 
@@ -3245,7 +3444,8 @@ fn selection_bar_width_for_settings(settings: &AppSettings) -> u32 {
             .saturating_add(label_width)
     };
 
-    let order = normalize_selection_bar_order(settings.agents.bar_order.clone(), &settings.agents.custom);
+    let order =
+        normalize_selection_bar_order(settings.agents.bar_order.clone(), &settings.agents.custom);
     let mut action_count = 0u32;
     let mut action_width = 0u32;
 
@@ -3285,7 +3485,11 @@ fn selection_bar_width_for_settings(settings: &AppSettings) -> u32 {
     }
 
     let item_count = 1u32.saturating_add(action_count);
-    let gap = if compact_mode { GAP_COMPACT } else { GAP_NORMAL };
+    let gap = if compact_mode {
+        GAP_COMPACT
+    } else {
+        GAP_NORMAL
+    };
     let shell_padding = if compact_mode {
         SHELL_PADDING_COMPACT
     } else {
@@ -3702,7 +3906,10 @@ fn resolve_tts_voice(
         return tts.voice_en_us.clone();
     }
 
-    let hint = language_hint.unwrap_or_default().trim().to_ascii_lowercase();
+    let hint = language_hint
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
     if hint.starts_with("zh") {
         tts.voice_zh_cn.clone()
     } else {
@@ -3800,7 +4007,10 @@ fn has_edge_tts_runtime() -> bool {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .output();
-        if output.map(|result| result.status.success()).unwrap_or(false) {
+        if output
+            .map(|result| result.status.success())
+            .unwrap_or(false)
+        {
             return true;
         }
     }
@@ -3839,7 +4049,10 @@ fn try_auto_install_edge_tts() -> Result<(), String> {
 
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         if stderr.is_empty() {
-            errors.push(format!("{executable}: pip install exited with {}", output.status));
+            errors.push(format!(
+                "{executable}: pip install exited with {}",
+                output.status
+            ));
         } else {
             errors.push(format!("{executable}: {stderr}"));
         }
@@ -3971,7 +4184,9 @@ fn synthesize_tts_audio(
 
     let missing_dependency = !succeeded
         && !attempt_errors.is_empty()
-        && attempt_errors.iter().all(|error| is_missing_edge_tts_error(error));
+        && attempt_errors
+            .iter()
+            .all(|error| is_missing_edge_tts_error(error));
     if missing_dependency {
         match try_auto_install_edge_tts_with_lock() {
             Ok(_) => {
@@ -4036,8 +4251,7 @@ fn synthesize_tts_audio(
             }
             Err(error) => {
                 if error == EDGE_TTS_INSTALL_IN_PROGRESS {
-                    attempt_errors
-                        .push("Edge TTS 正在后台初始化，请稍后重试".to_string());
+                    attempt_errors.push("Edge TTS 正在后台初始化，请稍后重试".to_string());
                 } else {
                     attempt_errors.push(format!("auto-install failed: {error}"));
                 }
@@ -4060,7 +4274,11 @@ fn synthesize_tts_audio(
     let bytes_result = fs::read(&output_path);
     let _ = fs::remove_file(&output_path);
     let bytes = bytes_result.map_err(|error| {
-        CommandError::Settings(format!("读取 TTS 音频失败（{}）: {}", output_path.display(), error))
+        CommandError::Settings(format!(
+            "读取 TTS 音频失败（{}）: {}",
+            output_path.display(),
+            error
+        ))
     })?;
 
     if bytes.is_empty() {
@@ -4549,10 +4767,7 @@ async fn call_glm_layout_parsing_ocr(
                 } else {
                     format_response_body_for_error(&final_raw_body)
                 };
-                last_error = Some(format!(
-                    "GLM OCR 调用失败（{}）: {}",
-                    status, detail
-                ));
+                last_error = Some(format!("GLM OCR 调用失败（{}）: {}", status, detail));
                 let is_auth_error = status.as_u16() == 401 || status.as_u16() == 403;
                 if auth_index == 0 && !is_auth_error {
                     break;
@@ -4725,9 +4940,7 @@ async fn call_llm_for_action(
         {
             Ok(resp) => resp,
             Err(error) => {
-                if should_retry_network_error(&error)
-                    && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS
-                {
+                if should_retry_network_error(&error) && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS {
                     last_error = Some(error.to_string());
                     sleep_with_backoff(attempt).await;
                     continue;
@@ -4847,7 +5060,8 @@ async fn call_llm_for_action(
             }
 
             if content.trim().is_empty() && !stream_raw.trim().is_empty() {
-                let (fallback_content, saw_sse) = parse_sse_text_content(&stream_raw, &mut on_delta)?;
+                let (fallback_content, saw_sse) =
+                    parse_sse_text_content(&stream_raw, &mut on_delta)?;
                 if saw_sse {
                     content = fallback_content;
                 } else if let Ok(value) = serde_json::from_str::<serde_json::Value>(&stream_raw) {
@@ -4872,7 +5086,8 @@ async fn call_llm_for_action(
                 content = extract_llm_text_content(&value);
             }
             if content.trim().is_empty() {
-                let (fallback_content, saw_sse) = parse_sse_text_content(&body_text, &mut on_delta)?;
+                let (fallback_content, saw_sse) =
+                    parse_sse_text_content(&body_text, &mut on_delta)?;
                 if saw_sse {
                     content = fallback_content;
                 } else {
@@ -4895,9 +5110,9 @@ async fn call_llm_for_action(
         return Err(CommandError::Settings(message));
     }
 
-    Err(CommandError::Settings(
-        last_error.unwrap_or_else(|| "模型接口调用失败，请稍后重试".to_string()),
-    ))
+    Err(CommandError::Settings(last_error.unwrap_or_else(|| {
+        "模型接口调用失败，请稍后重试".to_string()
+    })))
 }
 
 fn rgba_image_to_data_url(image: &RgbaImage) -> Result<String, CommandError> {
@@ -5073,9 +5288,7 @@ async fn call_vision_ocr(
         {
             Ok(resp) => resp,
             Err(error) => {
-                if should_retry_network_error(&error)
-                    && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS
-                {
+                if should_retry_network_error(&error) && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS {
                     last_error = Some(error.to_string());
                     sleep_with_backoff(attempt).await;
                     continue;
@@ -5313,7 +5526,9 @@ fn toggle_ocr_capture_window<R: Runtime>(app: &AppHandle<R>) {
     if capture_visible {
         if let Some(ocr_runtime) = app.try_state::<OcrRuntimeState>() {
             ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-            ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
+            ocr_runtime
+                .suppress_blur_until_ms
+                .store(0, Ordering::Relaxed);
             if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
                 *snapshot = None;
             }
@@ -5376,7 +5591,13 @@ fn apply_shortcut_change<R: Runtime>(
 fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let language = app
         .try_state::<AppSettingsState>()
-        .and_then(|state| state.data.lock().ok().map(|settings| settings.language.clone()))
+        .and_then(|state| {
+            state
+                .data
+                .lock()
+                .ok()
+                .map(|settings| settings.language.clone())
+        })
         .unwrap_or_else(|| "zh-CN".to_string());
     let (open_main_label, open_ocr_label, open_settings_label, quit_label, tooltip) =
         if language.eq_ignore_ascii_case("en-US") {
@@ -5498,25 +5719,25 @@ fn sync_autostart_with_settings<R: Runtime>(
     let Some(manager) = app.try_state::<AutoLaunchManager>() else {
         return Ok(());
     };
-    let enabled = manager
-        .is_enabled()
-        .map_err(|error| CommandError::Settings(format!("Auto-start state check failed: {error}")))?;
+    let enabled = manager.is_enabled().map_err(|error| {
+        CommandError::Settings(format!("Auto-start state check failed: {error}"))
+    })?;
 
     if settings.window.launch_on_system_startup {
         // Always refresh registration so stale entries (for example debug executable paths)
         // are replaced with the current installed executable path.
         if enabled {
-            manager
-                .disable()
-                .map_err(|error| CommandError::Settings(format!("Disable auto-start failed: {error}")))?;
+            manager.disable().map_err(|error| {
+                CommandError::Settings(format!("Disable auto-start failed: {error}"))
+            })?;
         }
-        manager
-            .enable()
-            .map_err(|error| CommandError::Settings(format!("Enable auto-start failed: {error}")))?;
+        manager.enable().map_err(|error| {
+            CommandError::Settings(format!("Enable auto-start failed: {error}"))
+        })?;
     } else if enabled {
-        manager
-            .disable()
-            .map_err(|error| CommandError::Settings(format!("Disable auto-start failed: {error}")))?;
+        manager.disable().map_err(|error| {
+            CommandError::Settings(format!("Disable auto-start failed: {error}"))
+        })?;
     }
 
     Ok(())
@@ -5760,7 +5981,12 @@ fn is_task_replaced_error(error: &CommandError) -> bool {
 
 fn begin_selection_result_task<R: Runtime>(app: &AppHandle<R>) -> u64 {
     app.try_state::<SelectionRuntimeState>()
-        .map(|runtime| runtime.active_result_request_nonce.fetch_add(1, Ordering::Relaxed) + 1)
+        .map(|runtime| {
+            runtime
+                .active_result_request_nonce
+                .fetch_add(1, Ordering::Relaxed)
+                + 1
+        })
         .unwrap_or(0)
 }
 
@@ -5775,7 +6001,12 @@ fn is_selection_result_task_active<R: Runtime>(app: &AppHandle<R>, nonce: u64) -
 
 fn begin_ocr_result_task<R: Runtime>(app: &AppHandle<R>) -> u64 {
     app.try_state::<OcrRuntimeState>()
-        .map(|runtime| runtime.active_result_request_nonce.fetch_add(1, Ordering::Relaxed) + 1)
+        .map(|runtime| {
+            runtime
+                .active_result_request_nonce
+                .fetch_add(1, Ordering::Relaxed)
+                + 1
+        })
         .unwrap_or(0)
 }
 
@@ -5877,7 +6108,9 @@ fn start_selection_detector_thread(app: AppHandle) {
                     should_cancel_capture = ocr_runtime.capture_active.load(Ordering::Relaxed);
                     if should_cancel_capture {
                         ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-                        ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
+                        ocr_runtime
+                            .suppress_blur_until_ms
+                            .store(0, Ordering::Relaxed);
                         if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
                             *snapshot = None;
                         }
@@ -6162,10 +6395,7 @@ fn hide_selection_bar(app: AppHandle) {
 }
 
 #[tauri::command]
-fn copy_selection_text(
-    text: String,
-    flags: State<'_, RuntimeFlags>,
-) -> Result<(), CommandError> {
+fn copy_selection_text(text: String, flags: State<'_, RuntimeFlags>) -> Result<(), CommandError> {
     let fallback_value = text;
     let fallback_trimmed = fallback_value.trim().to_string();
     if fallback_trimmed.is_empty() {
@@ -6177,8 +6407,8 @@ fn copy_selection_text(
     #[cfg(not(target_os = "windows"))]
     let hwnd: isize = 0;
 
-    let value_to_copy = try_capture_console_selection_for_copy(hwnd, &fallback_trimmed)
-        .unwrap_or(fallback_value);
+    let value_to_copy =
+        try_capture_console_selection_for_copy(hwnd, &fallback_trimmed).unwrap_or(fallback_value);
 
     write_clipboard_text_with_retry(&value_to_copy)
 }
@@ -6203,10 +6433,7 @@ fn open_search_with_text(app: AppHandle, text: String) -> Result<(), CommandErro
 }
 
 #[tauri::command]
-fn set_result_window_pinned_cmd(
-    app: AppHandle,
-    pinned: bool,
-) -> Result<bool, CommandError> {
+fn set_result_window_pinned_cmd(app: AppHandle, pinned: bool) -> Result<bool, CommandError> {
     if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
         window
             .set_always_on_top(pinned)
@@ -6398,9 +6625,7 @@ async fn run_selection_action(
             streamed_output.push_str(delta);
 
             let now = now_epoch_millis();
-            if now.saturating_sub(last_emit_ms) < STREAM_EMIT_THROTTLE_MS
-                && !delta.contains('\n')
-            {
+            if now.saturating_sub(last_emit_ms) < STREAM_EMIT_THROTTLE_MS && !delta.contains('\n') {
                 return true;
             }
             last_emit_ms = now;
@@ -6600,9 +6825,7 @@ async fn run_ocr_action_cmd(
             streamed_output.push_str(delta);
 
             let now = now_epoch_millis();
-            if now.saturating_sub(last_emit_ms) < STREAM_EMIT_THROTTLE_MS
-                && !delta.contains('\n')
-            {
+            if now.saturating_sub(last_emit_ms) < STREAM_EMIT_THROTTLE_MS && !delta.contains('\n') {
                 return true;
             }
             last_emit_ms = now;
@@ -6698,7 +6921,9 @@ fn cancel_ocr_capture_cmd(
     ocr_runtime: State<'_, OcrRuntimeState>,
 ) -> Result<(), CommandError> {
     ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-    ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
+    ocr_runtime
+        .suppress_blur_until_ms
+        .store(0, Ordering::Relaxed);
     if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
         *snapshot = None;
     }
@@ -6717,10 +6942,7 @@ fn get_ocr_result_window_pinned_cmd(settings_state: State<'_, AppSettingsState>)
 }
 
 #[tauri::command]
-fn set_ocr_result_window_pinned_cmd(
-    app: AppHandle,
-    pinned: bool,
-) -> Result<bool, CommandError> {
+fn set_ocr_result_window_pinned_cmd(app: AppHandle, pinned: bool) -> Result<bool, CommandError> {
     if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
         window
             .set_always_on_top(pinned)
@@ -6766,7 +6988,9 @@ async fn complete_ocr_capture_cmd(
 ) -> Result<(), CommandError> {
     let task_nonce = begin_ocr_result_task(&app);
     ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-    ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
+    ocr_runtime
+        .suppress_blur_until_ms
+        .store(0, Ordering::Relaxed);
 
     let snapshot = settings_state
         .data
@@ -6814,7 +7038,13 @@ async fn complete_ocr_capture_cmd(
     show_ocr_result_window(&app)?;
     emit_ocr_result(&app, ocr_payload.clone());
 
-    let ocr_text = match call_vision_ocr(&http_client_state.client, &snapshot.ocr.vision, &image_data_url).await {
+    let ocr_text = match call_vision_ocr(
+        &http_client_state.client,
+        &snapshot.ocr.vision,
+        &image_data_url,
+    )
+    .await
+    {
         Ok(text) => text,
         Err(error) => {
             ocr_payload.is_streaming = false;
@@ -6945,9 +7175,7 @@ async fn complete_ocr_capture_cmd(
             }
             streamed_output.push_str(delta);
             let now = now_epoch_millis();
-            if now.saturating_sub(last_emit_ms) < STREAM_EMIT_THROTTLE_MS
-                && !delta.contains('\n')
-            {
+            if now.saturating_sub(last_emit_ms) < STREAM_EMIT_THROTTLE_MS && !delta.contains('\n') {
                 return true;
             }
             last_emit_ms = now;
@@ -7052,9 +7280,7 @@ async fn test_llm_api_cmd(
         .clone();
 
     if snapshot.llm.api_key.trim().is_empty() {
-        return Err(CommandError::Settings(
-            "请先填写大模型 API Key".to_string(),
-        ));
+        return Err(CommandError::Settings("请先填写大模型 API Key".to_string()));
     }
 
     test_openai_compatible_model(
@@ -7531,10 +7757,9 @@ fn paste_entry_by_click(
     let is_main_window_pinned = pinned_by_flag || pinned_by_window;
 
     let should_hide_after_copy = matches!(
-            settings_snapshot.history.paste_behavior,
-            PasteBehavior::CopyAndHide
-        )
-        && !is_main_window_pinned;
+        settings_snapshot.history.paste_behavior,
+        PasteBehavior::CopyAndHide
+    ) && !is_main_window_pinned;
 
     if should_hide_after_copy {
         if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
@@ -7648,9 +7873,13 @@ fn toggle_favorite_text_cmd(
         .collect::<Vec<_>>();
 
     if !match_indices.is_empty() {
-        let has_pinned = match_indices
-            .iter()
-            .any(|index| locked.history.get(*index).map(|entry| entry.pinned).unwrap_or(false));
+        let has_pinned = match_indices.iter().any(|index| {
+            locked
+                .history
+                .get(*index)
+                .map(|entry| entry.pinned)
+                .unwrap_or(false)
+        });
         let next_pinned = !has_pinned;
         for index in match_indices {
             if let Some(entry) = locked.history.get_mut(index) {
