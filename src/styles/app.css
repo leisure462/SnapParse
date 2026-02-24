@@ -3825,3 +3825,16 @@ html[data-window="main"] body {
   border: 1px solid var(--liquid-border);
   box-shadow: var(--liquid-inset);
 }
+
+/* Clipboard: keep scroll behavior but hide the visible right scrollbar */
+.clipboard-window .clip-stream {
+  padding-right: 0;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+
+.clipboard-window .clip-stream::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none;
+}
