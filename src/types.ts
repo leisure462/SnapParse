@@ -10,6 +10,7 @@ export interface ClipboardEntry {
 }
 
 export type FilterKind = "all" | ClipboardKind | "favorite";
+export type DefaultOpenCategory = FilterKind | "last-used";
 
 export type ThemePreset =
   | "blue"
@@ -125,6 +126,7 @@ export interface HistorySettings {
   captureText: boolean;
   captureLink: boolean;
   captureImage: boolean;
+  defaultOpenCategory: DefaultOpenCategory;
   defaultCategory: FilterKind;
   pasteBehavior: PasteBehavior;
   collapseTopBar: boolean;
@@ -225,6 +227,7 @@ export interface HistorySettingsPatch {
   captureText?: boolean;
   captureLink?: boolean;
   captureImage?: boolean;
+  defaultOpenCategory?: DefaultOpenCategory;
   defaultCategory?: FilterKind;
   pasteBehavior?: PasteBehavior;
   collapseTopBar?: boolean;

@@ -94,6 +94,7 @@ import type {
   BuiltinSelectionBarActionKey,
   ClipboardEntry,
   CustomAgent,
+  DefaultOpenCategory,
   FilterKind,
   OcrActionKind,
   PasteBehavior,
@@ -108,6 +109,7 @@ import appLogo from "../icon_transparent.png";
 
 const SETTINGS_UPDATED_EVENT = "snapparse://settings-updated";
 const MAIN_WINDOW_SHOWN_EVENT = "snapparse://main-window-shown";
+const HISTORY_UPDATED_EVENT = "snapparse://history-updated";
 const FALLBACK_SHORTCUT = "Alt+Space";
 const FALLBACK_OCR_SHORTCUT = "Alt+Shift+Space";
 
@@ -202,6 +204,7 @@ const FALLBACK_SETTINGS: AppSettings = {
     captureText: true,
     captureLink: true,
     captureImage: true,
+    defaultOpenCategory: "all",
     defaultCategory: "all",
     pasteBehavior: "copy-and-hide",
     collapseTopBar: false,
@@ -329,6 +332,15 @@ const FILTER_OPTIONS: FilterOption[] = [
   { key: "link", label: "链接", icon: Link2 },
   { key: "text", label: "文本", icon: Type },
   { key: "favorite", label: "收藏", icon: Star }
+];
+
+const DEFAULT_OPEN_CATEGORY_OPTIONS: Array<{ key: DefaultOpenCategory; label: string }> = [
+  { key: "image", label: "图片" },
+  { key: "text", label: "文本" },
+  { key: "all", label: "全部" },
+  { key: "link", label: "链接" },
+  { key: "favorite", label: "收藏" },
+  { key: "last-used", label: "上一次关闭时的标签" }
 ];
 
 const THEME_OPTIONS: ThemeOption[] = [
@@ -675,6 +687,22 @@ function clampHistoryMax(value: number) {
 
 function parseFilter(value: unknown): FilterKind {
   return FILTER_OPTIONS.some((item) => item.key === value) ? (value as FilterKind) : "all";
+}
+
+function parseDefaultOpenCategory(value: unknown): DefaultOpenCategory {
+  return DEFAULT_OPEN_CATEGORY_OPTIONS.some((item) => item.key === value)
+    ? (value as DefaultOpenCategory)
+    : "all";
+}
+
+function resolveClipboardOpenFilter(
+  defaultOpenCategory: DefaultOpenCategory,
+  lastClosedCategory: FilterKind
+): FilterKind {
+  if (defaultOpenCategory === "last-used") {
+    return parseFilter(lastClosedCategory);
+  }
+  return parseFilter(defaultOpenCategory);
 }
 
 function parseThemePreset(value: unknown): ThemePreset {
@@ -1118,6 +1146,9 @@ function sanitizeSettings(input: AppSettings): AppSettings {
       ...input.history,
       pollMs: clampPollMs(Number(input.history.pollMs)),
       maxItems: clampHistoryMax(Number(input.history.maxItems)),
+      defaultOpenCategory: parseDefaultOpenCategory(
+        input.history.defaultOpenCategory ?? input.history.defaultCategory
+      ),
       defaultCategory: parseFilter(input.history.defaultCategory),
       pasteBehavior: parsePasteBehavior(input.history.pasteBehavior),
       collapseTopBar: Boolean(
@@ -1392,9 +1423,17 @@ function useAppSettings(): SettingsApi {
 }
 function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const { settings, error } = settingsApi;
+  const resolveOpenFilter = useCallback(
+    () =>
+      resolveClipboardOpenFilter(
+        settings.history.defaultOpenCategory,
+        settings.history.defaultCategory
+      ),
+    [settings.history.defaultCategory, settings.history.defaultOpenCategory]
+  );
   const [history, setHistory] = useState<ClipboardEntry[]>([]);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<FilterKind>(() => settings.history.defaultCategory);
+  const [filter, setFilter] = useState<FilterKind>(() => resolveOpenFilter());
   const [isPinnedTop, setIsPinnedTop] = useState(false);
   const [topControlsVisible, setTopControlsVisible] = useState(
     () => !settings.history.collapseTopBar
@@ -1435,10 +1474,6 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }, [error]);
 
   useEffect(() => {
-    setFilter(settings.history.defaultCategory);
-  }, [settings.history.defaultCategory]);
-
-  useEffect(() => {
     setTopControlsVisible(!collapseTopBarEnabled);
   }, [collapseTopBarEnabled]);
 
@@ -1469,6 +1504,7 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
           if (!mounted) return;
           const payload = event.payload;
           setTopControlsVisible(!payload.collapseTopBar);
+          setFilter(resolveOpenFilter());
           if (payload.openToTop) {
             window.requestAnimationFrame(() => {
               window.requestAnimationFrame(() => {
@@ -1492,7 +1528,32 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
         unlisten();
       }
     };
-  }, []);
+  }, [resolveOpenFilter]);
+
+  useEffect(() => {
+    let active = true;
+    let unlisten: (() => void) | null = null;
+
+    try {
+      void getCurrentWebviewWindow()
+        .listen<ClipboardEntry[]>(HISTORY_UPDATED_EVENT, (event) => {
+          if (!active) return;
+          applyHistoryUpdate(event.payload || []);
+        })
+        .then((off) => {
+          unlisten = off;
+        });
+    } catch {
+      unlisten = null;
+    }
+
+    return () => {
+      active = false;
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [applyHistoryUpdate]);
 
   useEffect(() => {
     wheelDirectionRef.current = null;
@@ -1578,11 +1639,11 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     return result;
   }, [history]);
 
-  const historySearchIndex = useMemo(
-    () => history.map((item) => ({ item, normalizedContent: item.content.toLowerCase() })),
-    [history]
-  );
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = useMemo(() => query.trim().toLowerCase(), [query]);
+  const historySearchIndex = useMemo(() => {
+    if (!normalizedQuery) return null;
+    return history.map((item) => ({ item, normalizedContent: item.content.toLowerCase() }));
+  }, [history, normalizedQuery]);
 
   const filtered = useMemo(() => {
     let items: ClipboardEntry[];
@@ -1596,16 +1657,18 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       return history.filter((item) => item.kind === filter);
     }
 
+    const searchable = historySearchIndex ?? [];
+
     if (filter === "all") {
-      items = historySearchIndex
+      items = searchable
         .filter((item) => item.normalizedContent.includes(normalizedQuery))
         .map((item) => item.item);
     } else if (filter === "favorite") {
-      items = historySearchIndex
+      items = searchable
         .filter((item) => item.item.pinned && item.normalizedContent.includes(normalizedQuery))
         .map((item) => item.item);
     } else {
-      items = historySearchIndex
+      items = searchable
         .filter(
           (item) =>
             item.item.kind === filter && item.normalizedContent.includes(normalizedQuery)
@@ -1633,6 +1696,19 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     } catch (invokeError) {
       console.error("[ClipboardWindow] toggle favorite failed:", invokeError);
     }
+  }
+
+  async function persistLastOpenedCategory(next: FilterKind) {
+    try {
+      await invoke("set_last_opened_category_cmd", { category: next });
+    } catch (invokeError) {
+      console.error("[ClipboardWindow] persist last-opened category failed:", invokeError);
+    }
+  }
+
+  function switchFilter(next: FilterKind) {
+    setFilter(next);
+    void persistLastOpenedCategory(next);
   }
 
   async function openSettingsWindow() {
@@ -1739,7 +1815,7 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               <button
                 key={option.key}
                 className={`category-chip${filter === option.key ? " active" : ""}`}
-                onClick={() => setFilter(option.key)}
+                onClick={() => switchFilter(option.key)}
               >
                 <Icon size={12} />
                 <span>{option.label}</span>
@@ -5168,16 +5244,20 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               </div>
 
               <div className="filled-control">
-                <label htmlFor="default-category">默认分类</label>
+                <label htmlFor="default-open-category">默认打开标签</label>
                 <select
-                  id="default-category"
+                  id="default-open-category"
                   className="md2-select"
-                  value={settings.history.defaultCategory}
+                  value={settings.history.defaultOpenCategory}
                   onChange={(event) => {
-                    void applyPatch({ history: { defaultCategory: parseFilter(event.target.value) } });
+                    void applyPatch({
+                      history: {
+                        defaultOpenCategory: parseDefaultOpenCategory(event.target.value)
+                      }
+                    });
                   }}
                 >
-                  {FILTER_OPTIONS.map((item) => (
+                  {DEFAULT_OPEN_CATEGORY_OPTIONS.map((item) => (
                     <option key={item.key} value={item.key}>
                       {item.label}
                     </option>

@@ -74,6 +74,7 @@ const OCR_RESULT_UPDATED_EVENT: &str = "snapparse://ocr-result-updated";
 const OCR_CAPTURE_STARTED_EVENT: &str = "snapparse://ocr-capture-started";
 const OCR_CAPTURE_CANCELED_EVENT: &str = "snapparse://ocr-capture-canceled";
 const OCR_ERROR_EVENT: &str = "snapparse://ocr-error";
+const HISTORY_UPDATED_EVENT: &str = "snapparse://history-updated";
 
 const MIN_POLL_MS: u64 = 400;
 const MAX_POLL_MS: u64 = 5000;
@@ -158,6 +159,18 @@ enum FilterKind {
     Link,
     Image,
     Favorite,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "kebab-case")]
+enum DefaultOpenCategory {
+    #[default]
+    All,
+    Text,
+    Link,
+    Image,
+    Favorite,
+    LastUsed,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -455,6 +468,7 @@ struct HistorySettings {
     capture_text: bool,
     capture_link: bool,
     capture_image: bool,
+    default_open_category: DefaultOpenCategory,
     default_category: FilterKind,
     paste_behavior: PasteBehavior,
     collapse_top_bar: bool,
@@ -472,6 +486,7 @@ impl Default for HistorySettings {
             capture_text: true,
             capture_link: true,
             capture_image: true,
+            default_open_category: DefaultOpenCategory::All,
             default_category: FilterKind::All,
             paste_behavior: PasteBehavior::CopyAndHide,
             collapse_top_bar: false,
@@ -635,6 +650,7 @@ struct HistorySettingsPatch {
     capture_text: Option<bool>,
     capture_link: Option<bool>,
     capture_image: Option<bool>,
+    default_open_category: Option<DefaultOpenCategory>,
     default_category: Option<FilterKind>,
     paste_behavior: Option<PasteBehavior>,
     collapse_top_bar: Option<bool>,
@@ -1690,6 +1706,9 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
         if let Some(enabled) = history_patch.capture_image {
             settings.history.capture_image = enabled;
         }
+        if let Some(default_open_category) = history_patch.default_open_category {
+            settings.history.default_open_category = default_open_category;
+        }
         if let Some(default_category) = history_patch.default_category {
             settings.history.default_category = default_category;
         }
@@ -1937,6 +1956,33 @@ fn normalize_settings_json_value(value: &mut serde_json::Value) -> bool {
         .get_mut("history")
         .and_then(|value| value.as_object_mut())
     {
+        if !history.contains_key("defaultOpenCategory") {
+            if let Some(existing_default) = history
+                .get("defaultCategory")
+                .and_then(|value| value.as_str())
+                .map(|value| value.trim().to_ascii_lowercase())
+            {
+                let migrated = match existing_default.as_str() {
+                    "all" | "text" | "link" | "image" | "favorite" => {
+                        Some(existing_default.as_str())
+                    }
+                    _ => None,
+                };
+                if let Some(migrated) = migrated {
+                    history.insert(
+                        "defaultOpenCategory".to_string(),
+                        serde_json::Value::String(migrated.to_string()),
+                    );
+                    changed = true;
+                }
+            }
+        }
+        changed |= normalize_enum_value_in_object(
+            history,
+            "defaultOpenCategory",
+            &["all", "text", "link", "image", "favorite", "last-used"],
+            "all",
+        );
         changed |= normalize_enum_value_in_object(
             history,
             "defaultCategory",
@@ -3590,6 +3636,10 @@ fn emit_ocr_result<R: Runtime>(app: &AppHandle<R>, payload: OcrResultPayload) {
 
 fn emit_ocr_error<R: Runtime>(app: &AppHandle<R>, message: &str) {
     let _ = app.emit(OCR_ERROR_EVENT, message.to_string());
+}
+
+fn emit_history_updated<R: Runtime>(app: &AppHandle<R>, items: &[ClipboardEntry]) {
+    let _ = app.emit(HISTORY_UPDATED_EVENT, items.to_vec());
 }
 
 fn window_background_color_for_theme(theme: ThemePreset) -> Color {
@@ -7546,6 +7596,7 @@ fn reset_settings(
             capture_text: Some(defaults.history.capture_text),
             capture_link: Some(defaults.history.capture_link),
             capture_image: Some(defaults.history.capture_image),
+            default_open_category: Some(defaults.history.default_open_category),
             default_category: Some(defaults.history.default_category),
             paste_behavior: Some(defaults.history.paste_behavior),
             collapse_top_bar: Some(defaults.history.collapse_top_bar),
@@ -7819,6 +7870,7 @@ fn sync_clipboard(
     drop(locked);
     if let Some(items) = updated.as_ref() {
         persist_history_snapshot(&app, &settings_snapshot, items)?;
+        emit_history_updated(&app, items);
     }
     Ok(updated)
 }
@@ -7861,6 +7913,32 @@ fn get_history(
 
     let locked = with_history_lock(&state)?;
     Ok(collect_history(&locked.history))
+}
+
+#[tauri::command]
+fn set_last_opened_category_cmd(
+    app: AppHandle,
+    category: FilterKind,
+    settings_state: State<'_, AppSettingsState>,
+) -> Result<FilterKind, CommandError> {
+    let mut changed = false;
+    {
+        let mut settings = with_settings_lock(&settings_state)?;
+        if settings.history.default_category != category {
+            settings.history.default_category = category;
+            changed = true;
+        }
+    }
+
+    if !changed {
+        return Ok(category);
+    }
+
+    persist_settings_state(&settings_state)?;
+
+    let snapshot = with_settings_lock(&settings_state)?.clone();
+    emit_settings_updated(&app, &snapshot);
+    Ok(category)
 }
 
 #[tauri::command]
@@ -7934,6 +8012,7 @@ fn paste_entry_by_click(
         let _ = send_system_paste_shortcut(target_hwnd);
     });
 
+    emit_history_updated(&app, &updated);
     Ok(updated)
 }
 
@@ -7956,46 +8035,10 @@ fn toggle_pin(
         let updated = collect_history(&locked.history);
         drop(locked);
         persist_history_snapshot(&app, &settings_snapshot, &updated)?;
+        emit_history_updated(&app, &updated);
         return Ok(updated);
     }
     Err(CommandError::NotFound)
-}
-
-#[tauri::command]
-fn add_favorite_text_cmd(
-    text: String,
-    app: AppHandle,
-    settings_state: State<'_, AppSettingsState>,
-    state: State<'_, Mutex<ClipboardState>>,
-) -> Result<Vec<ClipboardEntry>, CommandError> {
-    let content = text.trim().to_string();
-    if content.is_empty() {
-        let locked = with_history_lock(&state)?;
-        return Ok(collect_history(&locked.history));
-    }
-
-    let settings_snapshot = {
-        let settings = with_settings_lock(&settings_state)?;
-        settings.clone()
-    };
-
-    let mut incoming = build_text_entry(content);
-    incoming.pinned = true;
-    let incoming_signature = entry_signature(&incoming);
-
-    let mut locked = with_history_lock(&state)?;
-    insert_or_promote(
-        &mut locked.history,
-        incoming,
-        settings_snapshot.history.max_items,
-        settings_snapshot.history.dedupe,
-    );
-    locked.last_observed_signature = Some(incoming_signature);
-    let updated = collect_history(&locked.history);
-    drop(locked);
-
-    persist_history_snapshot(&app, &settings_snapshot, &updated)?;
-    Ok(updated)
 }
 
 #[tauri::command]
@@ -8049,6 +8092,7 @@ fn toggle_favorite_text_cmd(
         let updated = collect_history(&locked.history);
         drop(locked);
         persist_history_snapshot(&app, &settings_snapshot, &updated)?;
+        emit_history_updated(&app, &updated);
         return Ok(next_pinned);
     }
 
@@ -8066,6 +8110,7 @@ fn toggle_favorite_text_cmd(
     drop(locked);
 
     persist_history_snapshot(&app, &settings_snapshot, &updated)?;
+    emit_history_updated(&app, &updated);
     Ok(true)
 }
 
@@ -8087,6 +8132,7 @@ fn remove_item(
         let updated = collect_history(&locked.history);
         drop(locked);
         persist_history_snapshot(&app, &settings_snapshot, &updated)?;
+        emit_history_updated(&app, &updated);
         return Ok(updated);
     }
     Err(CommandError::NotFound)
@@ -8108,6 +8154,7 @@ fn clear_history(
     let updated = collect_history(&locked.history);
     drop(locked);
     persist_history_snapshot(&app, &settings_snapshot, &updated)?;
+    emit_history_updated(&app, &updated);
     Ok(updated)
 }
 
@@ -8670,9 +8717,9 @@ pub fn run() {
             list_running_apps_cmd,
             sync_clipboard,
             get_history,
+            set_last_opened_category_cmd,
             paste_entry_by_click,
             toggle_pin,
-            add_favorite_text_cmd,
             toggle_favorite_text_cmd,
             remove_item,
             clear_history
