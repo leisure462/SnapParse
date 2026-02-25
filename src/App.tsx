@@ -2168,6 +2168,11 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
           setFromLang((payload.translateFrom as TranslateLanguageCode) || "auto");
           setToLang(parseTranslateTarget(payload.translateTo, settings.selectionAssistant.defaultTranslateTo));
           setOutputFavorited(false);
+          void invoke<boolean>("get_result_window_pinned_cmd")
+            .then((value) => setIsPinnedTop(Boolean(value)))
+            .catch(() => {
+              setIsPinnedTop(settings.selectionAssistant.resultWindowAlwaysOnTop);
+            });
         }
       })
       .then((off) => {
@@ -2780,6 +2785,11 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
           latestRequestIdRef.current = payload.requestId;
           setOcrFavorited(false);
           setOutputFavorited(false);
+          void invoke<boolean>("get_ocr_result_window_pinned_cmd")
+            .then((value) => setIsPinnedTop(Boolean(value)))
+            .catch(() => {
+              setIsPinnedTop(settings.ocr.resultWindowAlwaysOnTop);
+            });
         }
       })
       .then((off) => {

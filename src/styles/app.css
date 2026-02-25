@@ -1062,6 +1062,18 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-1px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.selection-result-output:hover .result-overlay-actions,
+.selection-result-output:focus-within .result-overlay-actions,
+.result-overlay-actions:hover {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .result-copy-btn,
@@ -4149,6 +4161,12 @@ html[data-window="main"] .window-root {
 .clipboard-window .category-chip.active {
   border-color: color-mix(in srgb, var(--primary) 46%, var(--settings-control-border));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 24%, transparent);
+  color: var(--text-high);
+}
+
+.clipboard-window .category-chip.active svg,
+.clipboard-window .category-chip.active small {
+  color: inherit;
 }
 
 .clipboard-window .clip-stream {

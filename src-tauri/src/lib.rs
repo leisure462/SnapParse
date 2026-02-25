@@ -6607,7 +6607,15 @@ fn set_result_window_pinned_cmd(app: AppHandle, pinned: bool) -> Result<bool, Co
 }
 
 #[tauri::command]
-fn get_result_window_pinned_cmd(settings_state: State<'_, AppSettingsState>) -> bool {
+fn get_result_window_pinned_cmd(
+    app: AppHandle,
+    settings_state: State<'_, AppSettingsState>,
+) -> bool {
+    if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
+        if let Ok(pinned) = window.is_always_on_top() {
+            return pinned;
+        }
+    }
     settings_state
         .data
         .lock()
@@ -7096,7 +7104,15 @@ fn cancel_ocr_capture_cmd(
 }
 
 #[tauri::command]
-fn get_ocr_result_window_pinned_cmd(settings_state: State<'_, AppSettingsState>) -> bool {
+fn get_ocr_result_window_pinned_cmd(
+    app: AppHandle,
+    settings_state: State<'_, AppSettingsState>,
+) -> bool {
+    if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
+        if let Ok(pinned) = window.is_always_on_top() {
+            return pinned;
+        }
+    }
     settings_state
         .data
         .lock()
