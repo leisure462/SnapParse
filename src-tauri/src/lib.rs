@@ -7706,8 +7706,40 @@ fn sync_clipboard(
 
 #[tauri::command]
 fn get_history(
+    app: AppHandle,
+    settings_state: State<'_, AppSettingsState>,
     state: State<'_, Mutex<ClipboardState>>,
 ) -> Result<Vec<ClipboardEntry>, CommandError> {
+    {
+        let locked = with_history_lock(&state)?;
+        if !locked.history.is_empty() {
+            return Ok(collect_history(&locked.history));
+        }
+    }
+
+    let settings_snapshot = with_settings_lock(&settings_state)?.clone();
+    let restored = load_history_snapshot(
+        &app,
+        &settings_snapshot,
+        &settings_state.file_path,
+        &settings_state.file_path,
+    )?;
+
+    if !restored.history.is_empty() {
+        let restored_items = restored.history.iter().cloned().collect::<Vec<_>>();
+        {
+            let mut locked = with_history_lock(&state)?;
+            if locked.history.is_empty() {
+                locked.history = restored.history.clone();
+                locked.last_observed_signature = None;
+            }
+        }
+        if restored.should_persist {
+            let _ = persist_history_snapshot(&app, &settings_snapshot, &restored_items);
+        }
+        return Ok(restored_items);
+    }
+
     let locked = with_history_lock(&state)?;
     Ok(collect_history(&locked.history))
 }

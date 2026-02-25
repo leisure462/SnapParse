@@ -1086,6 +1086,12 @@ function mergeSettingsPatch<T>(base: T, patch: unknown): T {
   return result as T;
 }
 
+function sleepMs(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 function useAppSettings(): SettingsApi {
   const [settings, setSettings] = useState<AppSettings>(FALLBACK_SETTINGS);
   const [loading, setLoading] = useState(true);
@@ -1093,20 +1099,35 @@ function useAppSettings(): SettingsApi {
   const [error, setError] = useState<string | null>(null);
   const settingsRef = useRef<AppSettings>(FALLBACK_SETTINGS);
   const updateTokenRef = useRef(0);
+  const hasLoadedOnceRef = useRef(false);
 
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
 
   const refresh = useCallback(async () => {
+    if (!hasLoadedOnceRef.current) {
+      setLoading(true);
+    }
+    let lastError: unknown = null;
     try {
-      const remote = await invoke<AppSettings>("get_settings");
-      const safe = sanitizeSettings(remote);
-      settingsRef.current = safe;
-      setSettings(safe);
-      setError(null);
-    } catch (invokeError) {
-      setError(String(invokeError));
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          const remote = await invoke<AppSettings>("get_settings");
+          const safe = sanitizeSettings(remote);
+          settingsRef.current = safe;
+          setSettings(safe);
+          setError(null);
+          hasLoadedOnceRef.current = true;
+          return;
+        } catch (invokeError) {
+          lastError = invokeError;
+          if (attempt < 5) {
+            await sleepMs(220 + attempt * 130);
+          }
+        }
+      }
+      setError(String(lastError ?? "Failed to load settings"));
     } finally {
       setLoading(false);
     }
@@ -1120,6 +1141,30 @@ function useAppSettings(): SettingsApi {
     document.documentElement.dataset.theme = settings.themePreset;
     document.documentElement.lang = settings.language;
   }, [settings.language, settings.themePreset]);
+
+  useEffect(() => {
+    let active = true;
+    let unlisten: (() => void) | null = null;
+    try {
+      void getCurrentWebviewWindow()
+        .listen<boolean>("snapparse://settings-window-shown", () => {
+          if (!active) return;
+          void refresh();
+        })
+        .then((off) => {
+          unlisten = off;
+        });
+    } catch {
+      unlisten = null;
+    }
+
+    return () => {
+      active = false;
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [refresh]);
 
   useEffect(() => {
     let active = true;
@@ -1284,9 +1329,14 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const wheelDeltaRef = useRef(0);
   const wheelTsRef = useRef(0);
   const syncInFlightRef = useRef(false);
+  const historyRef = useRef<ClipboardEntry[]>([]);
   const applyHistoryUpdate = useCallback((next: ClipboardEntry[]) => {
     setHistory((current) => (isSameHistoryList(current, next) ? current : next));
   }, []);
+
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
   useEffect(() => {
     void invoke<boolean>("get_main_window_pinned_cmd")
@@ -1339,8 +1389,10 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     try {
       const items = await invoke<ClipboardEntry[]>("get_history");
       applyHistoryUpdate(items);
+      return items;
     } catch (invokeError) {
       console.error("[ClipboardWindow] load_history failed:", invokeError);
+      return null;
     }
   }
 
@@ -1362,8 +1414,26 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }
 
   useEffect(() => {
-    void loadHistory();
-    void syncClipboard();
+    let active = true;
+    void (async () => {
+      for (let attempt = 0; attempt < 12 && active; attempt += 1) {
+        const loaded = await loadHistory();
+        if ((loaded?.length ?? 0) > 0 || historyRef.current.length > 0) {
+          break;
+        }
+        await syncClipboard();
+        if (historyRef.current.length > 0) {
+          break;
+        }
+        if (attempt < 11) {
+          await sleepMs(180 + attempt * 90);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -2895,6 +2965,7 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const {
     settings,
+    loading,
     updating,
     error,
     updateSettings,
@@ -3840,6 +3911,44 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }
 
   const currentGroup = SETTING_GROUPS.find((group) => group.key === activeGroup) ?? SETTING_GROUPS[0];
+
+  if (loading) {
+    return (
+      <main className="window-root settings-window">
+        <aside className="settings-sidebar" aria-label="Settings categories">
+          <nav className="sidebar-nav">
+            {SETTING_GROUPS.map((group) => {
+              const Icon = group.icon;
+              return (
+                <button
+                  key={group.key}
+                  className={`sidebar-item${activeGroup === group.key ? " active" : ""}`}
+                  onClick={() => setActiveGroup(group.key)}
+                >
+                  <Icon size={16} />
+                  <span>{group.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+        <section className="settings-content">
+          <header className="settings-head" data-tauri-drag-region>
+            <div data-tauri-drag-region>
+              <h1>{currentGroup.label}</h1>
+              <p>{currentGroup.description}</p>
+            </div>
+          </header>
+          <section className="settings-stack">
+            <article className="settings-card">
+              <h2>正在加载配置...</h2>
+              <p className="help-text">正在读取本地设置与历史数据，请稍候。</p>
+            </article>
+          </section>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="window-root settings-window">
