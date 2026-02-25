@@ -1,5 +1,7 @@
 #[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
+use std::ffi::OsStr;
+#[cfg(target_os = "windows")]
+use std::os::windows::{ffi::OsStrExt, process::CommandExt};
 use std::{
     borrow::Cow,
     collections::{HashSet, VecDeque},
@@ -53,9 +55,11 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     VK_CONTROL, VK_ESCAPE, VK_INSERT, VK_LBUTTON, VK_SHIFT,
 };
 #[cfg(target_os = "windows")]
+use windows_sys::Win32::UI::Shell::ShellExecuteW;
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId,
-    IsIconic, IsWindow, SetForegroundWindow, ShowWindow, SW_RESTORE,
+    IsIconic, IsWindow, SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOWNORMAL,
 };
 
 const SETTINGS_VERSION: u32 = 9;
@@ -4097,10 +4101,23 @@ fn open_in_default_browser(url: &str) -> Result<(), CommandError> {
 
     #[cfg(target_os = "windows")]
     {
-        Command::new("explorer")
-            .arg(normalized)
-            .spawn()
-            .map_err(|error| CommandError::Settings(error.to_string()))?;
+        let open: Vec<u16> = OsStr::new("open").encode_wide().chain(Some(0)).collect();
+        let target: Vec<u16> = OsStr::new(normalized).encode_wide().chain(Some(0)).collect();
+        let result = unsafe {
+            ShellExecuteW(
+                std::ptr::null_mut(),
+                open.as_ptr(),
+                target.as_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+                SW_SHOWNORMAL,
+            )
+        } as isize;
+        if result <= 32 {
+            return Err(CommandError::Settings(format!(
+                "无法使用默认浏览器打开链接（系统错误码: {result}）"
+            )));
+        }
         Ok(())
     }
 
