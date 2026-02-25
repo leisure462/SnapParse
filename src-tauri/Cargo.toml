@@ -1,6 +1,6 @@
 [package]
 name = "snapparse-clipboard"
-version = "1.0.27"
+version = "2.0.0"
 description = "A Tauri v2 clipboard utility for Windows"
 authors = ["you"]
 edition = "2021"
@@ -40,4 +40,3 @@ windows-sys = { version = "0.59", features = [
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_WindowsAndMessaging",
 ] }
-

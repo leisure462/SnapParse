@@ -110,8 +110,8 @@ import appLogo from "../icon_transparent.png";
 const SETTINGS_UPDATED_EVENT = "snapparse://settings-updated";
 const MAIN_WINDOW_SHOWN_EVENT = "snapparse://main-window-shown";
 const HISTORY_UPDATED_EVENT = "snapparse://history-updated";
-const FALLBACK_SHORTCUT = "Alt+Space";
-const FALLBACK_OCR_SHORTCUT = "Alt+Shift+Space";
+const FALLBACK_SHORTCUT = "Alt+Z";
+const FALLBACK_OCR_SHORTCUT = "Alt+S";
 
 const POLL_MS_RANGE = { min: 400, max: 5000 };
 const HISTORY_MAX_RANGE = { min: 20, max: 500 };
@@ -2011,8 +2011,21 @@ function SelectionBarWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }
 
   async function openSearch() {
-    if (!selection?.text) return;
-    await invoke("open_search_with_text", { text: selection.text });
+    const value = selection?.text?.trim();
+    if (!value) return;
+    try {
+      await invoke("hide_selection_bar");
+    } catch (hideError) {
+      console.error("[SelectionBarWindow] hide before search failed:", hideError);
+    }
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 36);
+    });
+    try {
+      await invoke("open_search_with_text", { text: value });
+    } catch (invokeError) {
+      console.error("[SelectionBarWindow] open search failed:", invokeError);
+    }
   }
 
   async function runAction(action: SelectionActionKind, customAgentId?: string) {

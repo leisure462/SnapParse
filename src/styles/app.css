@@ -4355,3 +4355,172 @@ html[data-window="main"] .window-root {
   align-items: center;
   justify-content: center;
 }
+
+/* Settings window corner seam fix: keep outer border radius >= inner fill radius */
+html[data-window="settings"],
+html[data-window="settings"] body,
+html[data-window="settings"] #root {
+  background: transparent !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+html[data-window="settings"] .window-root.settings-window {
+  --settings-window-radius: 12px;
+  position: relative;
+  border-radius: var(--settings-window-radius) !important;
+  overflow: hidden !important;
+  clip-path: inset(0 round var(--settings-window-radius));
+  background: transparent !important;
+  border: 1px solid var(--settings-sidebar-border);
+}
+
+html[data-window="settings"] .window-root.settings-window::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  inset: 1px;
+  border-radius: calc(var(--settings-window-radius) - 1px);
+  background: var(--settings-shell-bg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+html[data-window="settings"] .settings-sidebar,
+html[data-window="settings"] .settings-content {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-window="settings"] .settings-sidebar {
+  border-radius: calc(var(--settings-window-radius) - 1px) 0 0 calc(var(--settings-window-radius) - 1px);
+}
+
+html[data-window="settings"] .settings-content {
+  border-radius: 0 calc(var(--settings-window-radius) - 1px) calc(var(--settings-window-radius) - 1px) 0;
+}
+
+/* Visual polish hotfix: remove selection bar halo, fix settings corner layering, widen clipboard search */
+
+/* 1) Selection bar: remove outer gray shadow/ghost ring */
+html[data-window="selection_bar"] .window-root,
+html[data-window="selection_bar"] .selection-bar-window {
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.selection-bar-window {
+  padding: 0 !important;
+}
+
+.selection-bar-shell {
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: color-mix(in srgb, var(--selection-bar-outline) 88%, transparent) !important;
+}
+
+.selection-bar-shell::after {
+  content: none !important;
+  display: none !important;
+  border: 0 !important;
+}
+
+/* 2) Settings window: remove gray shadow and radius layer seam */
+html[data-window="settings"] .window-root.settings-window {
+  --settings-window-radius: 12px;
+  border-radius: var(--settings-window-radius) !important;
+  clip-path: none !important;
+  overflow: hidden !important;
+  background: var(--settings-shell-bg) !important;
+  border: 1px solid var(--settings-sidebar-border) !important;
+  box-shadow: none !important;
+}
+
+html[data-window="settings"] .window-root.settings-window::before,
+html[data-window="settings"] .window-root.settings-window::after {
+  content: none !important;
+  display: none !important;
+}
+
+html[data-window="settings"] .settings-sidebar,
+html[data-window="settings"] .settings-content {
+  border-radius: 0 !important;
+  background-clip: padding-box;
+}
+
+/* 3) Clipboard search: remove outer border ring and align width with clip items */
+.clipboard-window .toolbar {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+.clipboard-window .search-box {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 32px;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 10px;
+  padding: calc(var(--grid) * 0.42) calc(var(--grid) * 0.82);
+  background: color-mix(in srgb, var(--settings-control-bg) 96%, transparent) !important;
+}
+
+.clipboard-window .search-box:focus-within {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Settings + search final polish */
+
+/* Settings: remove residual corner layering and outer gray shadow */
+html[data-window="settings"],
+html[data-window="settings"] body,
+html[data-window="settings"] #root {
+  background: var(--settings-shell-bg) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  box-shadow: none !important;
+}
+
+html[data-window="settings"] .window-root.settings-window {
+  border-radius: 12px !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  clip-path: none !important;
+  background: var(--settings-shell-bg) !important;
+}
+
+html[data-window="settings"] .settings-sidebar,
+html[data-window="settings"] .settings-content {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-clip: padding-box;
+}
+
+/* Clipboard search: same subtle border style as clip items + focused highlight */
+.clipboard-window .toolbar {
+  width: 100%;
+}
+
+.clipboard-window .search-box {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--settings-card-border) 86%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--settings-card-border) 32%, transparent) !important;
+  background-clip: padding-box;
+  outline: none;
+}
+
+.clipboard-window .search-box:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 86%, var(--settings-card-border)) !important;
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--primary) 46%, transparent),
+    inset 0 0 0 999px color-mix(in srgb, var(--primary) 6%, transparent) !important;
+}

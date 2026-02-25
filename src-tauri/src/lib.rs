@@ -25,6 +25,7 @@ use screenshots::Screen;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tauri::{
+    image::Image as TauriImage,
     menu::MenuBuilder,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     window::Color,
@@ -59,8 +60,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 
 const SETTINGS_VERSION: u32 = 9;
 const WINDOW_LAYOUT_MIGRATION_VERSION: u32 = 7;
-const DEFAULT_TOGGLE_SHORTCUT: &str = "Alt+Space";
-const DEFAULT_TOGGLE_OCR_SHORTCUT: &str = "Alt+Shift+Space";
+const DEFAULT_TOGGLE_SHORTCUT: &str = "Alt+Z";
+const DEFAULT_TOGGLE_OCR_SHORTCUT: &str = "Alt+S";
 const SETTINGS_FILENAME: &str = "settings.json";
 const SETTINGS_BACKUP_FILENAME: &str = "settings.bak.json";
 const HISTORY_FILENAME: &str = "clipboard_history.json";
@@ -115,6 +116,11 @@ const MODEL_REQUEST_MAX_ATTEMPTS: usize = 3;
 const MODEL_REQUEST_RETRY_BASE_DELAY_MS: u64 = 140;
 const MODEL_REQUEST_RETRY_MAX_DELAY_MS: u64 = 850;
 const GLM_OCR_TEST_IMAGE_URL: &str = "https://cdn.bigmodel.cn/static/logo/introduction.png";
+const MAX_SETTINGS_FILE_BYTES: u64 = 2 * 1024 * 1024;
+const MAX_HISTORY_FILE_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_CLIPBOARD_TEXT_CHARS: usize = 120_000;
+const MAX_CLIPBOARD_IMAGE_DATA_URL_CHARS: usize = 8_000_000;
+const MAX_OCR_IMAGE_DATA_URL_CHARS: usize = 12_000_000;
 static EDGE_TTS_AUTO_INSTALL_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 const EDGE_TTS_INSTALL_IN_PROGRESS: &str = "__EDGE_TTS_INSTALL_IN_PROGRESS__";
 #[cfg(target_os = "windows")]
@@ -131,6 +137,7 @@ const TRAY_MENU_MAIN_ID: &str = "tray-open-main";
 const TRAY_MENU_OCR_ID: &str = "tray-open-ocr";
 const TRAY_MENU_SETTINGS_ID: &str = "tray-open-settings";
 const TRAY_MENU_QUIT_ID: &str = "tray-quit";
+const TRAY_ICON_PNG_BYTES: &[u8] = include_bytes!("../icons/tray-icon.png");
 const AUTOSTART_ARG: &str = "--autostart";
 const BUILTIN_SELECTION_BAR_KEYS: [&str; 6] = [
     "copy",
@@ -2194,11 +2201,59 @@ fn parse_history_entry_compat(raw: &serde_json::Value) -> Option<ClipboardEntry>
     })
 }
 
+fn truncate_text_chars(input: &str, max_chars: usize) -> String {
+    if max_chars == 0 {
+        return String::new();
+    }
+    if input.chars().count() <= max_chars {
+        return input.to_string();
+    }
+    let mut output = String::with_capacity(input.len().min(max_chars.saturating_mul(3)));
+    for ch in input.chars().take(max_chars) {
+        output.push(ch);
+    }
+    output
+}
+
+fn sanitize_clipboard_entry_for_storage(mut entry: ClipboardEntry) -> Option<ClipboardEntry> {
+    entry.id = entry.id.trim().to_string();
+    if entry.id.is_empty() {
+        entry.id = now_id();
+    }
+
+    match entry.kind {
+        ClipboardKind::Text | ClipboardKind::Link => {
+            let normalized = truncate_text_chars(entry.content.trim(), MAX_CLIPBOARD_TEXT_CHARS);
+            if normalized.is_empty() {
+                return None;
+            }
+            entry.content = normalized;
+            entry.image_data_url = None;
+        }
+        ClipboardKind::Image => {
+            let payload = entry.image_data_url.as_deref()?.trim();
+            let lowered = payload.to_ascii_lowercase();
+            if !lowered.starts_with("data:image/") || !lowered.contains("base64,") {
+                return None;
+            }
+            if payload.len() > MAX_CLIPBOARD_IMAGE_DATA_URL_CHARS {
+                return None;
+            }
+            entry.image_data_url = Some(payload.to_string());
+            if entry.content.trim().is_empty() {
+                entry.content = "Image".to_string();
+            }
+        }
+    }
+
+    Some(entry)
+}
+
 fn parse_history_entries(
     text: &str,
     max_items: usize,
 ) -> Result<VecDeque<ClipboardEntry>, CommandError> {
-    let mut items = match serde_json::from_str::<Vec<ClipboardEntry>>(text) {
+    let items = match serde_json::from_str::<Vec<ClipboardEntry>>(text) {
         Ok(parsed) => parsed,
         Err(_) => {
             let raw_value = serde_json::from_str::<serde_json::Value>(text)
@@ -2219,17 +2274,38 @@ fn parse_history_entries(
             repaired
         }
     };
-    items.retain(|item| item.kind == ClipboardKind::Image || !item.content.trim().is_empty());
+    let sanitized = items
+        .into_iter()
+        .filter_map(sanitize_clipboard_entry_for_storage)
+        .collect::<Vec<_>>();
 
-    let mut history = VecDeque::from(items);
+    let mut history = VecDeque::from(sanitized);
     trim_history(&mut history, max_items);
     normalize_history_order(&mut history);
     Ok(history)
 }
 
-fn read_text_with_retry(path: &Path) -> Result<String, std::io::Error> {
+fn read_text_with_retry_with_limit(
+    path: &Path,
+    max_bytes: Option<u64>,
+) -> Result<String, std::io::Error> {
     const RETRY_COUNT: usize = 20;
     const RETRY_DELAY_MS: u64 = 120;
+    if let Some(max_bytes) = max_bytes {
+        if let Ok(metadata) = fs::metadata(path) {
+            if metadata.len() > max_bytes {
+                return Err(std::io::Error::new(
+                    ErrorKind::InvalidData,
+                    format!(
+                        "file too large: {} bytes exceeds limit {} bytes",
+                        metadata.len(),
+                        max_bytes
+                    ),
+                ));
+            }
+        }
+    }
+
     let mut last_error: Option<std::io::Error> = None;
 
     for attempt in 0..RETRY_COUNT {
@@ -2250,6 +2326,14 @@ fn read_text_with_retry(path: &Path) -> Result<String, std::io::Error> {
 
     Err(last_error
         .unwrap_or_else(|| std::io::Error::other("history file read failed after retries")))
+}
+
+fn read_settings_text_with_retry(path: &Path) -> Result<String, std::io::Error> {
+    read_text_with_retry_with_limit(path, Some(MAX_SETTINGS_FILE_BYTES))
+}
+
+fn read_history_text_with_retry(path: &Path) -> Result<String, std::io::Error> {
+    read_text_with_retry_with_limit(path, Some(MAX_HISTORY_FILE_BYTES))
 }
 
 fn resolve_history_path_from_base_dir(storage_path: &str, base_dir: &Path) -> PathBuf {
@@ -2294,6 +2378,47 @@ fn resolve_history_file_path<R: Runtime>(
     }
 
     Ok(path)
+}
+
+fn recover_history_for_storage_path_switch<R: Runtime>(
+    app: &AppHandle<R>,
+    previous_settings: &AppSettings,
+    updated_settings: &AppSettings,
+) -> Option<VecDeque<ClipboardEntry>> {
+    if previous_settings.history.storage_path.trim() == updated_settings.history.storage_path.trim()
+    {
+        return None;
+    }
+
+    let mut candidates = Vec::<PathBuf>::new();
+    if let Ok(previous_path) = resolve_history_file_path(app, previous_settings) {
+        candidates.push(previous_path.clone());
+        candidates.push(history_backup_path(&previous_path));
+    }
+    if let Ok(app_config_path) = app_config_history_file_path(app) {
+        candidates.push(app_config_path.clone());
+        candidates.push(history_backup_path(&app_config_path));
+    }
+
+    let mut candidates = dedupe_paths_keep_order(candidates);
+    candidates.sort_by_key(|path| std::cmp::Reverse(file_modified_epoch_ms(path)));
+
+    for candidate in candidates {
+        if let Ok(text) = read_history_text_with_retry(&candidate) {
+            if let Ok(history) = parse_history_entries(&text, updated_settings.history.max_items) {
+                if !history.is_empty() {
+                    eprintln!(
+                        "[History] recovered {} items from previous storage path {}",
+                        history.len(),
+                        candidate.display()
+                    );
+                    return Some(history);
+                }
+            }
+        }
+    }
+
+    None
 }
 
 fn persist_settings(path: &Path, settings: &AppSettings) -> Result<(), CommandError> {
@@ -2394,7 +2519,7 @@ fn load_history_snapshot<R: Runtime>(
     let app_config_history_path = app_config_history_file_path(app)?;
     let mut empty_history_candidate: Option<HistoryLoadResult> = None;
 
-    if let Ok(text) = read_text_with_retry(&canonical_history_path) {
+    if let Ok(text) = read_history_text_with_retry(&canonical_history_path) {
         if let Ok(history) = parse_history_entries(&text, settings.history.max_items) {
             if !history.is_empty() {
                 return Ok(HistoryLoadResult {
@@ -2416,7 +2541,7 @@ fn load_history_snapshot<R: Runtime>(
     }
 
     let canonical_backup_path = history_backup_path(&canonical_history_path);
-    if let Ok(text) = read_text_with_retry(&canonical_backup_path) {
+    if let Ok(text) = read_history_text_with_retry(&canonical_backup_path) {
         if let Ok(history) = parse_history_entries(&text, settings.history.max_items) {
             if !history.is_empty() {
                 return Ok(HistoryLoadResult {
@@ -2467,7 +2592,7 @@ fn load_history_snapshot<R: Runtime>(
     fallback_candidates.sort_by_key(|path| std::cmp::Reverse(file_modified_epoch_ms(path)));
 
     for candidate in fallback_candidates {
-        if let Ok(text) = read_text_with_retry(&candidate) {
+        if let Ok(text) = read_history_text_with_retry(&candidate) {
             if let Ok(history) = parse_history_entries(&text, settings.history.max_items) {
                 if !history.is_empty() {
                     return Ok(HistoryLoadResult {
@@ -2519,7 +2644,7 @@ fn load_settings(path: &Path) -> SettingsLoadResult {
 
     // Try canonical file and backup first to avoid restoring stale legacy snapshots.
     for candidate in [&canonical_path, &canonical_backup] {
-        if let Ok(text) = read_text_with_retry(candidate) {
+        if let Ok(text) = read_settings_text_with_retry(candidate) {
             match parse_settings_from_text(&text) {
                 Ok((settings, repaired)) => {
                     return SettingsLoadResult {
@@ -2542,7 +2667,7 @@ fn load_settings(path: &Path) -> SettingsLoadResult {
     legacy_candidates.sort_by_key(|candidate| std::cmp::Reverse(file_modified_epoch_ms(candidate)));
 
     for candidate in legacy_candidates {
-        if let Ok(text) = read_text_with_retry(&candidate) {
+        if let Ok(text) = read_settings_text_with_retry(&candidate) {
             match parse_settings_from_text(&text) {
                 Ok((settings, _repaired)) => {
                     return SettingsLoadResult {
@@ -3247,7 +3372,8 @@ fn is_link_text(content: &str) -> bool {
 }
 
 fn build_text_entry(content: String) -> ClipboardEntry {
-    let kind = if is_link_text(&content) {
+    let normalized = truncate_text_chars(content.trim(), MAX_CLIPBOARD_TEXT_CHARS);
+    let kind = if is_link_text(&normalized) {
         ClipboardKind::Link
     } else {
         ClipboardKind::Text
@@ -3256,7 +3382,7 @@ fn build_text_entry(content: String) -> ClipboardEntry {
     ClipboardEntry {
         id: now_id(),
         kind,
-        content,
+        content: normalized,
         image_data_url: None,
         copied_at: Utc::now(),
         pinned: false,
@@ -3279,6 +3405,12 @@ fn build_image_entry(image: ImageData<'static>) -> Result<ClipboardEntry, Comman
 
     let encoded = BASE64.encode(cursor.into_inner());
     let data_url = format!("data:image/png;base64,{encoded}");
+    if data_url.len() > MAX_CLIPBOARD_IMAGE_DATA_URL_CHARS {
+        return Err(CommandError::InvalidImage(format!(
+            "Clipboard image too large ({} bytes), skipped",
+            data_url.len()
+        )));
+    }
 
     Ok(ClipboardEntry {
         id: now_id(),
@@ -3948,10 +4080,22 @@ fn start_ocr_capture_workflow<R: Runtime>(app: &AppHandle<R>) -> Result<(), Comm
 }
 
 fn open_in_default_browser(url: &str) -> Result<(), CommandError> {
+    let normalized = url.trim();
+    let lowered = normalized.to_ascii_lowercase();
+    if normalized.is_empty()
+        || normalized.contains('\r')
+        || normalized.contains('\n')
+        || !(lowered.starts_with("http://") || lowered.starts_with("https://"))
+    {
+        return Err(CommandError::Settings(
+            "搜索链接无效，仅支持 http/https 协议".to_string(),
+        ));
+    }
+
     #[cfg(target_os = "windows")]
     {
-        Command::new("cmd")
-            .args(["/C", "start", "", url])
+        Command::new("explorer")
+            .arg(normalized)
             .spawn()
             .map_err(|error| CommandError::Settings(error.to_string()))?;
         Ok(())
@@ -5388,8 +5532,24 @@ async fn call_vision_ocr(
         ));
     }
 
+    let normalized_image_input = image_data_url.trim();
+    let lowered_input = normalized_image_input.to_ascii_lowercase();
+    if normalized_image_input.is_empty()
+        || !(lowered_input.starts_with("data:image/")
+            || lowered_input.starts_with("http://")
+            || lowered_input.starts_with("https://"))
+    {
+        return Err(CommandError::Settings("OCR 输入图片格式无效".to_string()));
+    }
+    if normalized_image_input.len() > MAX_OCR_IMAGE_DATA_URL_CHARS {
+        return Err(CommandError::Settings(format!(
+            "OCR 输入图片过大（{} 字节），请缩小截图区域后重试",
+            normalized_image_input.len()
+        )));
+    }
+
     if should_use_glm_layout_parsing(vision) {
-        return call_glm_layout_parsing_ocr(client, vision, image_data_url).await;
+        return call_glm_layout_parsing_ocr(client, vision, normalized_image_input).await;
     }
 
     let request_body = json!({
@@ -5406,7 +5566,7 @@ async fn call_vision_ocr(
                 "role": "user",
                 "content": [
                     {"type":"text", "text":"Extract all legible text from this image. Keep punctuation and line breaks where useful. If no readable text exists, return an empty string."},
-                    {"type":"image_url", "image_url": {"url": image_data_url}}
+                    {"type":"image_url", "image_url": {"url": normalized_image_input}}
                 ]
             }
         ]
@@ -5751,6 +5911,18 @@ fn apply_shortcut_change<R: Runtime>(
     })
 }
 
+fn load_tray_icon_from_embedded_png() -> Option<TauriImage<'static>> {
+    let decoded = image::load_from_memory(TRAY_ICON_PNG_BYTES)
+        .map_err(|error| {
+            eprintln!("Failed to decode embedded tray icon PNG: {error}");
+            error
+        })
+        .ok()?
+        .to_rgba8();
+    let (width, height) = decoded.dimensions();
+    Some(TauriImage::new_owned(decoded.into_raw(), width, height))
+}
+
 fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let language = app
         .try_state::<AppSettingsState>()
@@ -5794,7 +5966,9 @@ fn create_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .tooltip(tooltip);
 
-    if let Some(icon) = app.default_window_icon().cloned() {
+    if let Some(icon) = load_tray_icon_from_embedded_png() {
+        tray_builder = tray_builder.icon(icon);
+    } else if let Some(icon) = app.default_window_icon().cloned() {
         tray_builder = tray_builder.icon(icon);
     }
 
@@ -6042,13 +6216,24 @@ fn update_settings_internal(
 
     persist_settings(&settings_state.file_path, &updated_settings)?;
     trim_history_by_settings(history_state, &updated_settings)?;
-    {
-        let history_snapshot = with_history_lock(history_state)?
-            .history
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>();
-        persist_history_snapshot(app, &updated_settings, &history_snapshot)?;
+    let storage_path_changed = previous_settings.history.storage_path.trim()
+        != updated_settings.history.storage_path.trim();
+    let mut recovered_from_previous_storage_path = false;
+    let history_snapshot = {
+        let mut history = with_history_lock(history_state)?;
+        if storage_path_changed && history.history.is_empty() {
+            if let Some(recovered) =
+                recover_history_for_storage_path_switch(app, &previous_settings, &updated_settings)
+            {
+                history.history = recovered;
+                recovered_from_previous_storage_path = true;
+            }
+        }
+        collect_history(&history.history)
+    };
+    persist_history_snapshot(app, &updated_settings, &history_snapshot)?;
+    if recovered_from_previous_storage_path {
+        emit_history_updated(app, &history_snapshot);
     }
 
     if previous_settings.window.launch_on_system_startup
@@ -6590,8 +6775,8 @@ fn open_search_with_text(app: AppHandle, text: String) -> Result<(), CommandErro
         .map(|settings| settings.selection_assistant.search_url_template.clone())
         .unwrap_or_else(|_| "https://www.google.com/search?q={query}".to_string());
     let url = build_search_url(&template, value);
-    open_in_default_browser(&url)?;
     hide_selection_bar_window(&app);
+    open_in_default_browser(&url)?;
     Ok(())
 }
 
@@ -7833,7 +8018,12 @@ fn sync_clipboard(
 
     if settings_snapshot.history.capture_image {
         if let Ok(image) = clipboard.get_image() {
-            incoming = Some(build_image_entry(image)?);
+            match build_image_entry(image) {
+                Ok(entry) => incoming = Some(entry),
+                Err(error) => {
+                    eprintln!("[Clipboard] image capture skipped: {error}");
+                }
+            }
         }
     }
 
