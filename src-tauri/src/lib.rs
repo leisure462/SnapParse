@@ -3963,6 +3963,9 @@ fn show_ocr_capture_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), Command
         )));
     }
 
+    // Keep source app popups/tooltips alive while drawing OCR region:
+    // show capture overlay without activating/focusing this window.
+    let _ = window.set_focusable(false);
     let _ = window.set_always_on_top(true);
     let _ = window.show();
     Ok(())
