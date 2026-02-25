@@ -53,6 +53,7 @@ export interface SelectionAssistantSettings {
   blockedApps: string[];
   defaultTranslateTo: "zh-CN" | "en-US" | "ja-JP" | "ko-KR";
   resultWindowAlwaysOnTop: boolean;
+  rememberResultWindowPosition: boolean;
 }
 
 export interface LlmSettings {
@@ -106,6 +107,7 @@ export interface OcrSettings {
   defaultAction: OcrActionKind;
   customAgentId: string;
   resultWindowAlwaysOnTop: boolean;
+  rememberResultWindowPosition: boolean;
   vision: VisionSettings;
 }
 
@@ -126,6 +128,8 @@ export interface HistorySettings {
   defaultCategory: FilterKind;
   pasteBehavior: PasteBehavior;
   collapseTopBar: boolean;
+  promoteAfterPaste: boolean;
+  openAtTopOnShow: boolean;
   storagePath: string;
 }
 
@@ -164,6 +168,7 @@ export interface SelectionAssistantSettingsPatch {
   blockedApps?: string[];
   defaultTranslateTo?: "zh-CN" | "en-US" | "ja-JP" | "ko-KR";
   resultWindowAlwaysOnTop?: boolean;
+  rememberResultWindowPosition?: boolean;
 }
 
 export interface LlmSettingsPatch {
@@ -202,6 +207,7 @@ export interface OcrSettingsPatch {
   defaultAction?: OcrActionKind;
   customAgentId?: string;
   resultWindowAlwaysOnTop?: boolean;
+  rememberResultWindowPosition?: boolean;
   vision?: VisionSettingsPatch;
 }
 
@@ -222,6 +228,8 @@ export interface HistorySettingsPatch {
   defaultCategory?: FilterKind;
   pasteBehavior?: PasteBehavior;
   collapseTopBar?: boolean;
+  promoteAfterPaste?: boolean;
+  openAtTopOnShow?: boolean;
   storagePath?: string;
 }
 

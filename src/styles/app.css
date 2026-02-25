@@ -1968,6 +1968,37 @@ select {
   min-width: 0;
 }
 
+.filled-input-with-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(var(--grid) * 0.52);
+}
+
+.filled-input-with-action input {
+  min-width: 0;
+}
+
+.inline-visibility-btn {
+  border: 1px solid var(--settings-control-border);
+  background: var(--settings-control-bg);
+  color: var(--text-mid);
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+}
+
+.inline-visibility-btn:hover {
+  color: var(--text-high);
+  border-color: var(--settings-control-line-focus);
+  background: var(--settings-control-hover);
+}
+
 .blocked-app-picker-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

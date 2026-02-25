@@ -57,7 +57,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     IsIconic, IsWindow, SetForegroundWindow, ShowWindow, SW_RESTORE,
 };
 
-const SETTINGS_VERSION: u32 = 8;
+const SETTINGS_VERSION: u32 = 9;
 const WINDOW_LAYOUT_MIGRATION_VERSION: u32 = 7;
 const DEFAULT_TOGGLE_SHORTCUT: &str = "Alt+Space";
 const DEFAULT_TOGGLE_OCR_SHORTCUT: &str = "Alt+Shift+Space";
@@ -66,6 +66,7 @@ const SETTINGS_BACKUP_FILENAME: &str = "settings.bak.json";
 const HISTORY_FILENAME: &str = "clipboard_history.json";
 const SETTINGS_UPDATED_EVENT: &str = "snapparse://settings-updated";
 const SETTINGS_WINDOW_SHOWN_EVENT: &str = "snapparse://settings-window-shown";
+const MAIN_WINDOW_SHOWN_EVENT: &str = "snapparse://main-window-shown";
 const SELECTION_DETECTED_EVENT: &str = "snapparse://selection-detected";
 const SELECTION_RESULT_UPDATED_EVENT: &str = "snapparse://selection-result-updated";
 const SELECTION_ERROR_EVENT: &str = "snapparse://selection-error";
@@ -227,6 +228,7 @@ struct SelectionAssistantSettings {
     blocked_apps: Vec<String>,
     default_translate_to: String,
     result_window_always_on_top: bool,
+    remember_result_window_position: bool,
 }
 
 impl Default for SelectionAssistantSettings {
@@ -243,6 +245,7 @@ impl Default for SelectionAssistantSettings {
             blocked_apps: Vec::new(),
             default_translate_to: "en-US".to_string(),
             result_window_always_on_top: true,
+            remember_result_window_position: true,
         }
     }
 }
@@ -307,6 +310,7 @@ struct OcrSettings {
     default_action: OcrDefaultAction,
     custom_agent_id: String,
     result_window_always_on_top: bool,
+    remember_result_window_position: bool,
     vision: VisionSettings,
 }
 
@@ -318,6 +322,7 @@ impl Default for OcrSettings {
             default_action: OcrDefaultAction::Translate,
             custom_agent_id: String::new(),
             result_window_always_on_top: true,
+            remember_result_window_position: true,
             vision: VisionSettings::default(),
         }
     }
@@ -453,6 +458,8 @@ struct HistorySettings {
     default_category: FilterKind,
     paste_behavior: PasteBehavior,
     collapse_top_bar: bool,
+    promote_after_paste: bool,
+    open_at_top_on_show: bool,
     storage_path: String,
 }
 
@@ -468,6 +475,8 @@ impl Default for HistorySettings {
             default_category: FilterKind::All,
             paste_behavior: PasteBehavior::CopyAndHide,
             collapse_top_bar: false,
+            promote_after_paste: true,
+            open_at_top_on_show: true,
             storage_path: String::new(),
         }
     }
@@ -555,6 +564,7 @@ struct SelectionAssistantSettingsPatch {
     blocked_apps: Option<Vec<String>>,
     default_translate_to: Option<String>,
     result_window_always_on_top: Option<bool>,
+    remember_result_window_position: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -598,6 +608,7 @@ struct OcrSettingsPatch {
     default_action: Option<OcrDefaultAction>,
     custom_agent_id: Option<String>,
     result_window_always_on_top: Option<bool>,
+    remember_result_window_position: Option<bool>,
     vision: Option<VisionSettingsPatch>,
 }
 
@@ -627,6 +638,8 @@ struct HistorySettingsPatch {
     default_category: Option<FilterKind>,
     paste_behavior: Option<PasteBehavior>,
     collapse_top_bar: Option<bool>,
+    promote_after_paste: Option<bool>,
+    open_at_top_on_show: Option<bool>,
     storage_path: Option<String>,
 }
 
@@ -761,6 +774,13 @@ struct SelectionDetectedPayload {
     x: i32,
     y: i32,
     mode: SelectionTriggerMode,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MainWindowShownPayload {
+    collapse_top_bar: bool,
+    open_to_top: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1361,6 +1381,13 @@ fn normalize_settings(settings: &mut AppSettings) {
     if previous_version < SETTINGS_VERSION {
         settings.selection_assistant.enabled = true;
         settings.ocr.enabled = true;
+        if previous_version < 9 {
+            let legacy_remember_position = settings.window.remember_position;
+            settings.selection_assistant.remember_result_window_position = legacy_remember_position;
+            settings.ocr.remember_result_window_position = legacy_remember_position;
+            settings.history.promote_after_paste = true;
+            settings.history.open_at_top_on_show = true;
+        }
     }
 
     if settings.selection_assistant.auto_hide_ms == 3600 {
@@ -1540,6 +1567,9 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
         if let Some(pinned) = selection_patch.result_window_always_on_top {
             settings.selection_assistant.result_window_always_on_top = pinned;
         }
+        if let Some(remember_position) = selection_patch.remember_result_window_position {
+            settings.selection_assistant.remember_result_window_position = remember_position;
+        }
     }
 
     if let Some(llm_patch) = patch.llm {
@@ -1613,6 +1643,9 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
         if let Some(always_on_top) = ocr_patch.result_window_always_on_top {
             settings.ocr.result_window_always_on_top = always_on_top;
         }
+        if let Some(remember_position) = ocr_patch.remember_result_window_position {
+            settings.ocr.remember_result_window_position = remember_position;
+        }
         if let Some(vision_patch) = ocr_patch.vision {
             if let Some(enabled) = vision_patch.enabled {
                 settings.ocr.vision.enabled = enabled;
@@ -1665,6 +1698,12 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
         }
         if let Some(collapse_top_bar) = history_patch.collapse_top_bar {
             settings.history.collapse_top_bar = collapse_top_bar;
+        }
+        if let Some(promote_after_paste) = history_patch.promote_after_paste {
+            settings.history.promote_after_paste = promote_after_paste;
+        }
+        if let Some(open_at_top_on_show) = history_patch.open_at_top_on_show {
+            settings.history.open_at_top_on_show = open_at_top_on_show;
         }
         if let Some(storage_path) = history_patch.storage_path {
             settings.history.storage_path = storage_path;
@@ -3690,14 +3729,18 @@ fn show_selection_result_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), Co
 
     if let Some(target_position) = target_position_with_memory(
         app,
-        settings_snapshot.window.remember_position,
+        settings_snapshot
+            .selection_assistant
+            .remember_result_window_position,
         settings_snapshot.selection_result_window_x,
         settings_snapshot.selection_result_window_y,
         target_width,
         target_height,
     ) {
         let _ = window.set_position(Position::Physical(target_position));
-        if settings_snapshot.window.remember_position
+        if settings_snapshot
+            .selection_assistant
+            .remember_result_window_position
             && (settings_snapshot.selection_result_window_x != Some(target_position.x)
                 || settings_snapshot.selection_result_window_y != Some(target_position.y))
         {
@@ -3788,14 +3831,14 @@ fn show_ocr_result_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), CommandE
 
     if let Some(target_position) = target_position_with_memory(
         app,
-        settings_snapshot.window.remember_position,
+        settings_snapshot.ocr.remember_result_window_position,
         settings_snapshot.ocr_result_window_x,
         settings_snapshot.ocr_result_window_y,
         target_width,
         target_height,
     ) {
         let _ = window.set_position(Position::Physical(target_position));
-        if settings_snapshot.window.remember_position
+        if settings_snapshot.ocr.remember_result_window_position
             && (settings_snapshot.ocr_result_window_x != Some(target_position.x)
                 || settings_snapshot.ocr_result_window_y != Some(target_position.y))
         {
@@ -5474,6 +5517,18 @@ fn apply_saved_main_window_size<R: Runtime>(app: &AppHandle<R>) {
 }
 
 fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
+    let settings_snapshot = app
+        .try_state::<AppSettingsState>()
+        .and_then(|state| state.data.lock().ok().map(|settings| settings.clone()))
+        .unwrap_or_else(AppSettings::default);
+    let _ = app.emit(
+        MAIN_WINDOW_SHOWN_EVENT,
+        MainWindowShownPayload {
+            collapse_top_bar: settings_snapshot.history.collapse_top_bar,
+            open_to_top: settings_snapshot.history.open_at_top_on_show,
+        },
+    );
+
     let main_focused = app
         .get_webview_window(MAIN_WINDOW_LABEL)
         .and_then(|window| window.is_focused().ok())
@@ -7382,6 +7437,9 @@ fn reset_settings(
             result_window_always_on_top: Some(
                 defaults.selection_assistant.result_window_always_on_top,
             ),
+            remember_result_window_position: Some(
+                defaults.selection_assistant.remember_result_window_position,
+            ),
         }),
         llm: Some(LlmSettingsPatch {
             enabled: Some(defaults.llm.enabled),
@@ -7412,6 +7470,7 @@ fn reset_settings(
             default_action: Some(defaults.ocr.default_action),
             custom_agent_id: Some(defaults.ocr.custom_agent_id.clone()),
             result_window_always_on_top: Some(defaults.ocr.result_window_always_on_top),
+            remember_result_window_position: Some(defaults.ocr.remember_result_window_position),
             vision: Some(VisionSettingsPatch {
                 enabled: Some(defaults.ocr.vision.enabled),
                 base_url: Some(defaults.ocr.vision.base_url.clone()),
@@ -7432,6 +7491,8 @@ fn reset_settings(
             default_category: Some(defaults.history.default_category),
             paste_behavior: Some(defaults.history.paste_behavior),
             collapse_top_bar: Some(defaults.history.collapse_top_bar),
+            promote_after_paste: Some(defaults.history.promote_after_paste),
+            open_at_top_on_show: Some(defaults.history.open_at_top_on_show),
             storage_path: Some(defaults.history.storage_path.clone()),
         }),
         selection_result_window_width: defaults.selection_result_window_width,
@@ -7768,16 +7829,24 @@ fn paste_entry_by_click(
         Clipboard::new().map_err(|error| CommandError::Clipboard(error.to_string()))?;
     apply_entry_to_clipboard(&mut clipboard, &target)?;
 
-    insert_or_promote(
-        &mut locked.history,
-        target.clone(),
-        settings_snapshot.history.max_items,
-        settings_snapshot.history.dedupe,
-    );
-    locked.last_observed_signature = Some(entry_signature(&target));
-    let updated = collect_history(&locked.history);
-    drop(locked);
-    persist_history_snapshot(&app, &settings_snapshot, &updated)?;
+    let updated = if settings_snapshot.history.promote_after_paste {
+        insert_or_promote(
+            &mut locked.history,
+            target.clone(),
+            settings_snapshot.history.max_items,
+            settings_snapshot.history.dedupe,
+        );
+        locked.last_observed_signature = Some(entry_signature(&target));
+        let updated = collect_history(&locked.history);
+        drop(locked);
+        persist_history_snapshot(&app, &settings_snapshot, &updated)?;
+        updated
+    } else {
+        locked.last_observed_signature = Some(entry_signature(&target));
+        let updated = collect_history(&locked.history);
+        drop(locked);
+        updated
+    };
 
     let runtime_flags = app.state::<RuntimeFlags>();
     let pinned_by_flag = runtime_flags.main_window_pinned.load(Ordering::Relaxed);
@@ -8220,7 +8289,7 @@ pub fn run() {
                             Err(_) => return,
                         };
 
-                        if settings.window.remember_position
+                        if settings.selection_assistant.remember_result_window_position
                             && (settings.selection_result_window_x != Some(position.x)
                                 || settings.selection_result_window_y != Some(position.y))
                         {
@@ -8285,7 +8354,7 @@ pub fn run() {
                             Err(_) => return,
                         };
 
-                        if settings.window.remember_position
+                        if settings.ocr.remember_result_window_position
                             && (settings.ocr_result_window_x != Some(position.x)
                                 || settings.ocr_result_window_y != Some(position.y))
                         {

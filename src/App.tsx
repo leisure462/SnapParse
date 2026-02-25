@@ -29,6 +29,8 @@ import {
   Crown,
   Database,
   Download,
+  Eye,
+  EyeOff,
   ExternalLink,
   Feather,
   FileDown,
@@ -102,6 +104,7 @@ import type {
 import appLogo from "../icon_transparent.png";
 
 const SETTINGS_UPDATED_EVENT = "snapparse://settings-updated";
+const MAIN_WINDOW_SHOWN_EVENT = "snapparse://main-window-shown";
 const FALLBACK_SHORTCUT = "Alt+Space";
 const FALLBACK_OCR_SHORTCUT = "Alt+Shift+Space";
 
@@ -117,7 +120,7 @@ const OCR_VISION_MAX_TOKENS_RANGE = { min: 256, max: 8192 };
 const TTS_RATE_PERCENT_RANGE = { min: -50, max: 100 };
 
 const FALLBACK_SETTINGS: AppSettings = {
-  version: 8,
+  version: 9,
   themePreset: "deep-black",
   language: "zh-CN",
   window: {
@@ -139,7 +142,8 @@ const FALLBACK_SETTINGS: AppSettings = {
     maxChars: 12000,
     blockedApps: [],
     defaultTranslateTo: "en-US",
-    resultWindowAlwaysOnTop: true
+    resultWindowAlwaysOnTop: true,
+    rememberResultWindowPosition: true
   },
   llm: {
     enabled: true,
@@ -177,6 +181,7 @@ const FALLBACK_SETTINGS: AppSettings = {
     defaultAction: "translate",
     customAgentId: "",
     resultWindowAlwaysOnTop: true,
+    rememberResultWindowPosition: true,
     vision: {
       enabled: false,
       baseUrl: "https://api.openai.com/v1/chat/completions",
@@ -197,6 +202,8 @@ const FALLBACK_SETTINGS: AppSettings = {
     defaultCategory: "all",
     pasteBehavior: "copy-and-hide",
     collapseTopBar: false,
+    promoteAfterPaste: true,
+    openAtTopOnShow: true,
     storagePath: ""
   }
 };
@@ -669,6 +676,11 @@ function parseThemePreset(value: unknown): ThemePreset {
   }
 }
 
+interface MainWindowShownPayload {
+  collapseTopBar: boolean;
+  openToTop: boolean;
+}
+
 function readLegacyBoolean(
   input: Record<string, unknown>,
   key: string
@@ -856,6 +868,23 @@ function sanitizeSettings(input: AppSettings): AppSettings {
   const legacyCheckUpdatesOnStartup =
     readLegacyBoolean(rawInput, "checkUpdatesOnStartup") ??
     (rawWindow ? readLegacyBoolean(rawWindow, "checkUpdatesOnStartup") : undefined);
+  const legacyRememberWindowPosition =
+    readLegacyBoolean(rawInput, "rememberPosition") ??
+    readLegacyBoolean(rawInput, "remember_position") ??
+    (rawWindow
+      ? readLegacyBoolean(rawWindow, "rememberPosition") ??
+        readLegacyBoolean(rawWindow, "remember_position")
+      : undefined);
+  const rawHistory =
+    rawInput.history && typeof rawInput.history === "object" && !Array.isArray(rawInput.history)
+      ? (rawInput.history as Record<string, unknown>)
+      : null;
+  const legacyPromoteAfterPaste =
+    (rawHistory ? readLegacyBoolean(rawHistory, "promoteAfterPaste") : undefined) ??
+    (rawHistory ? readLegacyBoolean(rawHistory, "promote_after_paste") : undefined);
+  const legacyOpenAtTopOnShow =
+    (rawHistory ? readLegacyBoolean(rawHistory, "openAtTopOnShow") : undefined) ??
+    (rawHistory ? readLegacyBoolean(rawHistory, "open_at_top_on_show") : undefined);
 
   const sanitizedCustomAgents = normalizeCustomAgents(input.agents?.custom ?? []);
   const sanitizedBarOrder = normalizeSelectionBarOrder(
@@ -947,6 +976,11 @@ function sanitizeSettings(input: AppSettings): AppSettings {
       resultWindowAlwaysOnTop: Boolean(
         input.selectionAssistant?.resultWindowAlwaysOnTop ??
           FALLBACK_SETTINGS.selectionAssistant.resultWindowAlwaysOnTop
+      ),
+      rememberResultWindowPosition: Boolean(
+        input.selectionAssistant?.rememberResultWindowPosition ??
+          legacyRememberWindowPosition ??
+          FALLBACK_SETTINGS.selectionAssistant.rememberResultWindowPosition
       )
     },
     llm: {
@@ -1014,6 +1048,11 @@ function sanitizeSettings(input: AppSettings): AppSettings {
       resultWindowAlwaysOnTop: Boolean(
         input.ocr?.resultWindowAlwaysOnTop ?? FALLBACK_SETTINGS.ocr.resultWindowAlwaysOnTop
       ),
+      rememberResultWindowPosition: Boolean(
+        input.ocr?.rememberResultWindowPosition ??
+          legacyRememberWindowPosition ??
+          FALLBACK_SETTINGS.ocr.rememberResultWindowPosition
+      ),
       vision: {
         enabled: Boolean(
           (input.ocr?.vision?.apiKey ?? FALLBACK_SETTINGS.ocr.vision.apiKey).trim().length > 0
@@ -1056,6 +1095,16 @@ function sanitizeSettings(input: AppSettings): AppSettings {
       pasteBehavior: parsePasteBehavior(input.history.pasteBehavior),
       collapseTopBar: Boolean(
         input.history.collapseTopBar ?? FALLBACK_SETTINGS.history.collapseTopBar
+      ),
+      promoteAfterPaste: Boolean(
+        input.history.promoteAfterPaste ??
+          legacyPromoteAfterPaste ??
+          FALLBACK_SETTINGS.history.promoteAfterPaste
+      ),
+      openAtTopOnShow: Boolean(
+        input.history.openAtTopOnShow ??
+          legacyOpenAtTopOnShow ??
+          FALLBACK_SETTINGS.history.openAtTopOnShow
       ),
       storagePath: input.history.storagePath?.trim() || ""
     }
@@ -1329,6 +1378,7 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const wheelDeltaRef = useRef(0);
   const wheelTsRef = useRef(0);
   const syncInFlightRef = useRef(false);
+  const streamRef = useRef<HTMLElement | null>(null);
   const historyRef = useRef<ClipboardEntry[]>([]);
   const applyHistoryUpdate = useCallback((next: ClipboardEntry[]) => {
     setHistory((current) => (isSameHistoryList(current, next) ? current : next));
@@ -1366,18 +1416,38 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }, [collapseTopBarEnabled]);
 
   useEffect(() => {
-    if (!collapseTopBarEnabled) {
-      return;
+    let mounted = true;
+    let unlisten: (() => void) | null = null;
+    try {
+      void getCurrentWebviewWindow()
+        .listen<MainWindowShownPayload>(MAIN_WINDOW_SHOWN_EVENT, (event) => {
+          if (!mounted) return;
+          const payload = event.payload;
+          setTopControlsVisible(!payload.collapseTopBar);
+          if (payload.openToTop) {
+            window.requestAnimationFrame(() => {
+              window.requestAnimationFrame(() => {
+                const element = streamRef.current;
+                if (!element) return;
+                element.scrollTop = 0;
+              });
+            });
+          }
+        })
+        .then((off) => {
+          unlisten = off;
+        });
+    } catch {
+      unlisten = null;
     }
 
-    const handleFocus = () => {
-      setTopControlsVisible(false);
-    };
-    window.addEventListener("focus", handleFocus);
     return () => {
-      window.removeEventListener("focus", handleFocus);
+      mounted = false;
+      if (unlisten) {
+        unlisten();
+      }
     };
-  }, [collapseTopBarEnabled]);
+  }, []);
 
   useEffect(() => {
     wheelDirectionRef.current = null;
@@ -1635,7 +1705,14 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
         </section>
       </section>
 
-      <section className="clip-stream" aria-label="Clipboard history list" onWheel={handleStreamWheel}>
+      <section
+        className="clip-stream"
+        aria-label="Clipboard history list"
+        onWheel={handleStreamWheel}
+        ref={(element) => {
+          streamRef.current = element;
+        }}
+      >
         {filtered.length === 0 && <div className="empty-note">暂无匹配内容</div>}
 
         {filtered.map((entry) => (
@@ -2994,6 +3071,8 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const [runningAppsFilter, setRunningAppsFilter] = useState("");
   const [testingLlmApi, setTestingLlmApi] = useState(false);
   const [testingOcrApi, setTestingOcrApi] = useState(false);
+  const [showLlmApiKey, setShowLlmApiKey] = useState(false);
+  const [showOcrVisionApiKey, setShowOcrVisionApiKey] = useState(false);
   const [llmApiTestFeedback, setLlmApiTestFeedback] = useState("");
   const [ocrApiTestFeedback, setOcrApiTestFeedback] = useState("");
   const [numberDrafts, setNumberDrafts] = useState<
@@ -4045,17 +4124,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                 />
               </label>
               <label className="check-row">
-                <span>记忆窗口位置（关闭后跟随鼠标/光标呼出）</span>
-                <input
-                  className="md2-check"
-                  type="checkbox"
-                  checked={settings.window.rememberPosition}
-                  onChange={(event) => {
-                    void applyPatch({ window: { rememberPosition: event.target.checked } });
-                  }}
-                />
-              </label>
-              <label className="check-row">
                 <span>开机自动启动</span>
                 <input
                   className="md2-check"
@@ -4439,6 +4507,21 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                   }}
                 />
               </label>
+              <label className="check-row">
+                <span>记忆划词处理窗口位置</span>
+                <input
+                  className="md2-check"
+                  type="checkbox"
+                  checked={settings.selectionAssistant.rememberResultWindowPosition}
+                  onChange={(event) => {
+                    void applyPatch({
+                      selectionAssistant: {
+                        rememberResultWindowPosition: event.target.checked
+                      }
+                    });
+                  }}
+                />
+              </label>
             </article>
 
             <article className="settings-card">
@@ -4456,14 +4539,24 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               </div>
               <div className="filled-control">
                 <label htmlFor="llm-api-key">API Key</label>
-                <input
-                  id="llm-api-key"
-                  type="password"
-                  value={settings.llm.apiKey}
-                  onChange={(event) => {
-                    void applyPatch({ llm: { apiKey: event.target.value } });
-                  }}
-                />
+                <div className="filled-input-with-action">
+                  <input
+                    id="llm-api-key"
+                    type={showLlmApiKey ? "text" : "password"}
+                    value={settings.llm.apiKey}
+                    onChange={(event) => {
+                      void applyPatch({ llm: { apiKey: event.target.value } });
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="inline-visibility-btn"
+                    onClick={() => setShowLlmApiKey((prev) => !prev)}
+                    aria-label={showLlmApiKey ? "隐藏 API Key" : "显示 API Key"}
+                  >
+                    {showLlmApiKey ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                </div>
               </div>
               <div className="filled-control">
                 <label htmlFor="llm-model">模型名称</label>
@@ -4586,6 +4679,21 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                   }}
                 />
               </label>
+              <label className="check-row">
+                <span>记忆 OCR 结果窗口位置</span>
+                <input
+                  className="md2-check"
+                  type="checkbox"
+                  checked={settings.ocr.rememberResultWindowPosition}
+                  onChange={(event) => {
+                    void applyPatch({
+                      ocr: {
+                        rememberResultWindowPosition: event.target.checked
+                      }
+                    });
+                  }}
+                />
+              </label>
               <p className="help-text">OCR 快捷键：{settings.shortcuts.toggleOcr}</p>
             </article>
 
@@ -4606,20 +4714,30 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
               <div className="filled-control">
                 <label htmlFor="ocr-vision-api-key">API Key</label>
-                <input
-                  id="ocr-vision-api-key"
-                  type="password"
-                  value={settings.ocr.vision.apiKey}
-                  onChange={(event) => {
-                    void applyPatch({
-                      ocr: {
-                        vision: {
-                          apiKey: event.target.value
+                <div className="filled-input-with-action">
+                  <input
+                    id="ocr-vision-api-key"
+                    type={showOcrVisionApiKey ? "text" : "password"}
+                    value={settings.ocr.vision.apiKey}
+                    onChange={(event) => {
+                      void applyPatch({
+                        ocr: {
+                          vision: {
+                            apiKey: event.target.value
+                          }
                         }
-                      }
-                    });
-                  }}
-                />
+                      });
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="inline-visibility-btn"
+                    onClick={() => setShowOcrVisionApiKey((prev) => !prev)}
+                    aria-label={showOcrVisionApiKey ? "隐藏 API Key" : "显示 API Key"}
+                  >
+                    {showOcrVisionApiKey ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                </div>
               </div>
 
               <div className="filled-control">
@@ -5091,6 +5209,28 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                   checked={settings.history.collapseTopBar}
                   onChange={(event) => {
                     void applyPatch({ history: { collapseTopBar: event.target.checked } });
+                  }}
+                />
+              </label>
+              <label className="check-row">
+                <span>粘贴后自动置顶</span>
+                <input
+                  className="md2-check"
+                  type="checkbox"
+                  checked={settings.history.promoteAfterPaste}
+                  onChange={(event) => {
+                    void applyPatch({ history: { promoteAfterPaste: event.target.checked } });
+                  }}
+                />
+              </label>
+              <label className="check-row">
+                <span>打开剪贴板界面默认置顶</span>
+                <input
+                  className="md2-check"
+                  type="checkbox"
+                  checked={settings.history.openAtTopOnShow}
+                  onChange={(event) => {
+                    void applyPatch({ history: { openAtTopOnShow: event.target.checked } });
                   }}
                 />
               </label>
