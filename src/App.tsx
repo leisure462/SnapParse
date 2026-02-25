@@ -85,6 +85,9 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
+import remarkGfm from "remark-gfm";
 import type {
   AppSettings,
   AppSettingsPatch,
@@ -279,6 +282,30 @@ function createAudioFromTtsResponse(response: TtsSynthesizeResult) {
     audio: new Audio(objectUrl),
     revoke: () => URL.revokeObjectURL(objectUrl)
   };
+}
+
+function MarkdownText({ text, className }: { text: string; className?: string }) {
+  return (
+    <div className={className}>
+      <ReactMarkdown
+        skipHtml
+        remarkPlugins={[remarkGfm, remarkBreaks]}
+        components={{
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              {children}
+            </a>
+          )
+        }}
+      >
+        {text || ""}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 interface SettingGroup {
@@ -2431,7 +2458,7 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
           <section className="selection-result-body">
             <section className="selection-result-output">
-              <pre className="selection-result-text">{outputDisplayText}</pre>
+              <MarkdownText className="selection-result-text markdown-render-body" text={outputDisplayText} />
               <div className="result-overlay-actions">
                 <button
                   className={`icon-btn overlay-action-btn result-favorite-btn${
@@ -3010,7 +3037,10 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               </div>
             </header>
             <section className="ocr-result-body-wrap">
-              <pre>{result?.ocrText?.trim() || "等待识别..."}</pre>
+              <MarkdownText
+                className="markdown-render-body"
+                text={result?.ocrText?.trim() || "等待识别..."}
+              />
             </section>
           </article>
 
@@ -3048,7 +3078,7 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
               </div>
             </header>
             <section className="ocr-result-body-wrap">
-              <pre>{outputText}</pre>
+              <MarkdownText className="markdown-render-body" text={outputText} />
             </section>
           </article>
         </section>

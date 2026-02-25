@@ -1234,6 +1234,7 @@ select {
   display: flex;
 }
 
+.ocr-result-body-wrap .markdown-render-body,
 .ocr-result-block pre {
   margin: 0;
   padding: calc(var(--grid) * 0.25) calc(var(--grid) * 1.05) calc(var(--grid) * 0.86);
@@ -1249,18 +1250,68 @@ select {
   scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
 }
 
+.ocr-result-body-wrap .markdown-render-body::-webkit-scrollbar,
 .ocr-result-block pre::-webkit-scrollbar {
   width: 2px;
   height: 2px;
 }
 
+.ocr-result-body-wrap .markdown-render-body::-webkit-scrollbar-track,
 .ocr-result-block pre::-webkit-scrollbar-track {
   background: transparent;
 }
 
+.ocr-result-body-wrap .markdown-render-body::-webkit-scrollbar-thumb,
 .ocr-result-block pre::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
+}
+
+.markdown-render-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-render-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-render-body p,
+.markdown-render-body ul,
+.markdown-render-body ol,
+.markdown-render-body blockquote,
+.markdown-render-body pre,
+.markdown-render-body h1,
+.markdown-render-body h2,
+.markdown-render-body h3,
+.markdown-render-body h4,
+.markdown-render-body h5,
+.markdown-render-body h6 {
+  margin: 0 0 calc(var(--grid) * 0.44);
+}
+
+.markdown-render-body ul,
+.markdown-render-body ol {
+  padding-left: 1.15em;
+}
+
+.markdown-render-body li + li {
+  margin-top: calc(var(--grid) * 0.16);
+}
+
+.markdown-render-body code {
+  font-family: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 0.95em;
+}
+
+.markdown-render-body pre code {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.markdown-render-body a {
+  color: var(--primary);
+  text-underline-offset: 2px;
 }
 
 .clipboard-top-controls {
@@ -3373,7 +3424,8 @@ html[data-window="ocr_result"] .window-root {
 }
 
 .selection-result-text,
-.ocr-result-block pre {
+.ocr-result-block pre,
+.ocr-result-body-wrap .markdown-render-body {
   font-size: 0.78rem;
   line-height: 1.46;
 }
@@ -3534,6 +3586,7 @@ html[data-window="ocr_result"] .window-root {
 .selection-result-text,
 .selection-source-text,
 .ocr-result-block pre,
+.ocr-result-body-wrap .markdown-render-body,
 .clip-stream,
 .agent-modal-body,
 .blocked-app-picker-list,
@@ -3545,6 +3598,7 @@ html[data-window="ocr_result"] .window-root {
 .selection-result-text::-webkit-scrollbar,
 .selection-source-text::-webkit-scrollbar,
 .ocr-result-block pre::-webkit-scrollbar,
+.ocr-result-body-wrap .markdown-render-body::-webkit-scrollbar,
 .clip-stream::-webkit-scrollbar,
 .agent-modal-body::-webkit-scrollbar,
 .blocked-app-picker-list::-webkit-scrollbar,
@@ -3556,6 +3610,7 @@ html[data-window="ocr_result"] .window-root {
 .selection-result-text::-webkit-scrollbar-thumb,
 .selection-source-text::-webkit-scrollbar-thumb,
 .ocr-result-block pre::-webkit-scrollbar-thumb,
+.ocr-result-body-wrap .markdown-render-body::-webkit-scrollbar-thumb,
 .clip-stream::-webkit-scrollbar-thumb,
 .agent-modal-body::-webkit-scrollbar-thumb,
 .blocked-app-picker-list::-webkit-scrollbar-thumb,
@@ -3567,6 +3622,7 @@ html[data-window="ocr_result"] .window-root {
 .selection-result-text::-webkit-scrollbar-track,
 .selection-source-text::-webkit-scrollbar-track,
 .ocr-result-block pre::-webkit-scrollbar-track,
+.ocr-result-body-wrap .markdown-render-body::-webkit-scrollbar-track,
 .clip-stream::-webkit-scrollbar-track,
 .agent-modal-body::-webkit-scrollbar-track,
 .blocked-app-picker-list::-webkit-scrollbar-track,

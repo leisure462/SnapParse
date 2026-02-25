@@ -1,7 +1,7 @@
 {
   "name": "snapparse-clipboard",
   "private": true,
-  "version": "1.0.24",
+  "version": "1.0.25",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +16,10 @@
     "@tauri-apps/plugin-updater": "^2.0.0",
     "lucide-react": "^0.575.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
@@ -27,3 +30,4 @@
     "vite": "^6.0.0"
   }
 }
+
