@@ -4778,7 +4778,19 @@ async fn call_glm_layout_parsing_ocr(
                 };
 
                 let status = response.status();
-                let raw_body = response.text().await.unwrap_or_default();
+                let raw_body = match read_response_body_lossy(response).await {
+                    Ok(value) => value,
+                    Err(error) => {
+                        if should_retry_network_error(&error)
+                            && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS
+                        {
+                            last_error = Some(error.to_string());
+                            sleep_with_backoff(attempt).await;
+                            continue;
+                        }
+                        return Err(CommandError::Settings(error.to_string()));
+                    }
+                };
                 let parsed_value = serde_json::from_str::<serde_json::Value>(&raw_body)
                     .unwrap_or_else(|_| {
                         if raw_body.trim().is_empty() {
@@ -4945,6 +4957,29 @@ fn parse_sse_text_content(
     Ok((content, saw_data || done))
 }
 
+async fn read_response_body_lossy(response: reqwest::Response) -> Result<String, reqwest::Error> {
+    let mut response = response;
+    let mut bytes = Vec::<u8>::new();
+    loop {
+        match response.chunk().await {
+            Ok(Some(chunk)) => bytes.extend_from_slice(&chunk),
+            Ok(None) => break,
+            Err(error) => {
+                if bytes.is_empty() {
+                    return Err(error);
+                }
+                eprintln!(
+                    "[HTTP] body read interrupted after {} bytes, using partial content: {}",
+                    bytes.len(),
+                    error
+                );
+                break;
+            }
+        }
+    }
+    Ok(String::from_utf8_lossy(&bytes).to_string())
+}
+
 async fn call_llm_for_action(
     client: &reqwest::Client,
     llm: &LlmSettings,
@@ -4994,7 +5029,9 @@ async fn call_llm_for_action(
 
         let status = response.status();
         if !status.is_success() {
-            let raw_body = response.text().await.unwrap_or_default();
+            let raw_body = read_response_body_lossy(response)
+                .await
+                .unwrap_or_else(|error| format!("(failed to read response body: {error})"));
             let message = format!(
                 "模型接口调用失败（{}）: {}",
                 status,
@@ -5121,7 +5158,7 @@ async fn call_llm_for_action(
                 }
             }
         } else {
-            let body_text = match response.text().await {
+            let body_text = match read_response_body_lossy(response).await {
                 Ok(value) => value,
                 Err(error) => {
                     if should_retry_network_error(&error)
@@ -5350,7 +5387,17 @@ async fn call_vision_ocr(
         };
 
         let status = response.status();
-        let raw_body = response.text().await.unwrap_or_default();
+        let raw_body = match read_response_body_lossy(response).await {
+            Ok(value) => value,
+            Err(error) => {
+                if should_retry_network_error(&error) && attempt + 1 < MODEL_REQUEST_MAX_ATTEMPTS {
+                    last_error = Some(error.to_string());
+                    sleep_with_backoff(attempt).await;
+                    continue;
+                }
+                return Err(CommandError::Settings(error.to_string()));
+            }
+        };
         if !status.is_success() {
             let message = format!(
                 "OCR 视觉模型调用失败（{}）: {}",
@@ -5424,7 +5471,9 @@ async fn test_openai_compatible_model(
         .map_err(|error| CommandError::Settings(error.to_string()))?;
 
     let status = response.status();
-    let raw_body = response.text().await.unwrap_or_default();
+    let raw_body = read_response_body_lossy(response)
+        .await
+        .map_err(|error| CommandError::Settings(error.to_string()))?;
     if !status.is_success() {
         return Err(CommandError::Settings(format!(
             "API 调用失败（{}）: {}",
