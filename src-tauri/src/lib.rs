@@ -5046,6 +5046,15 @@ async fn call_llm_for_action(
                             last_error = Some(error.to_string());
                             break;
                         }
+                        if !content.is_empty() && should_retry_network_error(&error) {
+                            // Some providers may close or truncate chunked responses after
+                            // streaming useful content. Keep partial output instead of failing.
+                            eprintln!(
+                                "[LLM] stream body read interrupted, using partial output: {}",
+                                error
+                            );
+                            break;
+                        }
                         return Err(CommandError::Settings(error.to_string()));
                     }
                 };

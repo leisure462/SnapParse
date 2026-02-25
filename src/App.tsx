@@ -1416,6 +1416,24 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }, [collapseTopBarEnabled]);
 
   useEffect(() => {
+    const collapseOnHide = () => {
+      if (!collapseTopBarEnabled) return;
+      setTopControlsVisible(false);
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        collapseOnHide();
+      }
+    };
+    window.addEventListener("blur", collapseOnHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", collapseOnHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [collapseTopBarEnabled]);
+
+  useEffect(() => {
     let mounted = true;
     let unlisten: (() => void) | null = null;
     try {
