@@ -122,6 +122,7 @@ const MODEL_REQUEST_RETRY_MAX_DELAY_MS: u64 = 850;
 const GLM_OCR_TEST_IMAGE_URL: &str = "https://cdn.bigmodel.cn/static/logo/introduction.png";
 const MAX_SETTINGS_FILE_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_HISTORY_FILE_BYTES: u64 = 64 * 1024 * 1024;
+const SELECTION_DETECTOR_STALE_MS: u64 = 8_000;
 const MAX_CLIPBOARD_TEXT_CHARS: usize = 120_000;
 const MAX_CLIPBOARD_IMAGE_DATA_URL_CHARS: usize = 8_000_000;
 const MAX_OCR_IMAGE_DATA_URL_CHARS: usize = 12_000_000;
@@ -733,6 +734,8 @@ struct SelectionDispatchMarker {
 #[derive(Default)]
 struct SelectionRuntimeState {
     detector_running: AtomicBool,
+    detector_guard_running: AtomicBool,
+    detector_heartbeat_ms: AtomicU64,
     last_dispatch_marker: Mutex<Option<SelectionDispatchMarker>>,
     last_clipboard_observed: Mutex<String>,
     active_result_request_nonce: AtomicU64,
@@ -6611,9 +6614,31 @@ fn start_selection_detector_thread(app: AppHandle) {
         return;
     };
 
+    if !runtime.detector_guard_running.swap(true, Ordering::Relaxed) {
+        let app_for_guard = app.clone();
+        std::thread::spawn(move || loop {
+            std::thread::sleep(Duration::from_millis(2_000));
+            start_selection_detector_thread(app_for_guard.clone());
+        });
+    }
+
+    if runtime.detector_running.load(Ordering::Relaxed) {
+        let heartbeat = runtime.detector_heartbeat_ms.load(Ordering::Relaxed);
+        if heartbeat != 0
+            && now_epoch_millis().saturating_sub(heartbeat) <= SELECTION_DETECTOR_STALE_MS
+        {
+            return;
+        }
+        eprintln!("[SelectionDetector] stale heartbeat detected, restarting detector thread");
+        runtime.detector_running.store(false, Ordering::Relaxed);
+    }
+
     if runtime.detector_running.swap(true, Ordering::Relaxed) {
         return;
     }
+    runtime
+        .detector_heartbeat_ms
+        .store(now_epoch_millis(), Ordering::Relaxed);
 
     std::thread::spawn(move || {
         let mut last_mouse_down = false;
@@ -6628,6 +6653,11 @@ fn start_selection_detector_thread(app: AppHandle) {
 
         loop {
             std::thread::sleep(Duration::from_millis(120));
+            if let Some(runtime_state) = app.try_state::<SelectionRuntimeState>() {
+                runtime_state
+                    .detector_heartbeat_ms
+                    .store(now_epoch_millis(), Ordering::Relaxed);
+            }
 
             let mouse_down_now = is_left_mouse_pressed();
             let escape_down_now = is_escape_pressed();
@@ -9049,16 +9079,12 @@ pub fn run() {
                         return;
                     };
                     let mut still_active = false;
-                    let mut suppress_until_ms = 0u64;
                     if let Some(ocr_runtime) = app_handle.try_state::<OcrRuntimeState>() {
                         still_active = ocr_runtime.capture_active.load(Ordering::Relaxed);
-                        suppress_until_ms =
-                            ocr_runtime.suppress_blur_until_ms.load(Ordering::Relaxed);
                     }
-                    if !still_active {
-                        return;
-                    }
-                    if now_epoch_millis() <= suppress_until_ms {
+                    // OCR capture overlay is intentionally non-activating to avoid collapsing
+                    // source app popups/tooltips. Losing focus must not cancel capture.
+                    if still_active {
                         return;
                     }
                     let still_unfocused = capture_window
@@ -9068,15 +9094,7 @@ pub fn run() {
                     if !still_unfocused {
                         return;
                     }
-                    if let Some(ocr_runtime) = app_handle.try_state::<OcrRuntimeState>() {
-                        ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-                        ocr_runtime.suppress_blur_until_ms.store(0, Ordering::Relaxed);
-                        if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
-                            *snapshot = None;
-                        }
-                    }
                     hide_ocr_capture_window(&app_handle);
-                    emit_ocr_capture_canceled(&app_handle);
                 });
             }
 

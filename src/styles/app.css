@@ -499,9 +499,13 @@ html[data-window="selection_result"] .window-root {
 
 html[data-window="ocr_capture"],
 html[data-window="ocr_capture"] body,
-html[data-window="ocr_capture"] #root,
-html[data-window="ocr_capture"] .window-root {
+html[data-window="ocr_capture"] #root {
   background: transparent !important;
+}
+
+html[data-window="ocr_capture"] .window-root {
+  background: rgba(8, 11, 18, 0.3) !important;
+  cursor: crosshair !important;
 }
 
 html[data-window="ocr_result"],
@@ -1100,6 +1104,11 @@ select {
   cursor: crosshair;
   background: rgba(8, 11, 18, 0.3);
   user-select: none;
+}
+
+.ocr-capture-window,
+.ocr-capture-window * {
+  cursor: crosshair !important;
 }
 
 .ocr-capture-hint {
