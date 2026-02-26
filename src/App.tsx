@@ -287,7 +287,18 @@ function createAudioFromTtsResponse(response: TtsSynthesizeResult) {
   };
 }
 
+function normalizeMarkdownForDisplay(text: string) {
+  const normalized = (text || "").replace(/\r\n?/g, "\n");
+  const compactOrderedHeading = normalized.replace(
+    /(^[ \t]*\d+\.)\s*\n+(?=[ \t]{2,}#{1,6}\s+)/gm,
+    "$1 "
+  );
+  return compactOrderedHeading.replace(/\n{3,}/g, "\n\n");
+}
+
 function MarkdownText({ text, className }: { text: string; className?: string }) {
+  const normalizedText = useMemo(() => normalizeMarkdownForDisplay(text || ""), [text]);
+
   return (
     <div className={className}>
       <ReactMarkdown
@@ -305,7 +316,7 @@ function MarkdownText({ text, className }: { text: string; className?: string })
           )
         }}
       >
-        {text || ""}
+        {normalizedText}
       </ReactMarkdown>
     </div>
   );

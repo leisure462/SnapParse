@@ -1306,8 +1306,64 @@ select {
   padding-left: 1.15em;
 }
 
+.markdown-render-body ol {
+  list-style: none;
+  padding-left: 0;
+  margin-left: 0;
+  counter-reset: md-order-item;
+}
+
+.markdown-render-body ol > li {
+  list-style: none;
+  counter-increment: md-order-item;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.48em;
+  align-items: start;
+}
+
+.markdown-render-body ol > li::before {
+  content: counter(md-order-item) ".";
+  color: var(--text-mid);
+  font-weight: 600;
+  line-height: 1.34;
+  margin-top: 0.02em;
+}
+
+.markdown-render-body ol > li > * {
+  grid-column: 2;
+  margin-top: 0;
+}
+
 .markdown-render-body li + li {
   margin-top: calc(var(--grid) * 0.16);
+}
+
+.markdown-render-body p {
+  line-height: 1.34;
+}
+
+.markdown-render-body h1,
+.markdown-render-body h2,
+.markdown-render-body h3,
+.markdown-render-body h4,
+.markdown-render-body h5,
+.markdown-render-body h6 {
+  line-height: 1.26;
+}
+
+.markdown-render-body p,
+.markdown-render-body ul,
+.markdown-render-body ol,
+.markdown-render-body blockquote,
+.markdown-render-body pre,
+.markdown-render-body h1,
+.markdown-render-body h2,
+.markdown-render-body h3,
+.markdown-render-body h4,
+.markdown-render-body h5,
+.markdown-render-body h6 {
+  margin-bottom: calc(var(--grid) * 0.3);
 }
 
 .markdown-render-body code {

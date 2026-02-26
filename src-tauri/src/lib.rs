@@ -705,6 +705,7 @@ struct ClipboardState {
     history: VecDeque<ClipboardEntry>,
     last_observed_signature: Option<u64>,
     last_clipboard_sequence: Option<u32>,
+    pending_ignored_text: Option<String>,
 }
 
 #[derive(Default)]
@@ -3456,6 +3457,164 @@ fn collect_history(history: &VecDeque<ClipboardEntry>) -> Vec<ClipboardEntry> {
     history.iter().cloned().collect::<Vec<_>>()
 }
 
+fn looks_like_internal_clipboard_image_path(value: &str) -> bool {
+    let normalized = value.trim().trim_matches('"').to_ascii_lowercase();
+    if normalized.is_empty() {
+        return false;
+    }
+
+    let has_internal_dir = normalized.contains("\\clipboard_images\\snapparse_")
+        || normalized.contains("/clipboard_images/snapparse_");
+    if !has_internal_dir {
+        return false;
+    }
+
+    normalized.ends_with(".png")
+        || normalized.ends_with(".jpg")
+        || normalized.ends_with(".jpeg")
+        || normalized.ends_with(".webp")
+        || normalized.ends_with(".bmp")
+        || normalized.ends_with(".gif")
+}
+
+fn dedupe_history_entries(history: &mut VecDeque<ClipboardEntry>) -> bool {
+    if history.len() < 2 {
+        return false;
+    }
+
+    let original_len = history.len();
+    let mut changed = false;
+    let mut compacted = VecDeque::<ClipboardEntry>::new();
+
+    for entry in history.iter().cloned() {
+        if let Some(existing) = compacted
+            .iter_mut()
+            .find(|existing| entry_matches(existing, &entry))
+        {
+            let merged_pinned = existing.pinned || entry.pinned;
+            if existing.pinned != merged_pinned {
+                existing.pinned = merged_pinned;
+            }
+            changed = true;
+            continue;
+        }
+        compacted.push_back(entry);
+    }
+
+    if compacted.len() != original_len {
+        changed = true;
+    }
+
+    if changed {
+        *history = compacted;
+        normalize_history_order(history);
+    }
+    changed
+}
+
+fn decode_image_data_url_bytes(data_url: &str) -> Result<(String, Vec<u8>), CommandError> {
+    let trimmed = data_url.trim();
+    let (header, payload) = trimmed
+        .split_once(',')
+        .ok_or_else(|| CommandError::InvalidImage("Invalid image data URL".to_string()))?;
+    let lowered_header = header.to_ascii_lowercase();
+    if !lowered_header.starts_with("data:image/") || !lowered_header.contains(";base64") {
+        return Err(CommandError::InvalidImage(
+            "Unsupported image data URL format".to_string(),
+        ));
+    }
+
+    let mime_type = header
+        .trim_start_matches("data:")
+        .split(';')
+        .next()
+        .unwrap_or("image/png")
+        .to_ascii_lowercase();
+    let bytes = BASE64
+        .decode(payload.trim())
+        .map_err(|error| CommandError::InvalidImage(error.to_string()))?;
+    if bytes.is_empty() {
+        return Err(CommandError::InvalidImage(
+            "Image payload is empty".to_string(),
+        ));
+    }
+    Ok((mime_type, bytes))
+}
+
+fn extension_from_image_mime(mime_type: &str) -> &'static str {
+    match mime_type {
+        "image/png" => "png",
+        "image/jpeg" | "image/jpg" => "jpg",
+        "image/webp" => "webp",
+        "image/bmp" => "bmp",
+        "image/gif" => "gif",
+        _ => "png",
+    }
+}
+
+fn sanitize_clip_filename_token(value: &str) -> String {
+    let mut token = value
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    if token.is_empty() {
+        token = "clip".to_string();
+    }
+    token
+}
+
+fn resolve_clip_image_export_dir<R: Runtime>(
+    app: &AppHandle<R>,
+    settings: &AppSettings,
+) -> Result<PathBuf, CommandError> {
+    let history_path = resolve_history_file_path(app, settings)?;
+    let parent = history_path
+        .parent()
+        .map(Path::to_path_buf)
+        .ok_or_else(|| CommandError::Settings("Invalid history storage directory".to_string()))?;
+    let export_dir = parent.join("clipboard_images");
+    fs::create_dir_all(&export_dir).map_err(|error| CommandError::Settings(error.to_string()))?;
+    Ok(export_dir)
+}
+
+fn format_path_for_terminal_input(path: &Path) -> String {
+    let rendered = path.to_string_lossy().to_string();
+    if rendered.chars().any(|ch| ch.is_whitespace()) {
+        format!("\"{rendered}\"")
+    } else {
+        rendered
+    }
+}
+
+fn materialize_clipboard_image_path_for_terminal<R: Runtime>(
+    app: &AppHandle<R>,
+    settings: &AppSettings,
+    entry: &ClipboardEntry,
+) -> Result<String, CommandError> {
+    let data_url = entry
+        .image_data_url
+        .as_deref()
+        .ok_or_else(|| CommandError::InvalidImage("Missing image payload".to_string()))?;
+    let (mime_type, bytes) = decode_image_data_url_bytes(data_url)?;
+    let extension = extension_from_image_mime(&mime_type);
+    let export_dir = resolve_clip_image_export_dir(app, settings)?;
+    let file_name = format!(
+        "snapparse_{}_{}.{}",
+        now_epoch_millis(),
+        sanitize_clip_filename_token(&entry.id),
+        extension
+    );
+    let file_path = export_dir.join(file_name);
+    fs::write(&file_path, bytes).map_err(|error| CommandError::Settings(error.to_string()))?;
+    Ok(format_path_for_terminal_input(&file_path))
+}
+
 fn apply_entry_to_clipboard(
     clipboard: &mut Clipboard,
     target: &ClipboardEntry,
@@ -6054,6 +6213,9 @@ fn trim_history_by_settings(
     settings: &AppSettings,
 ) -> Result<(), CommandError> {
     let mut history = with_history_lock(history_state)?;
+    if settings.history.dedupe {
+        let _ = dedupe_history_entries(&mut history.history);
+    }
     trim_history(&mut history.history, settings.history.max_items);
     normalize_history_order(&mut history.history);
     Ok(())
@@ -8069,6 +8231,25 @@ fn sync_clipboard(
     let mut locked = with_history_lock(&state)?;
     let mut changed = false;
 
+    if settings_snapshot.history.dedupe {
+        changed |= dedupe_history_entries(&mut locked.history);
+    }
+
+    if let Some(expected_text) = locked.pending_ignored_text.as_deref() {
+        let ignore_match = incoming
+            .as_ref()
+            .is_some_and(|entry| {
+                matches!(entry.kind, ClipboardKind::Text | ClipboardKind::Link)
+                    && entry.content == expected_text
+            });
+        if ignore_match {
+            incoming = None;
+            locked.pending_ignored_text = None;
+        } else if incoming.is_some() {
+            locked.pending_ignored_text = None;
+        }
+    }
+
     if let Some(entry) = incoming {
         let signature = entry_signature(&entry);
         if locked.last_observed_signature != Some(signature) {
@@ -8187,9 +8368,45 @@ fn paste_entry_by_click(
         .cloned()
         .ok_or(CommandError::NotFound)?;
 
+    let runtime_flags = app.state::<RuntimeFlags>();
+    let target_hwnd = runtime_flags.last_foreground_hwnd.load(Ordering::Relaxed);
+    let should_paste_image_path_for_terminal =
+        target.kind == ClipboardKind::Image && is_console_like_window(target_hwnd);
+    let mut internal_path_text_to_ignore: Option<String> = None;
+
     let mut clipboard =
         Clipboard::new().map_err(|error| CommandError::Clipboard(error.to_string()))?;
-    apply_entry_to_clipboard(&mut clipboard, &target)?;
+    if should_paste_image_path_for_terminal {
+        match materialize_clipboard_image_path_for_terminal(&app, &settings_snapshot, &target) {
+            Ok(path_text) => {
+                clipboard
+                    .set_text(path_text.clone())
+                    .map_err(|error| CommandError::Clipboard(error.to_string()))?;
+                internal_path_text_to_ignore = Some(path_text);
+            }
+            Err(error) => {
+                eprintln!(
+                    "[Clipboard] failed to materialize image path for terminal input: {error}"
+                );
+                apply_entry_to_clipboard(&mut clipboard, &target)?;
+            }
+        }
+    } else {
+        apply_entry_to_clipboard(&mut clipboard, &target)?;
+    }
+
+    if should_paste_image_path_for_terminal {
+        locked.history.retain(|entry| {
+            if !matches!(entry.kind, ClipboardKind::Text | ClipboardKind::Link) {
+                return true;
+            }
+            !looks_like_internal_clipboard_image_path(&entry.content)
+        });
+    }
+
+    if let Some(path_text) = internal_path_text_to_ignore {
+        locked.pending_ignored_text = Some(path_text);
+    }
 
     let updated = if settings_snapshot.history.promote_after_paste {
         insert_or_promote(
@@ -8210,9 +8427,7 @@ fn paste_entry_by_click(
         updated
     };
 
-    let runtime_flags = app.state::<RuntimeFlags>();
     let pinned_by_flag = runtime_flags.main_window_pinned.load(Ordering::Relaxed);
-    let target_hwnd = runtime_flags.last_foreground_hwnd.load(Ordering::Relaxed);
     let pinned_by_window = app
         .get_webview_window(MAIN_WINDOW_LABEL)
         .and_then(|window| window.is_always_on_top().ok())
