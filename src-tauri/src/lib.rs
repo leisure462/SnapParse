@@ -126,6 +126,7 @@ const TASK_REPLACED_ERROR: &str = "__TASK_REPLACED__";
 const SELECTION_REPEAT_DEDUPE_WINDOW_MS: u64 = 900;
 const SELECTION_TEXT_COOLDOWN_MS: u64 = 2_500;
 const OCR_CAPTURE_BLUR_SUPPRESS_MS: u64 = 1_100;
+const COPY_TRIGGER_CTRL_HOLD_MS: u64 = 380;
 const MODEL_REQUEST_MAX_ATTEMPTS: usize = 3;
 const MODEL_REQUEST_RETRY_BASE_DELAY_MS: u64 = 140;
 const MODEL_REQUEST_RETRY_MAX_DELAY_MS: u64 = 850;
@@ -3137,6 +3138,16 @@ fn is_escape_pressed() -> bool {
 
 #[cfg(not(target_os = "windows"))]
 fn is_escape_pressed() -> bool {
+    false
+}
+
+#[cfg(target_os = "windows")]
+fn is_ctrl_pressed() -> bool {
+    (unsafe { GetAsyncKeyState(VK_CONTROL as i32) } as u16 & 0x8000) != 0
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_ctrl_pressed() -> bool {
     false
 }
 
@@ -6723,12 +6734,15 @@ fn start_selection_detector_thread(app: AppHandle) {
         let mut last_mouse_down = false;
         let mut last_outside_click_mouse_down = false;
         let mut last_escape_down = false;
+        let mut last_ctrl_down = false;
         let mut detect_phase = SelectionDetectPhase::Idle;
         let mut mouse_down_started_at_ms: u64 = 0;
         let mut mouse_down_position: Option<PhysicalPosition<i32>> = None;
         let mut mouse_down_started_in_client_area = false;
         let mut drag_foreground_hwnd: isize = 0;
         let mut mouse_down_clipboard_text: Option<String> = None;
+        let mut ctrl_down_started_at_ms: u64 = 0;
+        let mut ctrl_hold_triggered = false;
 
         loop {
             std::thread::sleep(Duration::from_millis(120));
@@ -6740,6 +6754,16 @@ fn start_selection_detector_thread(app: AppHandle) {
 
             let mouse_down_now = is_left_mouse_pressed();
             let escape_down_now = is_escape_pressed();
+            let ctrl_down_now = is_ctrl_pressed();
+
+            if ctrl_down_now && !last_ctrl_down {
+                ctrl_down_started_at_ms = now_epoch_millis();
+                ctrl_hold_triggered = false;
+            } else if !ctrl_down_now {
+                ctrl_down_started_at_ms = 0;
+                ctrl_hold_triggered = false;
+            }
+            last_ctrl_down = ctrl_down_now;
 
             if escape_down_now && !last_escape_down {
                 let mut should_cancel_capture = false;
@@ -6810,6 +6834,8 @@ fn start_selection_detector_thread(app: AppHandle) {
                 drag_foreground_hwnd = 0;
                 mouse_down_started_in_client_area = false;
                 mouse_down_clipboard_text = None;
+                ctrl_down_started_at_ms = 0;
+                ctrl_hold_triggered = false;
                 continue;
             }
 
@@ -6952,19 +6978,48 @@ fn start_selection_detector_thread(app: AppHandle) {
                 }
                 SelectionTriggerMode::CopyTrigger => {
                     detect_phase = SelectionDetectPhase::Idle;
+                    if is_any_snapparse_window_focused(&app) {
+                        continue;
+                    }
+                    if !ctrl_down_now || ctrl_hold_triggered {
+                        continue;
+                    }
+                    if ctrl_down_started_at_ms == 0 {
+                        ctrl_down_started_at_ms = now_epoch_millis();
+                        continue;
+                    }
+                    let ctrl_hold_elapsed =
+                        now_epoch_millis().saturating_sub(ctrl_down_started_at_ms);
+                    if ctrl_hold_elapsed < COPY_TRIGGER_CTRL_HOLD_MS {
+                        continue;
+                    }
+                    ctrl_hold_triggered = true;
+
                     let flags = app.state::<RuntimeFlags>();
                     capture_last_foreground_window(&flags);
                     let active_hwnd = flags.last_foreground_hwnd.load(Ordering::Relaxed);
                     if is_window_blocked_by_apps(active_hwnd, &assistant.blocked_apps) {
                         continue;
                     }
-                    let mut clipboard = match Clipboard::new()
-                        .map_err(|error| CommandError::Clipboard(error.to_string()))
-                    {
-                        Ok(value) => value,
-                        Err(_) => continue,
+
+                    let before_clipboard_text = read_clipboard_text_trimmed();
+                    let (text, clipboard_changed) = if is_console_like_window(active_hwnd) {
+                        match capture_console_selection_without_shortcut(
+                            active_hwnd,
+                            before_clipboard_text.as_deref(),
+                        ) {
+                            Some(payload) => payload,
+                            None => continue,
+                        }
+                    } else {
+                        match capture_selected_text_once(active_hwnd) {
+                            Ok(payload) => payload,
+                            Err(_) => continue,
+                        }
                     };
-                    let text = clipboard.get_text().unwrap_or_default().trim().to_string();
+                    if !clipboard_changed {
+                        continue;
+                    }
                     if !selection_text_in_range(&assistant, &text) {
                         continue;
                     }

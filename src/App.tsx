@@ -368,7 +368,7 @@ const PASTE_BEHAVIOR_OPTIONS: Array<{ key: PasteBehavior; label: string }> = [
 
 const SELECTION_MODE_OPTIONS: Array<{ key: SelectionTriggerMode; label: string }> = [
   { key: "auto-detect", label: "自动检测（默认）" },
-  { key: "copy-trigger", label: "复制触发（稳妥）" }
+  { key: "copy-trigger", label: "长按 Ctrl 触发（稳妥）" }
 ];
 
 const OCR_ACTION_OPTIONS: Array<{ key: OcrActionKind; label: string }> = [
