@@ -46,8 +46,18 @@ use windows_sys::Win32::Graphics::Dwm::{
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::System::DataExchange::GetClipboardSequenceNumber;
 #[cfg(target_os = "windows")]
+use windows_sys::Win32::System::Power::{
+    GetSystemPowerStatus, SetThreadExecutionState, SYSTEM_POWER_STATUS, ES_AWAYMODE_REQUIRED,
+    ES_CONTINUOUS, ES_SYSTEM_REQUIRED,
+};
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::System::Recovery::RegisterApplicationRestart;
+#[cfg(target_os = "windows")]
 use windows_sys::Win32::System::Threading::{
-    OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
+    GetCurrentProcess, OpenProcess, ProcessPowerThrottling, QueryFullProcessImageNameW,
+    SetProcessInformation, PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+    PROCESS_POWER_THROTTLING_EXECUTION_SPEED, PROCESS_POWER_THROTTLING_STATE,
+    PROCESS_QUERY_LIMITED_INFORMATION,
 };
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
@@ -6190,6 +6200,75 @@ fn rebuild_tray<R: Runtime>(app: &AppHandle<R>) {
         eprintln!("Failed to rebuild tray icon: {error}");
     }
 }
+
+#[cfg(target_os = "windows")]
+fn is_windows_on_ac_power() -> bool {
+    let mut power_status = SYSTEM_POWER_STATUS {
+        ACLineStatus: 0,
+        BatteryFlag: 0,
+        BatteryLifePercent: 0,
+        SystemStatusFlag: 0,
+        BatteryLifeTime: 0,
+        BatteryFullLifeTime: 0,
+    };
+    let ok = unsafe { GetSystemPowerStatus(&mut power_status) };
+    if ok == 0 {
+        return true;
+    }
+    power_status.ACLineStatus == 1
+}
+
+#[cfg(target_os = "windows")]
+fn apply_windows_power_survival_profile() {
+    let profile = PROCESS_POWER_THROTTLING_STATE {
+        Version: PROCESS_POWER_THROTTLING_CURRENT_VERSION,
+        ControlMask: PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
+        // 0 means "disable execution speed throttling" for this process.
+        StateMask: 0,
+    };
+
+    let applied = unsafe {
+        SetProcessInformation(
+            GetCurrentProcess(),
+            ProcessPowerThrottling,
+            &profile as *const _ as *const core::ffi::c_void,
+            std::mem::size_of::<PROCESS_POWER_THROTTLING_STATE>() as u32,
+        )
+    };
+
+    if applied == 0 {
+        eprintln!("[Power] failed to apply process power survival profile");
+    }
+
+    let execution_state = if is_windows_on_ac_power() {
+        ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED
+    } else {
+        ES_CONTINUOUS
+    };
+    let execution_applied = unsafe { SetThreadExecutionState(execution_state) };
+    if execution_applied == 0 {
+        eprintln!("[Power] failed to set execution state keepalive");
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn apply_windows_power_survival_profile() {}
+
+#[cfg(target_os = "windows")]
+fn register_windows_restart_recovery() {
+    // Ask Windows to relaunch the app after unexpected termination.
+    let result = unsafe { RegisterApplicationRestart(std::ptr::null(), 0) };
+    if result < 0 {
+        eprintln!(
+            "[Recovery] RegisterApplicationRestart failed with HRESULT 0x{:08X}",
+            result as u32
+        );
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn register_windows_restart_recovery() {}
+
 fn to_image_data(data_url: &str) -> Result<ImageData<'static>, CommandError> {
     let (_, payload) = data_url
         .split_once(',')
@@ -8720,6 +8799,13 @@ pub fn run() {
             if let Err(error) = create_tray(&app_handle) {
                 eprintln!("Failed to create tray icon: {error}");
             }
+
+            apply_windows_power_survival_profile();
+            register_windows_restart_recovery();
+            std::thread::spawn(|| loop {
+                std::thread::sleep(Duration::from_secs(300));
+                apply_windows_power_survival_profile();
+            });
 
             if let Err(error) = register_or_replace_shortcut(
                 &app_handle,
