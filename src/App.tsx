@@ -1455,6 +1455,7 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const wheelDeltaRef = useRef(0);
   const wheelTsRef = useRef(0);
   const syncInFlightRef = useRef(false);
+  const favoriteToggleInFlightRef = useRef<Set<string>>(new Set());
   const streamRef = useRef<HTMLElement | null>(null);
   const historyRef = useRef<ClipboardEntry[]>([]);
   const applyHistoryUpdate = useCallback((next: ClipboardEntry[]) => {
@@ -1701,11 +1702,54 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   }
 
   async function toggleFavorite(id: string) {
+    if (favoriteToggleInFlightRef.current.has(id)) {
+      return;
+    }
+    const previousPinned = historyRef.current.find((entry) => entry.id === id)?.pinned;
+    if (typeof previousPinned !== "boolean") {
+      void loadHistory();
+      return;
+    }
+
+    favoriteToggleInFlightRef.current.add(id);
+    setHistory((current) =>
+      current.map((entry) =>
+        entry.id === id
+          ? {
+              ...entry,
+              pinned: !previousPinned
+            }
+          : entry
+      )
+    );
+
     try {
-      const items = await invoke<ClipboardEntry[]>("toggle_pin", { id });
-      applyHistoryUpdate(items);
+      const pinned = await invoke<boolean>("toggle_pin", { id });
+      setHistory((current) =>
+        current.map((entry) =>
+          entry.id === id
+            ? {
+                ...entry,
+                pinned: Boolean(pinned)
+              }
+            : entry
+        )
+      );
     } catch (invokeError) {
       console.error("[ClipboardWindow] toggle favorite failed:", invokeError);
+      setHistory((current) =>
+        current.map((entry) =>
+          entry.id === id
+            ? {
+                ...entry,
+                pinned: previousPinned
+              }
+            : entry
+        )
+      );
+      void loadHistory();
+    } finally {
+      favoriteToggleInFlightRef.current.delete(id);
     }
   }
 

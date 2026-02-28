@@ -8627,7 +8627,7 @@ fn toggle_pin(
     app: AppHandle,
     settings_state: State<'_, AppSettingsState>,
     state: State<'_, Mutex<ClipboardState>>,
-) -> Result<Vec<ClipboardEntry>, CommandError> {
+) -> Result<bool, CommandError> {
     let settings_snapshot = {
         let settings = with_settings_lock(&settings_state)?;
         settings.clone()
@@ -8636,12 +8636,15 @@ fn toggle_pin(
     let mut locked = with_history_lock(&state)?;
     if let Some(entry) = locked.history.iter_mut().find(|entry| entry.id == id) {
         entry.pinned = !entry.pinned;
+        let next_pinned = entry.pinned;
         normalize_history_order(&mut locked.history);
         let updated = collect_history(&locked.history);
         drop(locked);
-        persist_history_snapshot(&app, &settings_snapshot, &updated)?;
+        if let Err(error) = persist_history_snapshot(&app, &settings_snapshot, &updated) {
+            eprintln!("[History] persist failed after toggle pin: {error}");
+        }
         emit_history_updated(&app, &updated);
-        return Ok(updated);
+        return Ok(next_pinned);
     }
     Err(CommandError::NotFound)
 }
