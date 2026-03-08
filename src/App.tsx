@@ -325,6 +325,11 @@ function MarkdownText({ text, className }: { text: string; className?: string })
         skipHtml
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
+          table: ({ children }) => (
+            <div className="markdown-table-wrap">
+              <table>{children}</table>
+            </div>
+          ),
           a: ({ href, children }) => (
             <a
               href={href}

@@ -914,11 +914,17 @@ select {
   margin-bottom: 0;
 }
 
+.markdown-render-body {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .markdown-render-body p,
 .markdown-render-body ul,
 .markdown-render-body ol,
 .markdown-render-body blockquote,
 .markdown-render-body pre,
+.markdown-render-body table,
 .markdown-render-body h1,
 .markdown-render-body h2,
 .markdown-render-body h3,
@@ -930,40 +936,33 @@ select {
 
 .markdown-render-body ul,
 .markdown-render-body ol {
-  padding-left: 1.15em;
+  padding-left: 1.35em;
+  margin-left: 0;
+}
+
+.markdown-render-body ul {
+  list-style: disc;
 }
 
 .markdown-render-body ol {
-  list-style: none;
-  padding-left: 0;
-  margin-left: 0;
-  counter-reset: md-order-item;
+  list-style: decimal;
 }
 
-.markdown-render-body ol > li {
-  list-style: none;
-  counter-increment: md-order-item;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 0.48em;
-  align-items: start;
-}
-
-.markdown-render-body ol > li::before {
-  content: counter(md-order-item) ".";
-  color: var(--text-mid);
-  font-weight: 600;
-  line-height: 1.34;
-  margin-top: 0.02em;
-}
-
-.markdown-render-body ol > li > * {
-  grid-column: 2;
-  margin-top: 0;
+.markdown-render-body li {
+  margin: 0;
 }
 
 .markdown-render-body li + li {
   margin-top: calc(var(--grid) * 0.16);
+}
+
+.markdown-render-body li > p {
+  margin: 0;
+}
+
+.markdown-render-body li > ul,
+.markdown-render-body li > ol {
+  margin-top: calc(var(--grid) * 0.18);
 }
 
 .markdown-render-body p {
@@ -1007,6 +1006,45 @@ select {
 .markdown-render-body a {
   color: var(--primary);
   text-underline-offset: 2px;
+}
+
+.markdown-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin: 0 0 calc(var(--grid) * 0.3);
+  scrollbar-width: thin;
+}
+
+.markdown-render-body table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  border-radius: calc(var(--radius-card) - 2px);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.markdown-render-body th,
+.markdown-render-body td {
+  padding: calc(var(--grid) * 0.3) calc(var(--grid) * 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.markdown-render-body th {
+  font-weight: 700;
+  color: var(--text-high);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.markdown-render-body td {
+  color: var(--text-mid);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .clipboard-top-controls {
