@@ -4234,7 +4234,7 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "snapparse-clipboard"
-version = "2.0.7"
+version = "2.0.8"
 dependencies = [
  "arboard",
  "base64 0.22.1",
@@ -4254,6 +4254,7 @@ dependencies = [
  "tauri-plugin-updater",
  "thiserror 2.0.18",
  "urlencoding",
+ "window-vibrancy 0.7.1",
  "windows-sys 0.59.0",
 ]
 
@@ -4539,7 +4540,7 @@ dependencies = [
  "url",
  "webkit2gtk",
  "webview2-com",
- "window-vibrancy",
+ "window-vibrancy 0.6.0",
  "windows 0.61.3",
 ]
 
@@ -5830,6 +5831,21 @@ dependencies = [
  "objc2-foundation",
  "raw-window-handle",
  "windows-sys 0.59.0",
+ "windows-version",
+]
+
+[[package]]
+name = "window-vibrancy"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "010797bd7c40396fbc59d3105089fed0885fe267a0ef4a0a4646df54e28647f6"
+dependencies = [
+ "objc2",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-foundation",
+ "raw-window-handle",
+ "windows-sys 0.60.2",
  "windows-version",
 ]
 

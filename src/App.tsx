@@ -118,15 +118,24 @@ const HISTORY_MAX_RANGE = { min: 20, max: 500 };
 const SELECTION_AUTO_HIDE_RANGE = { min: 800, max: 30000 };
 const SELECTION_MIN_CHARS_RANGE = { min: 1, max: 64 };
 const SELECTION_MAX_CHARS_RANGE = { min: 128, max: 100000 };
+const SELECTION_BAR_OPACITY_RANGE = { min: 0.35, max: 0.94 };
 const LLM_TEMPERATURE_RANGE = { min: 0, max: 2 };
 const MODEL_MAX_TOKENS_RANGE = { min: 128, max: 8192 };
 const MODEL_TIMEOUT_MS_RANGE = { min: 5000, max: 120000 };
 const OCR_VISION_MAX_TOKENS_RANGE = { min: 256, max: 8192 };
 const TTS_RATE_PERCENT_RANGE = { min: -50, max: 100 };
+const APPEARANCE_BLUR_RANGE = { min: 0, max: 36 };
+const APPEARANCE_SATURATE_RANGE = { min: 60, max: 220 };
+const APPEARANCE_WINDOW_OPACITY_RANGE = { min: 0, max: 0.5 };
+const APPEARANCE_BORDER_OPACITY_RANGE = { min: 0.02, max: 0.45 };
+const APPEARANCE_SHADOW_OPACITY_RANGE = { min: 0, max: 1.5 };
+const APPEARANCE_RADIUS_RANGE = { min: 4, max: 16 };
+const APPEARANCE_FONT_SCALE_RANGE = { min: 0.85, max: 1.25 };
+const APPEARANCE_PERSIST_DEBOUNCE_MS = 260;
 
 const FALLBACK_SETTINGS: AppSettings = {
   version: 9,
-  themePreset: "deep-black",
+  themePreset: "dark",
   language: "zh-CN",
   window: {
     autoHideOnBlur: true,
@@ -141,6 +150,7 @@ const FALLBACK_SETTINGS: AppSettings = {
     mode: "auto-detect",
     showIconAnimation: true,
     compactMode: false,
+    barOpacity: 0.94,
     autoHideMs: 5000,
     searchUrlTemplate: "https://www.google.com/search?q={query}",
     minChars: 2,
@@ -197,6 +207,20 @@ const FALLBACK_SETTINGS: AppSettings = {
       timeoutMs: 30000
     }
   },
+  appearance: {
+    blurPx: 16,
+    saturatePercent: 135,
+    windowOpacity: 0.16,
+    surfaceOpacity: 0.15,
+    cardOpacity: 0.15,
+    borderOpacity: 0.1,
+    shadowOpacity: 1,
+    cornerRadius: 9,
+    fontScale: 1,
+    accentColor: "#8E8E8E",
+    textColor: "#F5F5F5",
+    textMutedColor: "#C8C8C8"
+  },
   history: {
     pollMs: 1200,
     maxItems: 120,
@@ -204,6 +228,7 @@ const FALLBACK_SETTINGS: AppSettings = {
     captureText: true,
     captureLink: true,
     captureImage: true,
+    enableItemGradients: true,
     defaultOpenCategory: "all",
     defaultCategory: "all",
     pasteBehavior: "copy-and-hide",
@@ -218,11 +243,6 @@ interface FilterOption {
   key: FilterKind;
   label: string;
   icon: LucideIcon;
-}
-
-interface ThemeOption {
-  key: ThemePreset;
-  label: string;
 }
 
 type TranslateLanguageCode = "auto" | "zh-CN" | "en-US" | "ja-JP" | "ko-KR";
@@ -352,13 +372,6 @@ const DEFAULT_OPEN_CATEGORY_OPTIONS: Array<{ key: DefaultOpenCategory; label: st
   { key: "link", label: "链接" },
   { key: "favorite", label: "收藏" },
   { key: "last-used", label: "上一次关闭时的标签" }
-];
-
-const THEME_OPTIONS: ThemeOption[] = [
-  { key: "blue", label: "Blue" },
-  { key: "deep-black", label: "Black" },
-  { key: "gray", label: "Gray" },
-  { key: "white", label: "White" }
 ];
 
 const PASTE_BEHAVIOR_OPTIONS: Array<{ key: PasteBehavior; label: string }> = [
@@ -717,29 +730,36 @@ function resolveClipboardOpenFilter(
 }
 
 function parseThemePreset(value: unknown): ThemePreset {
-  if (THEME_OPTIONS.some((item) => item.key === value)) {
-    return value as ThemePreset;
-  }
   switch (value) {
-    case "blue":
-      return "blue";
-    case "deep-black":
-      return "deep-black";
-    case "black":
     case "dark":
-      return "deep-black";
+    case "light":
+    case "warm":
+    case "blue":
+    case "deep-black":
+    case "black":
+    case "gray":
+    case "graphite":
     case "md2-dark":
     case "midnight":
-      return "blue";
-    case "graphite":
-      return "gray";
-    case "daylight":
-    case "sunrise":
-    case "amber-mist":
-      return "white";
+      return "dark";
     default:
-      return "deep-black";
+      return "dark";
   }
+}
+
+function clampNumberValue(value: unknown, min: number, max: number, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function normalizeHexColor(value: unknown, fallback: string) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  const hex = raw.startsWith("#") ? raw.slice(1) : raw;
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) {
+    return fallback;
+  }
+  return `#${hex.toUpperCase()}`;
 }
 
 interface MainWindowShownPayload {
@@ -911,6 +931,10 @@ interface SettingsApi {
   updating: boolean;
   error: string | null;
   updateSettings: (patch: AppSettingsPatch) => Promise<AppSettings | null>;
+  previewAppearance: (patch: AppSettingsPatch["appearance"]) => Promise<AppSettings | null>;
+  previewSelectionAssistant: (
+    patch: AppSettingsPatch["selectionAssistant"]
+  ) => Promise<AppSettings | null>;
   setToggleShortcut: (shortcut: string) => Promise<AppSettings | null>;
   setToggleOcrShortcut: (shortcut: string) => Promise<AppSettings | null>;
   resetSettings: () => Promise<AppSettings | null>;
@@ -945,12 +969,21 @@ function sanitizeSettings(input: AppSettings): AppSettings {
     rawInput.history && typeof rawInput.history === "object" && !Array.isArray(rawInput.history)
       ? (rawInput.history as Record<string, unknown>)
       : null;
+  const rawAppearance =
+    rawInput.appearance &&
+    typeof rawInput.appearance === "object" &&
+    !Array.isArray(rawInput.appearance)
+      ? (rawInput.appearance as Record<string, unknown>)
+      : null;
   const legacyPromoteAfterPaste =
     (rawHistory ? readLegacyBoolean(rawHistory, "promoteAfterPaste") : undefined) ??
     (rawHistory ? readLegacyBoolean(rawHistory, "promote_after_paste") : undefined);
   const legacyOpenAtTopOnShow =
     (rawHistory ? readLegacyBoolean(rawHistory, "openAtTopOnShow") : undefined) ??
     (rawHistory ? readLegacyBoolean(rawHistory, "open_at_top_on_show") : undefined);
+  const legacyEnableItemGradients =
+    (rawHistory ? readLegacyBoolean(rawHistory, "enableItemGradients") : undefined) ??
+    (rawHistory ? readLegacyBoolean(rawHistory, "enable_item_gradients") : undefined);
 
   const sanitizedCustomAgents = normalizeCustomAgents(input.agents?.custom ?? []);
   const sanitizedBarOrder = normalizeSelectionBarOrder(
@@ -961,7 +994,7 @@ function sanitizeSettings(input: AppSettings): AppSettings {
   return {
     ...input,
     themePreset: parseThemePreset(input.themePreset),
-    language: input.language === "en-US" ? "en-US" : "zh-CN",
+    language: "zh-CN",
     window: {
       autoHideOnBlur:
         input.window?.autoHideOnBlur ?? FALLBACK_SETTINGS.window.autoHideOnBlur,
@@ -995,6 +1028,16 @@ function sanitizeSettings(input: AppSettings): AppSettings {
       compactMode: Boolean(
         input.selectionAssistant?.compactMode ??
           FALLBACK_SETTINGS.selectionAssistant.compactMode
+      ),
+      barOpacity: Math.min(
+        SELECTION_BAR_OPACITY_RANGE.max,
+        Math.max(
+          SELECTION_BAR_OPACITY_RANGE.min,
+          Number(
+            input.selectionAssistant?.barOpacity ??
+              FALLBACK_SETTINGS.selectionAssistant.barOpacity
+          ) || FALLBACK_SETTINGS.selectionAssistant.barOpacity
+        )
       ),
       autoHideMs: Math.min(
         30000,
@@ -1153,6 +1196,78 @@ function sanitizeSettings(input: AppSettings): AppSettings {
         )
       }
     },
+    appearance: {
+      blurPx: Math.round(
+        clampNumberValue(
+          input.appearance?.blurPx ?? rawAppearance?.blurPx,
+          APPEARANCE_BLUR_RANGE.min,
+          APPEARANCE_BLUR_RANGE.max,
+          FALLBACK_SETTINGS.appearance.blurPx
+        )
+      ),
+      saturatePercent: Math.round(
+        clampNumberValue(
+          input.appearance?.saturatePercent ?? rawAppearance?.saturatePercent,
+          APPEARANCE_SATURATE_RANGE.min,
+          APPEARANCE_SATURATE_RANGE.max,
+          FALLBACK_SETTINGS.appearance.saturatePercent
+        )
+      ),
+      windowOpacity: Number(
+        clampNumberValue(
+          input.appearance?.windowOpacity ?? rawAppearance?.windowOpacity,
+          APPEARANCE_WINDOW_OPACITY_RANGE.min,
+          APPEARANCE_WINDOW_OPACITY_RANGE.max,
+          FALLBACK_SETTINGS.appearance.windowOpacity
+        ).toFixed(2)
+      ),
+      surfaceOpacity: FALLBACK_SETTINGS.appearance.surfaceOpacity,
+      cardOpacity: FALLBACK_SETTINGS.appearance.cardOpacity,
+      borderOpacity: Number(
+        clampNumberValue(
+          input.appearance?.borderOpacity ?? rawAppearance?.borderOpacity,
+          APPEARANCE_BORDER_OPACITY_RANGE.min,
+          APPEARANCE_BORDER_OPACITY_RANGE.max,
+          FALLBACK_SETTINGS.appearance.borderOpacity
+        ).toFixed(2)
+      ),
+      shadowOpacity: Number(
+        clampNumberValue(
+          input.appearance?.shadowOpacity ?? rawAppearance?.shadowOpacity,
+          APPEARANCE_SHADOW_OPACITY_RANGE.min,
+          APPEARANCE_SHADOW_OPACITY_RANGE.max,
+          FALLBACK_SETTINGS.appearance.shadowOpacity
+        ).toFixed(2)
+      ),
+      cornerRadius: Math.round(
+        clampNumberValue(
+          input.appearance?.cornerRadius ?? rawAppearance?.cornerRadius,
+          APPEARANCE_RADIUS_RANGE.min,
+          APPEARANCE_RADIUS_RANGE.max,
+          FALLBACK_SETTINGS.appearance.cornerRadius
+        )
+      ),
+      fontScale: Number(
+        clampNumberValue(
+          input.appearance?.fontScale ?? rawAppearance?.fontScale,
+          APPEARANCE_FONT_SCALE_RANGE.min,
+          APPEARANCE_FONT_SCALE_RANGE.max,
+          FALLBACK_SETTINGS.appearance.fontScale
+        ).toFixed(2)
+      ),
+      accentColor: normalizeHexColor(
+        input.appearance?.accentColor ?? rawAppearance?.accentColor,
+        FALLBACK_SETTINGS.appearance.accentColor
+      ),
+      textColor: normalizeHexColor(
+        input.appearance?.textColor ?? rawAppearance?.textColor,
+        FALLBACK_SETTINGS.appearance.textColor
+      ),
+      textMutedColor: normalizeHexColor(
+        input.appearance?.textMutedColor ?? rawAppearance?.textMutedColor,
+        FALLBACK_SETTINGS.appearance.textMutedColor
+      )
+    },
     history: {
       ...input.history,
       pollMs: clampPollMs(Number(input.history.pollMs)),
@@ -1162,6 +1277,11 @@ function sanitizeSettings(input: AppSettings): AppSettings {
       ),
       defaultCategory: parseFilter(input.history.defaultCategory),
       pasteBehavior: parsePasteBehavior(input.history.pasteBehavior),
+      enableItemGradients: Boolean(
+        input.history.enableItemGradients ??
+          legacyEnableItemGradients ??
+          FALLBACK_SETTINGS.history.enableItemGradients
+      ),
       collapseTopBar: Boolean(
         input.history.collapseTopBar ?? FALLBACK_SETTINGS.history.collapseTopBar
       ),
@@ -1217,6 +1337,8 @@ function useAppSettings(): SettingsApi {
   const [error, setError] = useState<string | null>(null);
   const settingsRef = useRef<AppSettings>(FALLBACK_SETTINGS);
   const updateTokenRef = useRef(0);
+  const previewTokenRef = useRef(0);
+  const selectionAssistantPreviewTokenRef = useRef(0);
   const hasLoadedOnceRef = useRef(false);
 
   useEffect(() => {
@@ -1256,9 +1378,31 @@ function useAppSettings(): SettingsApi {
   }, [refresh]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = settings.themePreset;
-    document.documentElement.lang = settings.language;
-  }, [settings.language, settings.themePreset]);
+    const root = document.documentElement;
+    root.dataset.theme = "dark";
+    root.lang = "zh-CN";
+    root.style.setProperty("--appearance-blur-px", `${settings.appearance.blurPx}px`);
+    root.style.setProperty(
+      "--appearance-saturate-percent",
+      `${settings.appearance.saturatePercent}%`
+    );
+    root.style.setProperty("--appearance-window-opacity", String(settings.appearance.windowOpacity));
+    root.style.setProperty("--appearance-surface-opacity", String(settings.appearance.surfaceOpacity));
+    root.style.setProperty("--appearance-card-opacity", String(settings.appearance.cardOpacity));
+    root.style.setProperty("--appearance-border-opacity", String(settings.appearance.borderOpacity));
+    root.style.setProperty("--appearance-shadow-opacity", String(settings.appearance.shadowOpacity));
+    root.style.setProperty("--appearance-radius-px", `${settings.appearance.cornerRadius}px`);
+    root.style.setProperty("--appearance-font-scale", String(settings.appearance.fontScale));
+    root.style.setProperty("--appearance-accent-color", settings.appearance.accentColor);
+    root.style.setProperty("--appearance-text-color", settings.appearance.textColor);
+    root.style.setProperty("--appearance-text-muted-color", settings.appearance.textMutedColor);
+    root.style.setProperty("--selection-bar-opacity", String(settings.selectionAssistant.barOpacity));
+  }, [
+    settings.language,
+    settings.appearance,
+    settings.selectionAssistant.barOpacity,
+    settings.themePreset
+  ]);
 
   useEffect(() => {
     let active = true;
@@ -1339,6 +1483,57 @@ function useAppSettings(): SettingsApi {
       }
     }
   }, []);
+
+  const previewAppearance = useCallback(async (patch: AppSettingsPatch["appearance"]) => {
+    if (!patch) return settingsRef.current;
+    const previous = settingsRef.current;
+    const optimistic = sanitizeSettings(mergeSettingsPatch(previous, { appearance: patch }));
+    settingsRef.current = optimistic;
+    setSettings(optimistic);
+    const token = ++previewTokenRef.current;
+    try {
+      const remote = await invoke<AppSettings>("preview_appearance_settings", { patch });
+      const safe = sanitizeSettings(remote);
+      if (token === previewTokenRef.current) {
+        settingsRef.current = safe;
+        setSettings(safe);
+        setError(null);
+      }
+      return safe;
+    } catch (invokeError) {
+      if (token === previewTokenRef.current) {
+        setError(String(invokeError));
+      }
+      return null;
+    }
+  }, []);
+
+  const previewSelectionAssistant = useCallback(
+    async (patch: AppSettingsPatch["selectionAssistant"]) => {
+      if (!patch) return settingsRef.current;
+      const previous = settingsRef.current;
+      const optimistic = sanitizeSettings(mergeSettingsPatch(previous, { selectionAssistant: patch }));
+      settingsRef.current = optimistic;
+      setSettings(optimistic);
+      const token = ++selectionAssistantPreviewTokenRef.current;
+      try {
+        const remote = await invoke<AppSettings>("preview_selection_assistant_settings", { patch });
+        const safe = sanitizeSettings(remote);
+        if (token === selectionAssistantPreviewTokenRef.current) {
+          settingsRef.current = safe;
+          setSettings(safe);
+          setError(null);
+        }
+        return safe;
+      } catch (invokeError) {
+        if (token === selectionAssistantPreviewTokenRef.current) {
+          setError(String(invokeError));
+        }
+        return null;
+      }
+    },
+    []
+  );
 
   const setToggleShortcut = useCallback(async (shortcut: string) => {
     setUpdating(true);
@@ -1424,6 +1619,8 @@ function useAppSettings(): SettingsApi {
     updating,
     error,
     updateSettings,
+    previewAppearance,
+    previewSelectionAssistant,
     setToggleShortcut,
     setToggleOcrShortcut,
     resetSettings,
@@ -1465,6 +1662,15 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
+
+  useEffect(() => {
+    document.documentElement.dataset.clipGradients = settings.history.enableItemGradients
+      ? "on"
+      : "off";
+    return () => {
+      delete document.documentElement.dataset.clipGradients;
+    };
+  }, [settings.history.enableItemGradients]);
 
   useEffect(() => {
     void invoke<boolean>("get_main_window_pinned_cmd")
@@ -2197,6 +2403,7 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const ttsAudioRevokeRef = useRef<(() => void) | null>(null);
   const ttsRequestTokenRef = useRef(0);
   const suppressBlurStopUntilRef = useRef(0);
+  const favoriteToggleInFlightRef = useRef(false);
   const [ttsLoading, setTtsLoading] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const [outputFavorited, setOutputFavorited] = useState(false);
@@ -2236,6 +2443,7 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
           setFromLang((payload.translateFrom as TranslateLanguageCode) || "auto");
           setToLang(parseTranslateTarget(payload.translateTo, settings.selectionAssistant.defaultTranslateTo));
           setOutputFavorited(false);
+          favoriteToggleInFlightRef.current = false;
           void invoke<boolean>("get_result_window_pinned_cmd")
             .then((value) => setIsPinnedTop(Boolean(value)))
             .catch(() => {
@@ -2289,13 +2497,20 @@ function SelectionResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
   async function addFavoriteText(value: string) {
     const text = value.trim();
-    if (!text) return;
+    if (!text || favoriteToggleInFlightRef.current) return;
+    const previousFavorited = outputFavorited;
+    const optimisticFavorited = !previousFavorited;
+    favoriteToggleInFlightRef.current = true;
+    setOutputFavorited(optimisticFavorited);
     try {
       const pinned = await invoke<boolean>("toggle_favorite_text_cmd", { text });
       setOutputFavorited(Boolean(pinned));
     } catch (error) {
       console.error("[SelectionResultWindow] add favorite failed:", error);
+      setOutputFavorited(previousFavorited);
       window.alert(`收藏失败：${String(error)}`);
+    } finally {
+      favoriteToggleInFlightRef.current = false;
     }
   }
 
@@ -2815,6 +3030,7 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const ttsAudioRevokeRef = useRef<(() => void) | null>(null);
   const ttsRequestTokenRef = useRef(0);
   const suppressBlurStopUntilRef = useRef(0);
+  const favoriteToggleInFlightRef = useRef<Set<"ocr" | "output">>(new Set());
   const [ttsLoadingPanel, setTtsLoadingPanel] = useState<"ocr" | "output" | null>(null);
   const [ttsPlayingPanel, setTtsPlayingPanel] = useState<"ocr" | "output" | null>(null);
   const [ocrFavorited, setOcrFavorited] = useState(false);
@@ -2853,6 +3069,7 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
           latestRequestIdRef.current = payload.requestId;
           setOcrFavorited(false);
           setOutputFavorited(false);
+          favoriteToggleInFlightRef.current.clear();
           void invoke<boolean>("get_ocr_result_window_pinned_cmd")
             .then((value) => setIsPinnedTop(Boolean(value)))
             .catch(() => {
@@ -2928,7 +3145,15 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
   async function addFavoriteText(value: string, panel: "ocr" | "output") {
     const text = value.trim();
-    if (!text) return;
+    if (!text || favoriteToggleInFlightRef.current.has(panel)) return;
+    const previousFavorited = panel === "ocr" ? ocrFavorited : outputFavorited;
+    const optimisticFavorited = !previousFavorited;
+    favoriteToggleInFlightRef.current.add(panel);
+    if (panel === "ocr") {
+      setOcrFavorited(optimisticFavorited);
+    } else {
+      setOutputFavorited(optimisticFavorited);
+    }
     try {
       const pinned = await invoke<boolean>("toggle_favorite_text_cmd", { text });
       if (panel === "ocr") {
@@ -2938,7 +3163,14 @@ function OcrResultWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       }
     } catch (error) {
       console.error("[OcrResultWindow] add favorite failed:", error);
+      if (panel === "ocr") {
+        setOcrFavorited(previousFavorited);
+      } else {
+        setOutputFavorited(previousFavorited);
+      }
       window.alert(`收藏失败：${String(error)}`);
+    } finally {
+      favoriteToggleInFlightRef.current.delete(panel);
     }
   }
 
@@ -3248,6 +3480,8 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     updating,
     error,
     updateSettings,
+    previewAppearance,
+    previewSelectionAssistant,
     setToggleShortcut,
     setToggleOcrShortcut,
     resetSettings,
@@ -3308,6 +3542,157 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const lastAutoUpdateCheckAtRef = useRef(0);
   const autoUpdateEntryArmedRef = useRef(true);
   const notifiedUpdateVersionInEntryRef = useRef<string | null>(null);
+  const appearancePreviewPatchRef = useRef<AppSettingsPatch["appearance"]>({});
+  const appearancePersistPatchRef = useRef<AppSettingsPatch["appearance"]>({});
+  const appearancePreviewFrameRef = useRef<number | null>(null);
+  const appearancePersistTimerRef = useRef<number | null>(null);
+  const appearancePersistInFlightRef = useRef(false);
+  const selectionAssistantPreviewPatchRef = useRef<AppSettingsPatch["selectionAssistant"]>({});
+  const selectionAssistantPersistPatchRef = useRef<AppSettingsPatch["selectionAssistant"]>({});
+  const selectionAssistantPreviewFrameRef = useRef<number | null>(null);
+  const selectionAssistantPersistTimerRef = useRef<number | null>(null);
+  const selectionAssistantPersistInFlightRef = useRef(false);
+
+  const flushAppearancePersist = useCallback(async () => {
+    if (appearancePersistInFlightRef.current) return;
+    const patch = appearancePersistPatchRef.current;
+    if (!patch || Object.keys(patch).length === 0) return;
+    appearancePersistPatchRef.current = {};
+    appearancePersistInFlightRef.current = true;
+    try {
+      await updateSettings({ appearance: patch });
+    } finally {
+      appearancePersistInFlightRef.current = false;
+      if (appearancePersistPatchRef.current && Object.keys(appearancePersistPatchRef.current).length > 0) {
+        appearancePersistTimerRef.current = window.setTimeout(() => {
+          appearancePersistTimerRef.current = null;
+          void flushAppearancePersist();
+        }, APPEARANCE_PERSIST_DEBOUNCE_MS);
+      }
+    }
+  }, [updateSettings]);
+
+  const queueAppearancePatch = useCallback((patch: AppSettingsPatch["appearance"]) => {
+    if (!patch) return;
+    appearancePreviewPatchRef.current = {
+      ...(appearancePreviewPatchRef.current ?? {}),
+      ...patch
+    };
+    appearancePersistPatchRef.current = {
+      ...(appearancePersistPatchRef.current ?? {}),
+      ...patch
+    };
+
+    if (appearancePreviewFrameRef.current === null) {
+      appearancePreviewFrameRef.current = window.requestAnimationFrame(() => {
+        appearancePreviewFrameRef.current = null;
+        const previewPatch = appearancePreviewPatchRef.current;
+        if (!previewPatch || Object.keys(previewPatch).length === 0) return;
+        appearancePreviewPatchRef.current = {};
+        void previewAppearance(previewPatch);
+      });
+    }
+
+    if (appearancePersistTimerRef.current !== null) {
+      window.clearTimeout(appearancePersistTimerRef.current);
+    }
+    appearancePersistTimerRef.current = window.setTimeout(() => {
+      appearancePersistTimerRef.current = null;
+      void flushAppearancePersist();
+    }, APPEARANCE_PERSIST_DEBOUNCE_MS);
+  }, [flushAppearancePersist, previewAppearance]);
+
+  const flushSelectionAssistantPersist = useCallback(async () => {
+    if (selectionAssistantPersistInFlightRef.current) return;
+    const patch = selectionAssistantPersistPatchRef.current;
+    if (!patch || Object.keys(patch).length === 0) return;
+    selectionAssistantPersistPatchRef.current = {};
+    selectionAssistantPersistInFlightRef.current = true;
+    try {
+      await updateSettings({ selectionAssistant: patch });
+    } finally {
+      selectionAssistantPersistInFlightRef.current = false;
+      if (
+        selectionAssistantPersistPatchRef.current &&
+        Object.keys(selectionAssistantPersistPatchRef.current).length > 0
+      ) {
+        selectionAssistantPersistTimerRef.current = window.setTimeout(() => {
+          selectionAssistantPersistTimerRef.current = null;
+          void flushSelectionAssistantPersist();
+        }, APPEARANCE_PERSIST_DEBOUNCE_MS);
+      }
+    }
+  }, [updateSettings]);
+
+  const queueSelectionAssistantPatch = useCallback(
+    (patch: AppSettingsPatch["selectionAssistant"]) => {
+      if (!patch) return;
+      selectionAssistantPreviewPatchRef.current = {
+        ...(selectionAssistantPreviewPatchRef.current ?? {}),
+        ...patch
+      };
+      selectionAssistantPersistPatchRef.current = {
+        ...(selectionAssistantPersistPatchRef.current ?? {}),
+        ...patch
+      };
+
+      if (selectionAssistantPreviewFrameRef.current === null) {
+        selectionAssistantPreviewFrameRef.current = window.requestAnimationFrame(() => {
+          selectionAssistantPreviewFrameRef.current = null;
+          const previewPatch = selectionAssistantPreviewPatchRef.current;
+          if (!previewPatch || Object.keys(previewPatch).length === 0) return;
+          selectionAssistantPreviewPatchRef.current = {};
+          void previewSelectionAssistant(previewPatch);
+        });
+      }
+
+      if (selectionAssistantPersistTimerRef.current !== null) {
+        window.clearTimeout(selectionAssistantPersistTimerRef.current);
+      }
+      selectionAssistantPersistTimerRef.current = window.setTimeout(() => {
+        selectionAssistantPersistTimerRef.current = null;
+        void flushSelectionAssistantPersist();
+      }, APPEARANCE_PERSIST_DEBOUNCE_MS);
+    },
+    [flushSelectionAssistantPersist, previewSelectionAssistant]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (appearancePreviewFrameRef.current !== null) {
+        window.cancelAnimationFrame(appearancePreviewFrameRef.current);
+        appearancePreviewFrameRef.current = null;
+      }
+      if (appearancePersistTimerRef.current !== null) {
+        window.clearTimeout(appearancePersistTimerRef.current);
+        appearancePersistTimerRef.current = null;
+      }
+      if (appearancePersistPatchRef.current && Object.keys(appearancePersistPatchRef.current).length > 0) {
+        void updateSettings({ appearance: appearancePersistPatchRef.current });
+        appearancePersistPatchRef.current = {};
+      }
+    };
+  }, [updateSettings]);
+
+  useEffect(() => {
+    return () => {
+      if (selectionAssistantPreviewFrameRef.current !== null) {
+        window.cancelAnimationFrame(selectionAssistantPreviewFrameRef.current);
+        selectionAssistantPreviewFrameRef.current = null;
+      }
+      if (selectionAssistantPersistTimerRef.current !== null) {
+        window.clearTimeout(selectionAssistantPersistTimerRef.current);
+        selectionAssistantPersistTimerRef.current = null;
+      }
+      if (
+        selectionAssistantPersistPatchRef.current &&
+        Object.keys(selectionAssistantPersistPatchRef.current).length > 0
+      ) {
+        void updateSettings({ selectionAssistant: selectionAssistantPersistPatchRef.current });
+        selectionAssistantPersistPatchRef.current = {};
+      }
+    };
+  }, [updateSettings]);
 
   useEffect(() => {
     if (error) {
@@ -4191,7 +4576,13 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     });
   }
 
-  const currentGroup = SETTING_GROUPS.find((group) => group.key === activeGroup) ?? SETTING_GROUPS[0];
+  function applyAppearancePatch(patch: AppSettingsPatch["appearance"]) {
+    queueAppearancePatch(patch);
+  }
+
+  function applySelectionAssistantPatch(patch: AppSettingsPatch["selectionAssistant"]) {
+    queueSelectionAssistantPatch(patch);
+  }
 
   if (loading) {
     return (
@@ -4214,12 +4605,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
           </nav>
         </aside>
         <section className="settings-content">
-          <header className="settings-head" data-tauri-drag-region>
-            <div data-tauri-drag-region>
-              <h1>{currentGroup.label}</h1>
-              <p>{currentGroup.description}</p>
-            </div>
-          </header>
           <section className="settings-stack">
             <article className="settings-card">
               <h2>正在加载配置...</h2>
@@ -4253,51 +4638,150 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       </aside>
 
       <section className="settings-content">
-        <header className="settings-head" data-tauri-drag-region>
-          <div data-tauri-drag-region>
-            <h1>{currentGroup.label}</h1>
-            <p>{currentGroup.description}</p>
-          </div>
-        </header>
-
         {activeGroup === "general" && (
           <section className="settings-stack">
             <article className="settings-card">
-              <h2>主题预设</h2>
-              <div className="filled-control">
-                <label htmlFor="theme-preset">主题</label>
-                <select
-                  id="theme-preset"
-                  className="md2-select"
-                  aria-label="主题预设"
-                  disabled={updating}
-                  value={settings.themePreset}
-                  onChange={(event) => {
-                    void applyPatch({ themePreset: parseThemePreset(event.target.value) });
+              <h2>主题设置</h2>
+              <details className="appearance-fold" open>
+                <summary>材质与透明度</summary>
+                <div className="appearance-grid appearance-slider-grid">
+                  <div className="filled-control appearance-cell">
+                    <label htmlFor="appearance-blur">高斯模糊</label>
+                    <div className="appearance-range-row">
+                      <input
+                        id="appearance-blur"
+                        className="appearance-range"
+                        type="range"
+                        min={APPEARANCE_BLUR_RANGE.min}
+                        max={APPEARANCE_BLUR_RANGE.max}
+                        step={1}
+                        value={settings.appearance.blurPx}
+                        onInput={(event) => {
+                          applyAppearancePatch({ blurPx: Number(event.currentTarget.value) });
+                        }}
+                      />
+                      <span className="appearance-value">{settings.appearance.blurPx}px</span>
+                    </div>
+                  </div>
+                  <div className="filled-control appearance-cell">
+                    <label htmlFor="appearance-window-opacity">窗口透明度</label>
+                    <div className="appearance-range-row">
+                      <input
+                        id="appearance-window-opacity"
+                        className="appearance-range"
+                        type="range"
+                        min={APPEARANCE_WINDOW_OPACITY_RANGE.min}
+                        max={APPEARANCE_WINDOW_OPACITY_RANGE.max}
+                        step={0.01}
+                        value={settings.appearance.windowOpacity}
+                        onInput={(event) => {
+                          applyAppearancePatch({ windowOpacity: Number(event.currentTarget.value) });
+                        }}
+                      />
+                      <span className="appearance-value">{settings.appearance.windowOpacity.toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <div className="filled-control appearance-cell">
+                    <label htmlFor="appearance-border-opacity">边框强度</label>
+                    <div className="appearance-range-row">
+                      <input
+                        id="appearance-border-opacity"
+                        className="appearance-range"
+                        type="range"
+                        min={APPEARANCE_BORDER_OPACITY_RANGE.min}
+                        max={APPEARANCE_BORDER_OPACITY_RANGE.max}
+                        step={0.01}
+                        value={settings.appearance.borderOpacity}
+                        onInput={(event) => {
+                          applyAppearancePatch({ borderOpacity: Number(event.currentTarget.value) });
+                        }}
+                      />
+                      <span className="appearance-value">{settings.appearance.borderOpacity.toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <div className="filled-control appearance-cell">
+                    <label htmlFor="appearance-shadow-opacity">阴影强度</label>
+                    <div className="appearance-range-row">
+                      <input
+                        id="appearance-shadow-opacity"
+                        className="appearance-range"
+                        type="range"
+                        min={APPEARANCE_SHADOW_OPACITY_RANGE.min}
+                        max={APPEARANCE_SHADOW_OPACITY_RANGE.max}
+                        step={0.01}
+                        value={settings.appearance.shadowOpacity}
+                        onInput={(event) => {
+                          applyAppearancePatch({ shadowOpacity: Number(event.currentTarget.value) });
+                        }}
+                      />
+                      <span className="appearance-value">{settings.appearance.shadowOpacity.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </details>
+              <details className="appearance-fold">
+                <summary>颜色系统</summary>
+                <div className="appearance-grid appearance-color-grid">
+                  <div className="filled-control appearance-cell">
+                    <label htmlFor="appearance-accent-color">主题色（强调色）</label>
+                    <div className="appearance-color-row">
+                      <input
+                        id="appearance-accent-color"
+                        className="appearance-color"
+                        type="color"
+                        value={settings.appearance.accentColor}
+                        onInput={(event) => {
+                          applyAppearancePatch({ accentColor: event.currentTarget.value.toUpperCase() });
+                        }}
+                      />
+                      <span className="appearance-value">{settings.appearance.accentColor}</span>
+                    </div>
+                  </div>
+                  <div className="filled-control appearance-cell">
+                    <label htmlFor="appearance-text-color">字体颜色</label>
+                    <div className="appearance-color-row">
+                      <input
+                        id="appearance-text-color"
+                        className="appearance-color"
+                        type="color"
+                        value={settings.appearance.textColor}
+                        onInput={(event) => {
+                          applyAppearancePatch({ textColor: event.currentTarget.value.toUpperCase() });
+                        }}
+                      />
+                      <span className="appearance-value">{settings.appearance.textColor}</span>
+                    </div>
+                  </div>
+                  <div className="filled-control appearance-cell">
+                    <label htmlFor="appearance-text-muted-color">次级字体颜色</label>
+                    <div className="appearance-color-row">
+                      <input
+                        id="appearance-text-muted-color"
+                        className="appearance-color"
+                        type="color"
+                        value={settings.appearance.textMutedColor}
+                        onInput={(event) => {
+                          applyAppearancePatch({ textMutedColor: event.currentTarget.value.toUpperCase() });
+                        }}
+                      />
+                      <span className="appearance-value">{settings.appearance.textMutedColor}</span>
+                    </div>
+                  </div>
+                </div>
+              </details>
+              <div className="card-actions">
+                <button
+                  className="tonal-btn"
+                  onClick={() => {
+                    void applyPatch({
+                      themePreset: "dark",
+                      appearance: { ...FALLBACK_SETTINGS.appearance }
+                    }, "已恢复默认主题参数");
                   }}
                 >
-                  {THEME_OPTIONS.map((item) => (
-                    <option key={item.key} value={item.key}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="filled-control">
-                <label htmlFor="lang">语言</label>
-                <select
-                  id="lang"
-                  className="md2-select"
-                  aria-label="界面语言"
-                  disabled={updating}
-                  value={settings.language}
-                  onChange={(event) => {
-                    void applyPatch({ language: event.target.value === "en-US" ? "en-US" : "zh-CN" });
-                  }}
-                >
-                  <option value="zh-CN">简体中文</option>
-                  <option value="en-US">English</option>
-                </select>
+                  <RotateCcw size={14} />
+                  <span>恢复默认主题参数</span>
+                </button>
               </div>
             </article>
 
@@ -4683,6 +5167,28 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                   }}
                 />
               </label>
+              <div className="filled-control">
+                <label htmlFor="selection-bar-opacity">条形栏透明度</label>
+                <div className="appearance-range-row">
+                  <input
+                    id="selection-bar-opacity"
+                    className="appearance-range"
+                    type="range"
+                    min={SELECTION_BAR_OPACITY_RANGE.min}
+                    max={SELECTION_BAR_OPACITY_RANGE.max}
+                    step={0.01}
+                    value={settings.selectionAssistant.barOpacity}
+                    onInput={(event) => {
+                      applySelectionAssistantPatch({
+                        barOpacity: Number(event.currentTarget.value)
+                      });
+                    }}
+                  />
+                  <span className="appearance-value">
+                    {settings.selectionAssistant.barOpacity.toFixed(2)}
+                  </span>
+                </div>
+              </div>
               <label className="check-row">
                 <span>紧凑模式（条形栏仅显示图标）</span>
                 <input
@@ -5404,6 +5910,17 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                   checked={settings.history.captureImage}
                   onChange={(event) => {
                     void applyPatch({ history: { captureImage: event.target.checked } });
+                  }}
+                />
+              </label>
+              <label className="check-row">
+                <span>启用条目渐变区分</span>
+                <input
+                  className="md2-check"
+                  type="checkbox"
+                  checked={settings.history.enableItemGradients}
+                  onChange={(event) => {
+                    void applyPatch({ history: { enableItemGradients: event.target.checked } });
                   }}
                 />
               </label>

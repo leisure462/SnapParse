@@ -30,7 +30,6 @@ use tauri::{
     image::Image as TauriImage,
     menu::MenuBuilder,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    window::Color,
     AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, Position, Runtime, Size, State,
     WindowEvent,
 };
@@ -47,8 +46,8 @@ use windows_sys::Win32::Graphics::Dwm::{
 use windows_sys::Win32::System::DataExchange::GetClipboardSequenceNumber;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::System::Power::{
-    GetSystemPowerStatus, SetThreadExecutionState, SYSTEM_POWER_STATUS, ES_AWAYMODE_REQUIRED,
-    ES_CONTINUOUS, ES_SYSTEM_REQUIRED,
+    GetSystemPowerStatus, SetThreadExecutionState, ES_AWAYMODE_REQUIRED, ES_CONTINUOUS,
+    ES_SYSTEM_REQUIRED, SYSTEM_POWER_STATUS,
 };
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::System::Recovery::RegisterApplicationRestart;
@@ -164,6 +163,12 @@ const BUILTIN_SELECTION_BAR_KEYS: [&str; 6] = [
     "search",
 ];
 const MAX_ENABLED_SELECTION_BAR_ITEMS: usize = 8;
+const MIN_SELECTION_BAR_OPACITY: f32 = 0.35;
+const MAX_SELECTION_BAR_OPACITY: f32 = 0.94;
+
+fn default_true() -> bool {
+    true
+}
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
@@ -198,20 +203,24 @@ enum DefaultOpenCategory {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
 enum ThemePreset {
-    #[serde(rename = "blue", alias = "md2-dark", alias = "midnight")]
-    Blue,
     #[default]
-    #[serde(rename = "deep-black", alias = "black", alias = "dark")]
-    DeepBlack,
-    #[serde(rename = "gray", alias = "graphite")]
-    Gray,
     #[serde(
-        rename = "white",
+        rename = "dark",
+        alias = "light",
+        alias = "warm",
+        alias = "blue",
+        alias = "deep-black",
+        alias = "black",
+        alias = "md2-dark",
+        alias = "midnight",
+        alias = "gray",
+        alias = "graphite",
+        alias = "white",
         alias = "daylight",
         alias = "sunrise",
         alias = "amber-mist"
     )]
-    White,
+    Dark,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -250,13 +259,14 @@ enum TtsRuntimeMode {
     PythonModuleOnly,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct SelectionAssistantSettings {
     enabled: bool,
     mode: SelectionTriggerMode,
     show_icon_animation: bool,
     compact_mode: bool,
+    bar_opacity: f32,
     auto_hide_ms: u64,
     search_url_template: String,
     min_chars: usize,
@@ -274,6 +284,7 @@ impl Default for SelectionAssistantSettings {
             mode: SelectionTriggerMode::AutoDetect,
             show_icon_animation: true,
             compact_mode: false,
+            bar_opacity: 0.94,
             auto_hide_ms: DEFAULT_SELECTION_BAR_AUTO_HIDE_MS,
             search_url_template: "https://www.google.com/search?q={query}".to_string(),
             min_chars: 2,
@@ -286,7 +297,7 @@ impl Default for SelectionAssistantSettings {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct LlmSettings {
     enabled: bool,
@@ -312,7 +323,7 @@ impl Default for LlmSettings {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct VisionSettings {
     enabled: bool,
@@ -338,7 +349,7 @@ impl Default for VisionSettings {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct OcrSettings {
     enabled: bool,
@@ -364,7 +375,7 @@ impl Default for OcrSettings {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct TtsSettings {
     runtime_mode: TtsRuntimeMode,
@@ -384,7 +395,7 @@ impl Default for TtsSettings {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct CustomAgent {
     id: String,
@@ -408,7 +419,7 @@ impl Default for CustomAgent {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct SelectionBarItemConfig {
     key: String,
@@ -426,7 +437,7 @@ impl Default for SelectionBarItemConfig {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct AgentSettings {
     custom: Vec<CustomAgent>,
@@ -442,7 +453,7 @@ impl Default for AgentSettings {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct WindowSettings {
     auto_hide_on_blur: bool,
@@ -466,7 +477,7 @@ impl Default for WindowSettings {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct ShortcutSettings {
     toggle_main: String,
@@ -482,7 +493,43 @@ impl Default for ShortcutSettings {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+struct AppearanceSettings {
+    blur_px: f32,
+    saturate_percent: f32,
+    window_opacity: f32,
+    surface_opacity: f32,
+    card_opacity: f32,
+    border_opacity: f32,
+    shadow_opacity: f32,
+    corner_radius: f32,
+    font_scale: f32,
+    accent_color: String,
+    text_color: String,
+    text_muted_color: String,
+}
+
+impl Default for AppearanceSettings {
+    fn default() -> Self {
+        Self {
+            blur_px: 16.0,
+            saturate_percent: 135.0,
+            window_opacity: 0.16,
+            surface_opacity: 0.15,
+            card_opacity: 0.15,
+            border_opacity: 0.1,
+            shadow_opacity: 1.0,
+            corner_radius: 9.0,
+            font_scale: 1.0,
+            accent_color: "#8E8E8E".to_string(),
+            text_color: "#F5F5F5".to_string(),
+            text_muted_color: "#C8C8C8".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct HistorySettings {
     poll_ms: u64,
@@ -491,6 +538,8 @@ struct HistorySettings {
     capture_text: bool,
     capture_link: bool,
     capture_image: bool,
+    #[serde(default = "default_true")]
+    enable_item_gradients: bool,
     default_open_category: DefaultOpenCategory,
     default_category: FilterKind,
     paste_behavior: PasteBehavior,
@@ -509,6 +558,7 @@ impl Default for HistorySettings {
             capture_text: true,
             capture_link: true,
             capture_image: true,
+            enable_item_gradients: true,
             default_open_category: DefaultOpenCategory::All,
             default_category: FilterKind::All,
             paste_behavior: PasteBehavior::CopyAndHide,
@@ -520,7 +570,7 @@ impl Default for HistorySettings {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 struct AppSettings {
     version: u32,
@@ -533,6 +583,7 @@ struct AppSettings {
     agents: AgentSettings,
     shortcuts: ShortcutSettings,
     ocr: OcrSettings,
+    appearance: AppearanceSettings,
     history: HistorySettings,
     main_window_width: Option<u32>,
     main_window_height: Option<u32>,
@@ -552,7 +603,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             version: SETTINGS_VERSION,
-            theme_preset: ThemePreset::DeepBlack,
+            theme_preset: ThemePreset::Dark,
             language: "zh-CN".to_string(),
             window: WindowSettings::default(),
             selection_assistant: SelectionAssistantSettings::default(),
@@ -561,6 +612,7 @@ impl Default for AppSettings {
             agents: AgentSettings::default(),
             shortcuts: ShortcutSettings::default(),
             ocr: OcrSettings::default(),
+            appearance: AppearanceSettings::default(),
             history: HistorySettings::default(),
             main_window_width: Some(DEFAULT_MAIN_WINDOW_WIDTH),
             main_window_height: Some(DEFAULT_MAIN_WINDOW_HEIGHT),
@@ -595,6 +647,7 @@ struct SelectionAssistantSettingsPatch {
     mode: Option<SelectionTriggerMode>,
     show_icon_animation: Option<bool>,
     compact_mode: Option<bool>,
+    bar_opacity: Option<f32>,
     auto_hide_ms: Option<u64>,
     search_url_template: Option<String>,
     min_chars: Option<usize>,
@@ -666,6 +719,23 @@ struct ShortcutSettingsPatch {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
+struct AppearanceSettingsPatch {
+    blur_px: Option<f32>,
+    saturate_percent: Option<f32>,
+    window_opacity: Option<f32>,
+    surface_opacity: Option<f32>,
+    card_opacity: Option<f32>,
+    border_opacity: Option<f32>,
+    shadow_opacity: Option<f32>,
+    corner_radius: Option<f32>,
+    font_scale: Option<f32>,
+    accent_color: Option<String>,
+    text_color: Option<String>,
+    text_muted_color: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
 struct HistorySettingsPatch {
     poll_ms: Option<u64>,
     max_items: Option<usize>,
@@ -673,6 +743,7 @@ struct HistorySettingsPatch {
     capture_text: Option<bool>,
     capture_link: Option<bool>,
     capture_image: Option<bool>,
+    enable_item_gradients: Option<bool>,
     default_open_category: Option<DefaultOpenCategory>,
     default_category: Option<FilterKind>,
     paste_behavior: Option<PasteBehavior>,
@@ -694,6 +765,7 @@ struct SettingsPatch {
     agents: Option<AgentSettingsPatch>,
     shortcuts: Option<ShortcutSettingsPatch>,
     ocr: Option<OcrSettingsPatch>,
+    appearance: Option<AppearanceSettingsPatch>,
     history: Option<HistorySettingsPatch>,
     selection_result_window_width: Option<u32>,
     selection_result_window_height: Option<u32>,
@@ -1344,6 +1416,22 @@ fn normalize_selection_bar_order(
     normalized
 }
 
+fn clamp_f32(value: f32, min: f32, max: f32) -> f32 {
+    if !value.is_finite() {
+        return min;
+    }
+    value.clamp(min, max)
+}
+
+fn normalize_hex_color(input: &str, fallback: &str) -> String {
+    let trimmed = input.trim();
+    let hex = trimmed.strip_prefix('#').unwrap_or(trimmed);
+    if hex.len() != 6 || !hex.chars().all(|ch| ch.is_ascii_hexdigit()) {
+        return fallback.to_string();
+    }
+    format!("#{}", hex.to_ascii_uppercase())
+}
+
 fn normalize_settings(settings: &mut AppSettings) {
     let previous_version = settings.version;
     settings.version = SETTINGS_VERSION;
@@ -1355,6 +1443,24 @@ fn normalize_settings(settings: &mut AppSettings) {
     settings.history.poll_ms = clamp_poll_ms(settings.history.poll_ms);
     settings.history.max_items = clamp_history_items(settings.history.max_items);
     settings.history.storage_path = settings.history.storage_path.trim().to_string();
+    settings.theme_preset = ThemePreset::Dark;
+    settings.appearance.blur_px = clamp_f32(settings.appearance.blur_px, 0.0, 36.0).round();
+    settings.appearance.saturate_percent =
+        clamp_f32(settings.appearance.saturate_percent, 60.0, 220.0).round();
+    settings.appearance.window_opacity = clamp_f32(settings.appearance.window_opacity, 0.0, 0.5);
+    settings.appearance.surface_opacity = 0.15;
+    settings.appearance.card_opacity = 0.15;
+    settings.appearance.border_opacity = clamp_f32(settings.appearance.border_opacity, 0.02, 0.45);
+    settings.appearance.shadow_opacity = clamp_f32(settings.appearance.shadow_opacity, 0.0, 1.5);
+    settings.appearance.corner_radius =
+        clamp_f32(settings.appearance.corner_radius, 4.0, 16.0).round();
+    settings.appearance.font_scale = clamp_f32(settings.appearance.font_scale, 0.85, 1.25);
+    settings.appearance.accent_color =
+        normalize_hex_color(&settings.appearance.accent_color, "#8E8E8E");
+    settings.appearance.text_color =
+        normalize_hex_color(&settings.appearance.text_color, "#F5F5F5");
+    settings.appearance.text_muted_color =
+        normalize_hex_color(&settings.appearance.text_muted_color, "#C8C8C8");
 
     let mut width = settings
         .main_window_width
@@ -1437,6 +1543,11 @@ fn normalize_settings(settings: &mut AppSettings) {
     }
     settings.selection_assistant.auto_hide_ms =
         clamp_selection_auto_hide_ms(settings.selection_assistant.auto_hide_ms);
+    settings.selection_assistant.bar_opacity = clamp_f32(
+        settings.selection_assistant.bar_opacity,
+        MIN_SELECTION_BAR_OPACITY,
+        MAX_SELECTION_BAR_OPACITY,
+    );
     settings.selection_assistant.min_chars =
         clamp_selection_min_chars(settings.selection_assistant.min_chars);
     settings.selection_assistant.max_chars =
@@ -1588,6 +1699,13 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
         if let Some(compact) = selection_patch.compact_mode {
             settings.selection_assistant.compact_mode = compact;
         }
+        if let Some(bar_opacity) = selection_patch.bar_opacity {
+            settings.selection_assistant.bar_opacity = clamp_f32(
+                bar_opacity,
+                MIN_SELECTION_BAR_OPACITY,
+                MAX_SELECTION_BAR_OPACITY,
+            );
+        }
         if let Some(ms) = selection_patch.auto_hide_ms {
             settings.selection_assistant.auto_hide_ms = ms;
         }
@@ -1713,6 +1831,41 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
         }
     }
 
+    if let Some(appearance_patch) = patch.appearance {
+        if let Some(blur_px) = appearance_patch.blur_px {
+            settings.appearance.blur_px = blur_px;
+        }
+        if let Some(saturate_percent) = appearance_patch.saturate_percent {
+            settings.appearance.saturate_percent = saturate_percent;
+        }
+        if let Some(window_opacity) = appearance_patch.window_opacity {
+            settings.appearance.window_opacity = window_opacity;
+        }
+        if let Some(border_opacity) = appearance_patch.border_opacity {
+            settings.appearance.border_opacity = border_opacity;
+        }
+        if let Some(shadow_opacity) = appearance_patch.shadow_opacity {
+            settings.appearance.shadow_opacity = shadow_opacity;
+        }
+        if let Some(corner_radius) = appearance_patch.corner_radius {
+            settings.appearance.corner_radius = corner_radius;
+        }
+        if let Some(font_scale) = appearance_patch.font_scale {
+            settings.appearance.font_scale = font_scale;
+        }
+        if let Some(accent_color) = appearance_patch.accent_color {
+            settings.appearance.accent_color = accent_color;
+        }
+        if let Some(text_color) = appearance_patch.text_color {
+            settings.appearance.text_color = text_color;
+        }
+        if let Some(text_muted_color) = appearance_patch.text_muted_color {
+            settings.appearance.text_muted_color = text_muted_color;
+        }
+    }
+    settings.appearance.surface_opacity = 0.15;
+    settings.appearance.card_opacity = 0.15;
+
     if let Some(history_patch) = patch.history {
         if let Some(poll_ms) = history_patch.poll_ms {
             settings.history.poll_ms = poll_ms;
@@ -1731,6 +1884,9 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
         }
         if let Some(enabled) = history_patch.capture_image {
             settings.history.capture_image = enabled;
+        }
+        if let Some(enabled) = history_patch.enable_item_gradients {
+            settings.history.enable_item_gradients = enabled;
         }
         if let Some(default_open_category) = history_patch.default_open_category {
             settings.history.default_open_category = default_open_category;
@@ -1872,11 +2028,8 @@ fn migrate_legacy_theme_preset(root: &mut serde_json::Map<String, serde_json::Va
     };
 
     let mapped = match theme.as_str() {
-        "black" | "dark" => "deep-black",
-        "md2-dark" | "midnight" => "blue",
-        "graphite" => "gray",
-        "daylight" | "sunrise" | "amber-mist" => "white",
-        "blue" | "deep-black" | "gray" | "white" => theme.as_str(),
+        "dark" | "light" | "warm" | "blue" | "deep-black" | "black" | "md2-dark" | "midnight"
+        | "gray" | "graphite" | "white" | "daylight" | "sunrise" | "amber-mist" => "dark",
         _ => return false,
     };
 
@@ -1951,6 +2104,9 @@ fn normalize_settings_json_value(value: &mut serde_json::Value) -> bool {
         root,
         "themePreset",
         &[
+            "dark",
+            "light",
+            "warm",
             "blue",
             "deep-black",
             "gray",
@@ -1963,7 +2119,7 @@ fn normalize_settings_json_value(value: &mut serde_json::Value) -> bool {
             "sunrise",
             "amber-mist",
         ],
-        "deep-black",
+        "dark",
     );
 
     if let Some(selection) = root
@@ -2440,34 +2596,49 @@ fn recover_history_for_storage_path_switch<R: Runtime>(
     None
 }
 
-fn persist_settings(path: &Path, settings: &AppSettings) -> Result<(), CommandError> {
-    let payload = serde_json::to_string_pretty(settings)
-        .map_err(|error| CommandError::Serialization(error.to_string()))?;
+fn write_text_file_with_backup(
+    path: &Path,
+    payload: &str,
+    backup_path: &Path,
+) -> Result<bool, CommandError> {
+    if path.exists() {
+        if let Ok(existing) = fs::read_to_string(path) {
+            if existing == payload {
+                return Ok(false);
+            }
+        }
+    }
 
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|error| CommandError::Settings(error.to_string()))?;
     }
 
-    let backup_path = settings_backup_path(path);
     if path.exists() {
-        let _ = fs::copy(path, &backup_path);
+        let _ = fs::copy(path, backup_path);
     }
 
     let temp_path = path.with_extension("tmp");
-    fs::write(&temp_path, &payload).map_err(|error| CommandError::Settings(error.to_string()))?;
+    fs::write(&temp_path, payload).map_err(|error| CommandError::Settings(error.to_string()))?;
 
     if path.exists() {
         let _ = fs::remove_file(path);
     }
 
     match fs::rename(&temp_path, path) {
-        Ok(_) => Ok(()),
+        Ok(_) => Ok(true),
         Err(_) => {
             fs::write(path, payload).map_err(|error| CommandError::Settings(error.to_string()))?;
             let _ = fs::remove_file(&temp_path);
-            Ok(())
+            Ok(true)
         }
     }
+}
+
+fn persist_settings(path: &Path, settings: &AppSettings) -> Result<bool, CommandError> {
+    let payload = serde_json::to_string_pretty(settings)
+        .map_err(|error| CommandError::Serialization(error.to_string()))?;
+    let backup_path = settings_backup_path(path);
+    write_text_file_with_backup(path, &payload, &backup_path)
 }
 
 fn persist_history_snapshot<R: Runtime>(
@@ -2478,32 +2649,9 @@ fn persist_history_snapshot<R: Runtime>(
     let payload = serde_json::to_string_pretty(entries)
         .map_err(|error| CommandError::Serialization(error.to_string()))?;
     let write_snapshot = |path: &Path, payload: &str| -> Result<(), CommandError> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|error| CommandError::Settings(error.to_string()))?;
-        }
         let backup_path = history_backup_path(path);
-        if path.exists() {
-            let _ = fs::copy(path, backup_path);
-        }
-
-        let temp_path = path.with_extension("tmp");
-        fs::write(&temp_path, payload)
-            .map_err(|error| CommandError::Settings(error.to_string()))?;
-
-        if path.exists() {
-            let _ = fs::remove_file(path);
-        }
-
-        match fs::rename(&temp_path, path) {
-            Ok(_) => Ok(()),
-            Err(_) => {
-                fs::write(path, payload)
-                    .map_err(|error| CommandError::Settings(error.to_string()))?;
-                let _ = fs::remove_file(&temp_path);
-                Ok(())
-            }
-        }
+        let _ = write_text_file_with_backup(path, payload, &backup_path)?;
+        Ok(())
     };
 
     let primary_path = resolve_history_file_path(app, settings)?;
@@ -2648,7 +2796,8 @@ fn persist_settings_state(settings_state: &AppSettingsState) -> Result<(), Comma
         .lock()
         .map_err(|_| CommandError::Lock)?
         .clone();
-    persist_settings(&settings_state.file_path, &snapshot)
+    let _ = persist_settings(&settings_state.file_path, &snapshot)?;
+    Ok(())
 }
 
 fn load_settings(path: &Path) -> SettingsLoadResult {
@@ -3961,15 +4110,6 @@ fn emit_history_updated<R: Runtime>(app: &AppHandle<R>, items: &[ClipboardEntry]
     let _ = app.emit(HISTORY_UPDATED_EVENT, items.to_vec());
 }
 
-fn window_background_color_for_theme(theme: ThemePreset) -> Color {
-    match theme {
-        ThemePreset::Blue => Color(18, 28, 45, 255),
-        ThemePreset::DeepBlack => Color(10, 10, 10, 255),
-        ThemePreset::Gray => Color(38, 40, 44, 255),
-        ThemePreset::White => Color(255, 255, 255, 255),
-    }
-}
-
 #[cfg(target_os = "windows")]
 fn apply_native_result_window_corner_preference<R: Runtime>(window: &tauri::WebviewWindow<R>) {
     let Ok(hwnd) = window.hwnd() else {
@@ -3990,16 +4130,74 @@ fn apply_native_result_window_corner_preference<R: Runtime>(window: &tauri::Webv
 #[cfg(not(target_os = "windows"))]
 fn apply_native_result_window_corner_preference<R: Runtime>(_window: &tauri::WebviewWindow<R>) {}
 
+#[cfg(target_os = "windows")]
+fn acrylic_tint_alpha_for_settings(settings: &AppSettings) -> u8 {
+    (settings.appearance.window_opacity.clamp(0.0, 0.5) * 255.0).round() as u8
+}
+
+#[cfg(target_os = "windows")]
+fn apply_native_window_acrylic<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) {
+    let tint_alpha = acrylic_tint_alpha_for_settings(settings);
+    let labels = [
+        MAIN_WINDOW_LABEL,
+        SETTINGS_WINDOW_LABEL,
+        SELECTION_RESULT_WINDOW_LABEL,
+        OCR_RESULT_WINDOW_LABEL,
+    ];
+    for label in labels {
+        if let Some(window) = app.get_webview_window(label) {
+            let _ = window_vibrancy::apply_acrylic(&window, Some((0, 0, 0, tint_alpha)));
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn apply_native_window_acrylic<R: Runtime>(_app: &AppHandle<R>, _settings: &AppSettings) {}
+
 fn apply_result_windows_background<R: Runtime>(app: &AppHandle<R>, settings: &AppSettings) {
-    let color = Some(window_background_color_for_theme(settings.theme_preset));
+    apply_native_window_acrylic(app, settings);
     if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
-        let _ = window.set_background_color(color);
         apply_native_result_window_corner_preference(&window);
     }
     if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
-        let _ = window.set_background_color(color);
         apply_native_result_window_corner_preference(&window);
     }
+}
+
+fn selection_result_window_is_pinned<R: Runtime>(app: &AppHandle<R>) -> bool {
+    let pinned_by_window = app
+        .get_webview_window(SELECTION_RESULT_WINDOW_LABEL)
+        .and_then(|window| window.is_always_on_top().ok())
+        .unwrap_or(false);
+    let pinned_by_settings = app
+        .try_state::<AppSettingsState>()
+        .and_then(|state| {
+            state
+                .data
+                .lock()
+                .ok()
+                .map(|settings| settings.selection_assistant.result_window_always_on_top)
+        })
+        .unwrap_or(false);
+    pinned_by_window || pinned_by_settings
+}
+
+fn ocr_result_window_is_pinned<R: Runtime>(app: &AppHandle<R>) -> bool {
+    let pinned_by_window = app
+        .get_webview_window(OCR_RESULT_WINDOW_LABEL)
+        .and_then(|window| window.is_always_on_top().ok())
+        .unwrap_or(false);
+    let pinned_by_settings = app
+        .try_state::<AppSettingsState>()
+        .and_then(|state| {
+            state
+                .data
+                .lock()
+                .ok()
+                .map(|settings| settings.ocr.result_window_always_on_top)
+        })
+        .unwrap_or(false);
+    pinned_by_window || pinned_by_settings
 }
 
 fn show_selection_bar_window<R: Runtime>(
@@ -4122,9 +4320,6 @@ fn show_selection_result_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), Co
     }
 
     let _ = window.set_always_on_top(always_on_top);
-    let _ = window.set_background_color(Some(window_background_color_for_theme(
-        settings_snapshot.theme_preset,
-    )));
     let _ = window.show();
     let _ = window.set_focus();
     Ok(())
@@ -4223,9 +4418,6 @@ fn show_ocr_result_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), CommandE
     }
 
     let _ = window.set_always_on_top(always_on_top);
-    let _ = window.set_background_color(Some(window_background_color_for_theme(
-        settings_snapshot.theme_preset,
-    )));
     let _ = window.show();
     let _ = window.set_focus();
     Ok(())
@@ -4285,7 +4477,10 @@ fn open_in_default_browser(url: &str) -> Result<(), CommandError> {
     #[cfg(target_os = "windows")]
     {
         let open: Vec<u16> = OsStr::new("open").encode_wide().chain(Some(0)).collect();
-        let target: Vec<u16> = OsStr::new(normalized).encode_wide().chain(Some(0)).collect();
+        let target: Vec<u16> = OsStr::new(normalized)
+            .encode_wide()
+            .chain(Some(0))
+            .collect();
         let result = unsafe {
             ShellExecuteW(
                 std::ptr::null_mut(),
@@ -6314,6 +6509,157 @@ fn trim_history_by_settings(
     Ok(())
 }
 
+fn history_trim_rules_changed(
+    previous_settings: &AppSettings,
+    updated_settings: &AppSettings,
+) -> bool {
+    previous_settings.history.max_items != updated_settings.history.max_items
+        || previous_settings.history.dedupe != updated_settings.history.dedupe
+}
+
+fn history_storage_path_changed(
+    previous_settings: &AppSettings,
+    updated_settings: &AppSettings,
+) -> bool {
+    previous_settings.history.storage_path.trim() != updated_settings.history.storage_path.trim()
+}
+
+fn sync_history_persistence_after_settings_update<R: Runtime>(
+    app: &AppHandle<R>,
+    history_state: &State<'_, Mutex<ClipboardState>>,
+    previous_settings: &AppSettings,
+    updated_settings: &AppSettings,
+) -> Result<(), CommandError> {
+    let trim_rules_changed = history_trim_rules_changed(previous_settings, updated_settings);
+    let storage_path_changed = history_storage_path_changed(previous_settings, updated_settings);
+    if !trim_rules_changed && !storage_path_changed {
+        return Ok(());
+    }
+
+    if trim_rules_changed {
+        trim_history_by_settings(history_state, updated_settings)?;
+    }
+
+    let mut recovered_from_previous_storage_path = false;
+    let history_snapshot = {
+        let mut history = with_history_lock(history_state)?;
+        if storage_path_changed && history.history.is_empty() {
+            if let Some(recovered) =
+                recover_history_for_storage_path_switch(app, previous_settings, updated_settings)
+            {
+                history.history = recovered;
+                recovered_from_previous_storage_path = true;
+            }
+        }
+        collect_history(&history.history)
+    };
+    persist_history_snapshot(app, updated_settings, &history_snapshot)?;
+    if recovered_from_previous_storage_path {
+        emit_history_updated(app, &history_snapshot);
+    }
+
+    Ok(())
+}
+
+fn sync_shortcuts_after_settings_update<R: Runtime>(
+    app: &AppHandle<R>,
+    previous_settings: &AppSettings,
+    updated_settings: &AppSettings,
+) -> Result<(), CommandError> {
+    let toggle_main_changed =
+        previous_settings.shortcuts.toggle_main != updated_settings.shortcuts.toggle_main;
+    let toggle_ocr_changed =
+        previous_settings.shortcuts.toggle_ocr != updated_settings.shortcuts.toggle_ocr;
+
+    if toggle_main_changed {
+        apply_shortcut_change(
+            app,
+            &previous_settings.shortcuts.toggle_main,
+            &updated_settings.shortcuts.toggle_main,
+            ShortcutAction::ToggleMain,
+        )?;
+    }
+
+    if let Err(error) = if toggle_ocr_changed {
+        apply_shortcut_change(
+            app,
+            &previous_settings.shortcuts.toggle_ocr,
+            &updated_settings.shortcuts.toggle_ocr,
+            ShortcutAction::StartOcrCapture,
+        )
+    } else {
+        Ok(())
+    } {
+        if toggle_main_changed {
+            let _ = apply_shortcut_change(
+                app,
+                &updated_settings.shortcuts.toggle_main,
+                &previous_settings.shortcuts.toggle_main,
+                ShortcutAction::ToggleMain,
+            );
+        }
+        return Err(error);
+    }
+
+    Ok(())
+}
+
+fn apply_runtime_settings_effects<R: Runtime>(
+    app: &AppHandle<R>,
+    previous_settings: &AppSettings,
+    updated_settings: &AppSettings,
+) -> Result<(), CommandError> {
+    if previous_settings.window.launch_on_system_startup
+        != updated_settings.window.launch_on_system_startup
+    {
+        sync_autostart_with_settings(app, updated_settings)?;
+    }
+
+    if previous_settings
+        .selection_assistant
+        .result_window_always_on_top
+        != updated_settings
+            .selection_assistant
+            .result_window_always_on_top
+    {
+        if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
+            let _ = window.set_always_on_top(
+                updated_settings
+                    .selection_assistant
+                    .result_window_always_on_top,
+            );
+        }
+    }
+
+    if previous_settings.ocr.result_window_always_on_top
+        != updated_settings.ocr.result_window_always_on_top
+    {
+        if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
+            let _ = window.set_always_on_top(updated_settings.ocr.result_window_always_on_top);
+        }
+    }
+
+    if previous_settings.theme_preset != updated_settings.theme_preset
+        || previous_settings.appearance != updated_settings.appearance
+    {
+        apply_result_windows_background(app, updated_settings);
+    }
+
+    if previous_settings.selection_assistant.enabled
+        && !updated_settings.selection_assistant.enabled
+    {
+        hide_selection_bar_window(app);
+    }
+    if previous_settings.ocr.enabled && !updated_settings.ocr.enabled {
+        hide_ocr_capture_window(app);
+    }
+    if previous_settings.language != updated_settings.language {
+        rebuild_tray(app);
+    }
+
+    Ok(())
+}
+
 fn sync_autostart_with_settings<R: Runtime>(
     app: &AppHandle<R>,
     settings: &AppSettings,
@@ -6459,86 +6805,28 @@ fn update_settings_internal(
         apply_settings_patch(&mut settings, patch);
         (previous, settings.clone())
     };
+    let settings_changed = previous_settings != updated_settings;
 
-    if let Err(error) = apply_shortcut_change(
-        app,
-        &previous_settings.shortcuts.toggle_main,
-        &updated_settings.shortcuts.toggle_main,
-        ShortcutAction::ToggleMain,
-    ) {
-        if let Ok(mut settings) = with_settings_lock(settings_state) {
-            *settings = previous_settings;
-        }
-        return Err(error);
-    }
-    if let Err(error) = apply_shortcut_change(
-        app,
-        &previous_settings.shortcuts.toggle_ocr,
-        &updated_settings.shortcuts.toggle_ocr,
-        ShortcutAction::StartOcrCapture,
-    ) {
-        let _ = apply_shortcut_change(
-            app,
-            &updated_settings.shortcuts.toggle_main,
-            &previous_settings.shortcuts.toggle_main,
-            ShortcutAction::ToggleMain,
-        );
-        if let Ok(mut settings) = with_settings_lock(settings_state) {
-            *settings = previous_settings;
-        }
-        return Err(error);
-    }
-
-    persist_settings(&settings_state.file_path, &updated_settings)?;
-    trim_history_by_settings(history_state, &updated_settings)?;
-    let storage_path_changed = previous_settings.history.storage_path.trim()
-        != updated_settings.history.storage_path.trim();
-    let mut recovered_from_previous_storage_path = false;
-    let history_snapshot = {
-        let mut history = with_history_lock(history_state)?;
-        if storage_path_changed && history.history.is_empty() {
-            if let Some(recovered) =
-                recover_history_for_storage_path_switch(app, &previous_settings, &updated_settings)
-            {
-                history.history = recovered;
-                recovered_from_previous_storage_path = true;
-            }
-        }
-        collect_history(&history.history)
-    };
-    persist_history_snapshot(app, &updated_settings, &history_snapshot)?;
-    if recovered_from_previous_storage_path {
-        emit_history_updated(app, &history_snapshot);
-    }
-
-    if previous_settings.window.launch_on_system_startup
-        != updated_settings.window.launch_on_system_startup
+    if let Err(error) =
+        sync_shortcuts_after_settings_update(app, &previous_settings, &updated_settings)
     {
-        sync_autostart_with_settings(app, &updated_settings)?;
+        if let Ok(mut settings) = with_settings_lock(settings_state) {
+            *settings = previous_settings;
+        }
+        return Err(error);
     }
 
-    if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
-        let _ = window.set_always_on_top(
-            updated_settings
-                .selection_assistant
-                .result_window_always_on_top,
-        );
+    let _ = persist_settings(&settings_state.file_path, &updated_settings)?;
+    if settings_changed {
+        sync_history_persistence_after_settings_update(
+            app,
+            history_state,
+            &previous_settings,
+            &updated_settings,
+        )?;
+        apply_runtime_settings_effects(app, &previous_settings, &updated_settings)?;
+        emit_settings_updated(app, &updated_settings);
     }
-    if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
-        let _ = window.set_always_on_top(updated_settings.ocr.result_window_always_on_top);
-    }
-    apply_result_windows_background(app, &updated_settings);
-    if !updated_settings.selection_assistant.enabled {
-        hide_selection_bar_window(app);
-    }
-    if !updated_settings.ocr.enabled {
-        hide_ocr_capture_window(app);
-    }
-    if previous_settings.language != updated_settings.language {
-        rebuild_tray(app);
-    }
-
-    emit_settings_updated(app, &updated_settings);
     Ok(updated_settings)
 }
 
@@ -6946,7 +7234,10 @@ fn start_selection_detector_thread(app: AppHandle) {
                         }
                     };
 
-                    if !clipboard_changed {
+                    // For regular apps, selected text may legitimately match the current
+                    // clipboard content. In that case we still want to wake the bar.
+                    // Console windows remain stricter to avoid replaying stale clipboard text.
+                    if is_console && !clipboard_changed {
                         continue;
                     }
                     if !selection_text_in_range(&assistant, &selected) {
@@ -7017,7 +7308,9 @@ fn start_selection_detector_thread(app: AppHandle) {
                             Err(_) => continue,
                         }
                     };
-                    if !clipboard_changed {
+                    // Long-hold Ctrl should still work when the selected text is identical to
+                    // the existing clipboard content. Keep console windows conservative.
+                    if is_console_like_window(active_hwnd) && !clipboard_changed {
                         continue;
                     }
                     if !selection_text_in_range(&assistant, &text) {
@@ -7127,12 +7420,24 @@ fn open_search_with_text(app: AppHandle, text: String) -> Result<(), CommandErro
 }
 
 #[tauri::command]
-fn set_result_window_pinned_cmd(app: AppHandle, pinned: bool) -> Result<bool, CommandError> {
+fn set_result_window_pinned_cmd(
+    app: AppHandle,
+    pinned: bool,
+    settings_state: State<'_, AppSettingsState>,
+) -> Result<bool, CommandError> {
     if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
         window
             .set_always_on_top(pinned)
             .map_err(|error| CommandError::Settings(error.to_string()))?;
     }
+
+    let snapshot = {
+        let mut settings = with_settings_lock(&settings_state)?;
+        settings.selection_assistant.result_window_always_on_top = pinned;
+        settings.clone()
+    };
+    let _ = persist_settings_state(&settings_state);
+    emit_settings_updated(&app, &snapshot);
 
     Ok(pinned)
 }
@@ -7652,12 +7957,24 @@ fn get_ocr_result_window_pinned_cmd(
 }
 
 #[tauri::command]
-fn set_ocr_result_window_pinned_cmd(app: AppHandle, pinned: bool) -> Result<bool, CommandError> {
+fn set_ocr_result_window_pinned_cmd(
+    app: AppHandle,
+    pinned: bool,
+    settings_state: State<'_, AppSettingsState>,
+) -> Result<bool, CommandError> {
     if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
         window
             .set_always_on_top(pinned)
             .map_err(|error| CommandError::Settings(error.to_string()))?;
     }
+
+    let snapshot = {
+        let mut settings = with_settings_lock(&settings_state)?;
+        settings.ocr.result_window_always_on_top = pinned;
+        settings.clone()
+    };
+    let _ = persist_settings_state(&settings_state);
+    emit_settings_updated(&app, &snapshot);
 
     Ok(pinned)
 }
@@ -8061,6 +8378,49 @@ fn update_settings(
 }
 
 #[tauri::command]
+fn preview_appearance_settings(
+    app: AppHandle,
+    patch: AppearanceSettingsPatch,
+    settings_state: State<'_, AppSettingsState>,
+) -> Result<AppSettings, CommandError> {
+    let updated_settings = {
+        let mut settings = with_settings_lock(&settings_state)?;
+        apply_settings_patch(
+            &mut settings,
+            SettingsPatch {
+                appearance: Some(patch),
+                ..SettingsPatch::default()
+            },
+        );
+        settings.clone()
+    };
+    apply_result_windows_background(&app, &updated_settings);
+    emit_settings_updated(&app, &updated_settings);
+    Ok(updated_settings)
+}
+
+#[tauri::command]
+fn preview_selection_assistant_settings(
+    app: AppHandle,
+    patch: SelectionAssistantSettingsPatch,
+    settings_state: State<'_, AppSettingsState>,
+) -> Result<AppSettings, CommandError> {
+    let updated_settings = {
+        let mut settings = with_settings_lock(&settings_state)?;
+        apply_settings_patch(
+            &mut settings,
+            SettingsPatch {
+                selection_assistant: Some(patch),
+                ..SettingsPatch::default()
+            },
+        );
+        settings.clone()
+    };
+    emit_settings_updated(&app, &updated_settings);
+    Ok(updated_settings)
+}
+
+#[tauri::command]
 fn reset_settings(
     app: AppHandle,
     settings_state: State<'_, AppSettingsState>,
@@ -8083,6 +8443,7 @@ fn reset_settings(
             mode: Some(defaults.selection_assistant.mode),
             show_icon_animation: Some(defaults.selection_assistant.show_icon_animation),
             compact_mode: Some(defaults.selection_assistant.compact_mode),
+            bar_opacity: Some(defaults.selection_assistant.bar_opacity),
             auto_hide_ms: Some(defaults.selection_assistant.auto_hide_ms),
             search_url_template: Some(defaults.selection_assistant.search_url_template.clone()),
             min_chars: Some(defaults.selection_assistant.min_chars),
@@ -8136,6 +8497,20 @@ fn reset_settings(
                 timeout_ms: Some(defaults.ocr.vision.timeout_ms),
             }),
         }),
+        appearance: Some(AppearanceSettingsPatch {
+            blur_px: Some(defaults.appearance.blur_px),
+            saturate_percent: Some(defaults.appearance.saturate_percent),
+            window_opacity: Some(defaults.appearance.window_opacity),
+            surface_opacity: Some(defaults.appearance.surface_opacity),
+            card_opacity: Some(defaults.appearance.card_opacity),
+            border_opacity: Some(defaults.appearance.border_opacity),
+            shadow_opacity: Some(defaults.appearance.shadow_opacity),
+            corner_radius: Some(defaults.appearance.corner_radius),
+            font_scale: Some(defaults.appearance.font_scale),
+            accent_color: Some(defaults.appearance.accent_color.clone()),
+            text_color: Some(defaults.appearance.text_color.clone()),
+            text_muted_color: Some(defaults.appearance.text_muted_color.clone()),
+        }),
         history: Some(HistorySettingsPatch {
             poll_ms: Some(defaults.history.poll_ms),
             max_items: Some(defaults.history.max_items),
@@ -8143,6 +8518,7 @@ fn reset_settings(
             capture_text: Some(defaults.history.capture_text),
             capture_link: Some(defaults.history.capture_link),
             capture_image: Some(defaults.history.capture_image),
+            enable_item_gradients: Some(defaults.history.enable_item_gradients),
             default_open_category: Some(defaults.history.default_open_category),
             default_category: Some(defaults.history.default_category),
             paste_behavior: Some(defaults.history.paste_behavior),
@@ -8220,70 +8596,28 @@ fn import_settings(
         *settings = incoming;
         (previous, settings.clone())
     };
+    let settings_changed = previous_settings != updated_settings;
 
-    if let Err(error) = apply_shortcut_change(
-        &app,
-        &previous_settings.shortcuts.toggle_main,
-        &updated_settings.shortcuts.toggle_main,
-        ShortcutAction::ToggleMain,
-    ) {
-        if let Ok(mut settings) = with_settings_lock(&settings_state) {
-            *settings = previous_settings;
-        }
-        return Err(error);
-    }
-    if let Err(error) = apply_shortcut_change(
-        &app,
-        &previous_settings.shortcuts.toggle_ocr,
-        &updated_settings.shortcuts.toggle_ocr,
-        ShortcutAction::StartOcrCapture,
-    ) {
-        let _ = apply_shortcut_change(
-            &app,
-            &updated_settings.shortcuts.toggle_main,
-            &previous_settings.shortcuts.toggle_main,
-            ShortcutAction::ToggleMain,
-        );
-        if let Ok(mut settings) = with_settings_lock(&settings_state) {
-            *settings = previous_settings;
-        }
-        return Err(error);
-    }
-
-    if settings_state.file_path.exists() {
-        let backup = settings_backup_path(&settings_state.file_path);
-        let _ = fs::copy(&settings_state.file_path, backup);
-    }
-
-    persist_settings(&settings_state.file_path, &updated_settings)?;
-    trim_history_by_settings(&history_state, &updated_settings)?;
+    if let Err(error) =
+        sync_shortcuts_after_settings_update(&app, &previous_settings, &updated_settings)
     {
-        let history_snapshot = with_history_lock(&history_state)?
-            .history
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>();
-        persist_history_snapshot(&app, &updated_settings, &history_snapshot)?;
+        if let Ok(mut settings) = with_settings_lock(&settings_state) {
+            *settings = previous_settings;
+        }
+        return Err(error);
     }
 
-    if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
-        let _ = window.set_always_on_top(
-            updated_settings
-                .selection_assistant
-                .result_window_always_on_top,
-        );
+    let _ = persist_settings(&settings_state.file_path, &updated_settings)?;
+    if settings_changed {
+        sync_history_persistence_after_settings_update(
+            &app,
+            &history_state,
+            &previous_settings,
+            &updated_settings,
+        )?;
+        apply_runtime_settings_effects(&app, &previous_settings, &updated_settings)?;
+        emit_settings_updated(&app, &updated_settings);
     }
-    if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
-        let _ = window.set_always_on_top(updated_settings.ocr.result_window_always_on_top);
-    }
-    if !updated_settings.selection_assistant.enabled {
-        hide_selection_bar_window(&app);
-    }
-    if !updated_settings.ocr.enabled {
-        hide_ocr_capture_window(&app);
-    }
-
-    emit_settings_updated(&app, &updated_settings);
 
     Ok(updated_settings)
 }
@@ -8400,12 +8734,10 @@ fn sync_clipboard(
     }
 
     if let Some(expected_text) = locked.pending_ignored_text.as_deref() {
-        let ignore_match = incoming
-            .as_ref()
-            .is_some_and(|entry| {
-                matches!(entry.kind, ClipboardKind::Text | ClipboardKind::Link)
-                    && entry.content == expected_text
-            });
+        let ignore_match = incoming.as_ref().is_some_and(|entry| {
+            matches!(entry.kind, ClipboardKind::Text | ClipboardKind::Link)
+                && entry.content == expected_text
+        });
         if ignore_match {
             incoming = None;
             locked.pending_ignored_text = None;
@@ -9186,7 +9518,7 @@ pub fn run() {
                     else {
                         return;
                     };
-                    if result_window.is_always_on_top().unwrap_or(false) {
+                    if selection_result_window_is_pinned(&app_handle) {
                         return;
                     }
                     let should_hide = app_handle
@@ -9252,7 +9584,7 @@ pub fn run() {
                     else {
                         return;
                     };
-                    if result_window.is_always_on_top().unwrap_or(false) {
+                    if ocr_result_window_is_pinned(&app_handle) {
                         return;
                     }
                     let should_hide = app_handle
@@ -9308,6 +9640,8 @@ pub fn run() {
             test_ocr_vision_api_cmd,
             pick_history_storage_folder,
             update_settings,
+            preview_appearance_settings,
+            preview_selection_assistant_settings,
             reset_settings,
             set_toggle_shortcut,
             set_toggle_ocr_shortcut,

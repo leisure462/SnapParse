@@ -12,12 +12,7 @@ export interface ClipboardEntry {
 export type FilterKind = "all" | ClipboardKind | "favorite";
 export type DefaultOpenCategory = FilterKind | "last-used";
 
-export type ThemePreset =
-  | "blue"
-  | "deep-black"
-  | "black"
-  | "gray"
-  | "white";
+export type ThemePreset = "dark";
 export type AppLanguage = "zh-CN" | "en-US";
 export type PasteBehavior = "copy-only" | "copy-and-hide";
 export type SelectionTriggerMode = "auto-detect" | "copy-trigger";
@@ -47,6 +42,7 @@ export interface SelectionAssistantSettings {
   mode: SelectionTriggerMode;
   showIconAnimation: boolean;
   compactMode: boolean;
+  barOpacity: number;
   autoHideMs: number;
   searchUrlTemplate: string;
   minChars: number;
@@ -119,6 +115,21 @@ export interface TtsSettings {
   ratePercent: number;
 }
 
+export interface AppearanceSettings {
+  blurPx: number;
+  saturatePercent: number;
+  windowOpacity: number;
+  surfaceOpacity: number;
+  cardOpacity: number;
+  borderOpacity: number;
+  shadowOpacity: number;
+  cornerRadius: number;
+  fontScale: number;
+  accentColor: string;
+  textColor: string;
+  textMutedColor: string;
+}
+
 export interface HistorySettings {
   pollMs: number;
   maxItems: number;
@@ -126,6 +137,7 @@ export interface HistorySettings {
   captureText: boolean;
   captureLink: boolean;
   captureImage: boolean;
+  enableItemGradients: boolean;
   defaultOpenCategory: DefaultOpenCategory;
   defaultCategory: FilterKind;
   pasteBehavior: PasteBehavior;
@@ -146,6 +158,7 @@ export interface AppSettings {
   agents: AgentSettings;
   shortcuts: ShortcutSettings;
   ocr: OcrSettings;
+  appearance: AppearanceSettings;
   history: HistorySettings;
 }
 
@@ -163,6 +176,7 @@ export interface SelectionAssistantSettingsPatch {
   mode?: SelectionTriggerMode;
   showIconAnimation?: boolean;
   compactMode?: boolean;
+  barOpacity?: number;
   autoHideMs?: number;
   searchUrlTemplate?: string;
   minChars?: number;
@@ -220,6 +234,21 @@ export interface TtsSettingsPatch {
   ratePercent?: number;
 }
 
+export interface AppearanceSettingsPatch {
+  blurPx?: number;
+  saturatePercent?: number;
+  windowOpacity?: number;
+  surfaceOpacity?: number;
+  cardOpacity?: number;
+  borderOpacity?: number;
+  shadowOpacity?: number;
+  cornerRadius?: number;
+  fontScale?: number;
+  accentColor?: string;
+  textColor?: string;
+  textMutedColor?: string;
+}
+
 export interface HistorySettingsPatch {
   pollMs?: number;
   maxItems?: number;
@@ -227,6 +256,7 @@ export interface HistorySettingsPatch {
   captureText?: boolean;
   captureLink?: boolean;
   captureImage?: boolean;
+  enableItemGradients?: boolean;
   defaultOpenCategory?: DefaultOpenCategory;
   defaultCategory?: FilterKind;
   pasteBehavior?: PasteBehavior;
@@ -246,5 +276,6 @@ export interface AppSettingsPatch {
   agents?: AgentSettingsPatch;
   shortcuts?: ShortcutSettingsPatch;
   ocr?: OcrSettingsPatch;
+  appearance?: AppearanceSettingsPatch;
   history?: HistorySettingsPatch;
 }

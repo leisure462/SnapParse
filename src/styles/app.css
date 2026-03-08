@@ -1,14 +1,15 @@
 :root {
   color-scheme: dark;
-  --bg: #121212;
-  --surface: #1e1e1e;
-  --surface-2: #242424;
-  --surface-3: #2d2d2d;
+  --bg: transparent;
+  --surface: rgba(30, 30, 30, 0.4);
+  --surface-2: rgba(36, 36, 36, 0.5);
+  --surface-3: rgba(45, 45, 45, 0.6);
   --bg-accent: rgba(59, 130, 246, 0.2);
   --primary: #3b82f6;
   --primary-soft: rgba(59, 130, 246, 0.2);
   --app-brand-color: rgba(255, 255, 255, 0.92);
   --selection-bar-bg: rgba(23, 23, 23, 0.96);
+  --selection-bar-opacity: 0.94;
   --selection-bar-item: rgba(255, 255, 255, 0.84);
   --selection-bar-hover: rgba(96, 165, 250, 0.98);
   --selection-bar-custom: rgba(110, 231, 183, 0.92);
@@ -54,12 +55,12 @@
   --settings-font-md: 0.84rem;
   --settings-font-lg: 0.92rem;
   --settings-font-xl: 1rem;
-  --settings-shell-bg: var(--bg);
+  --settings-shell-bg: transparent;
   --settings-sidebar-bg: var(--surface);
   --settings-sidebar-border: rgba(255, 255, 255, 0.06);
   --settings-sidebar-shadow: var(--elev-2);
   --settings-content-bg: transparent;
-  --settings-head-bg: var(--surface);
+  --settings-head-bg: transparent;
   --settings-head-border: rgba(255, 255, 255, 0.06);
   --settings-card-bg: var(--surface);
   --settings-card-border: rgba(255, 255, 255, 0.05);
@@ -89,393 +90,7 @@
   background: var(--bg);
 }
 
-:root[data-theme="midnight"] {
-  --bg: #0f141f;
-  --surface: #151d2d;
-  --surface-2: #1b2437;
-  --surface-3: #27344f;
-  --bg-accent: rgba(59, 130, 246, 0.24);
-  --primary: #3b82f6;
-  --primary-soft: rgba(59, 130, 246, 0.2);
-  --app-brand-color: rgba(241, 245, 249, 0.95);
-  --selection-bar-bg: rgba(19, 28, 44, 0.96);
-  --selection-bar-item: rgba(255, 255, 255, 0.86);
-  --selection-bar-hover: rgba(147, 197, 253, 0.98);
-  --selection-bar-custom: rgba(110, 231, 183, 0.94);
-  --selection-bar-border: transparent;
-  --selection-bar-outline: rgba(148, 163, 184, 0.18);
-  --selection-bar-elev: 0 0 0 rgba(0, 0, 0, 0);
-  --selection-bar-btn-hover-bg: transparent;
-}
-
-:root[data-theme="gray"],
-:root[data-theme="graphite"] {
-  --bg: #1a1c1f;
-  --surface: #26292e;
-  --surface-2: #31353c;
-  --surface-3: #3a404a;
-  --bg-accent: rgba(166, 174, 190, 0.16);
-  --primary: #a7b2c4;
-  --primary-soft: rgba(167, 178, 196, 0.22);
-  --app-brand-color: rgba(248, 250, 252, 0.94);
-  --selection-bar-bg: rgba(36, 39, 45, 0.96);
-  --selection-bar-item: rgba(255, 255, 255, 0.84);
-  --selection-bar-hover: rgba(209, 213, 219, 0.98);
-  --selection-bar-custom: rgba(125, 211, 252, 0.9);
-  --selection-bar-border: transparent;
-  --selection-bar-outline: rgba(203, 213, 225, 0.14);
-  --selection-bar-elev: 0 0 0 rgba(0, 0, 0, 0);
-  --selection-bar-btn-hover-bg: transparent;
-}
-
-:root[data-theme="white"],
-:root[data-theme="daylight"] {
-  color-scheme: light;
-  --bg: #eef3fb;
-  --surface: #ffffff;
-  --surface-2: #f4f7ff;
-  --surface-3: #e7eefb;
-  --bg-accent: rgba(37, 99, 235, 0.1);
-  --primary: #1d4ed8;
-  --primary-soft: rgba(37, 99, 235, 0.14);
-  --app-brand-color: #344863;
-  --selection-bar-bg: rgba(250, 252, 255, 0.96);
-  --selection-bar-item: rgba(15, 23, 42, 0.84);
-  --selection-bar-hover: rgba(29, 78, 216, 0.98);
-  --selection-bar-custom: rgba(15, 118, 110, 0.94);
-  --selection-bar-border: rgba(37, 99, 235, 0.18);
-  --selection-bar-outline: rgba(37, 99, 235, 0.14);
-  --selection-bar-elev: 0 8px 20px rgba(30, 64, 175, 0.12);
-  --selection-bar-btn-hover-bg: rgba(29, 78, 216, 0.1);
-  --select-surface: rgba(15, 23, 42, 0.04);
-  --select-surface-hover: rgba(29, 78, 216, 0.1);
-  --select-outline-soft: rgba(37, 99, 235, 0.12);
-  --select-line: rgba(15, 23, 42, 0.22);
-  --select-line-focus: rgba(29, 78, 216, 0.82);
-  --select-focus-ring: rgba(29, 78, 216, 0.18);
-  --select-chevron: rgba(15, 23, 42, 0.72);
-  --tag-bg: rgba(15, 23, 42, 0.08);
-  --tag-color: rgba(15, 23, 42, 0.82);
-  --tag-border: rgba(15, 23, 42, 0.18);
-  --favorite-btn-bg: rgba(15, 23, 42, 0.08);
-  --favorite-btn-color: rgba(15, 23, 42, 0.74);
-  --favorite-btn-hover-bg: rgba(29, 78, 216, 0.12);
-  --favorite-btn-hover-color: rgba(29, 78, 216, 0.98);
-  --favorite-btn-active-bg: rgba(245, 158, 11, 0.22);
-  --favorite-btn-active-color: #b45309;
-  --icon-on-accent: rgba(15, 23, 42, 0.94);
-  --overlay-icon: rgba(15, 23, 42, 0.72);
-  --overlay-icon-hover: rgba(15, 23, 42, 0.94);
-  --control-hover-bg: rgba(15, 23, 42, 0.12);
-  --control-soft-hover-bg: rgba(15, 23, 42, 0.1);
-  --text-high: rgba(15, 23, 42, 0.94);
-  --text-mid: rgba(51, 65, 85, 0.7);
-  --text-low: rgba(100, 116, 139, 0.58);
-  --settings-shell-bg: #edf3fb;
-  --settings-sidebar-bg: #f8fbff;
-  --settings-sidebar-border: rgba(37, 99, 235, 0.13);
-  --settings-sidebar-shadow:
-    inset -1px 0 0 rgba(37, 99, 235, 0.1),
-    0 1px 0 rgba(15, 23, 42, 0.05);
-  --settings-content-bg: transparent;
-  --settings-head-bg: rgba(255, 255, 255, 0.84);
-  --settings-head-border: rgba(37, 99, 235, 0.12);
-  --settings-card-bg: #ffffff;
-  --settings-card-border: rgba(148, 163, 184, 0.28);
-  --settings-card-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.06),
-    0 3px 10px rgba(15, 23, 42, 0.05);
-  --settings-card-shadow-hover:
-    0 6px 18px rgba(30, 64, 175, 0.12),
-    0 2px 6px rgba(15, 23, 42, 0.06);
-  --settings-card-hover-lift: -1px;
-  --settings-control-bg: rgba(244, 248, 255, 0.95);
-  --settings-control-border: rgba(37, 99, 235, 0.14);
-  --settings-control-line: rgba(37, 99, 235, 0.24);
-  --settings-control-line-focus: rgba(29, 78, 216, 0.82);
-  --settings-control-hover: rgba(37, 99, 235, 0.07);
-  --settings-divider: rgba(148, 163, 184, 0.32);
-  --settings-sidebar-hover-bg: rgba(37, 99, 235, 0.08);
-  --settings-sidebar-active-bg: rgba(37, 99, 235, 0.16);
-  --settings-sidebar-active-color: rgba(15, 23, 42, 0.96);
-  --settings-pill-bg: rgba(37, 99, 235, 0.08);
-  --settings-pill-border: rgba(37, 99, 235, 0.14);
-  --settings-inset-bg: rgba(248, 250, 252, 0.95);
-  --settings-inset-border: rgba(148, 163, 184, 0.3);
-  --settings-select-option-bg: #ffffff;
-  --settings-select-option-color: #0f172a;
-  --settings-check-border: rgba(30, 64, 175, 0.46);
-  --settings-check-ring: rgba(29, 78, 216, 0.2);
-  --elev-1: 0 1px 2px rgba(30, 41, 59, 0.1), 0 2px 6px rgba(30, 41, 59, 0.06);
-  --elev-2: 0 8px 18px rgba(30, 41, 59, 0.12), 0 2px 6px rgba(30, 41, 59, 0.08);
-  --elev-3: 0 14px 28px rgba(30, 41, 59, 0.16), 0 6px 12px rgba(30, 41, 59, 0.1);
-}
-
-:root[data-theme="sunrise"] {
-  color-scheme: light;
-  --bg: #fff1ea;
-  --surface: #fff9f5;
-  --surface-2: #ffe8db;
-  --surface-3: #ffd1be;
-  --bg-accent: rgba(232, 93, 58, 0.16);
-  --primary: #e85d3a;
-  --primary-soft: rgba(232, 93, 58, 0.18);
-  --app-brand-color: #7f3b2a;
-  --selection-bar-bg: rgba(255, 242, 235, 0.97);
-  --selection-bar-item: rgba(92, 36, 23, 0.9);
-  --selection-bar-hover: rgba(232, 93, 58, 0.98);
-  --selection-bar-custom: rgba(190, 24, 93, 0.9);
-  --selection-bar-border: rgba(232, 93, 58, 0.24);
-  --selection-bar-outline: rgba(232, 93, 58, 0.14);
-  --selection-bar-elev: 0 8px 22px rgba(154, 52, 18, 0.16);
-  --selection-bar-btn-hover-bg: rgba(232, 93, 58, 0.12);
-  --select-surface: rgba(154, 52, 18, 0.06);
-  --select-surface-hover: rgba(232, 93, 58, 0.12);
-  --select-outline-soft: rgba(232, 93, 58, 0.24);
-  --select-line: rgba(127, 29, 29, 0.42);
-  --select-line-focus: rgba(232, 93, 58, 0.96);
-  --select-focus-ring: rgba(232, 93, 58, 0.22);
-  --select-chevron: rgba(127, 29, 29, 0.8);
-  --tag-bg: rgba(127, 29, 29, 0.08);
-  --tag-color: rgba(127, 29, 29, 0.9);
-  --tag-border: rgba(127, 29, 29, 0.2);
-  --favorite-btn-bg: rgba(127, 29, 29, 0.1);
-  --favorite-btn-color: rgba(127, 29, 29, 0.8);
-  --favorite-btn-hover-bg: rgba(232, 93, 58, 0.15);
-  --favorite-btn-hover-color: rgba(127, 29, 29, 0.96);
-  --favorite-btn-active-bg: rgba(249, 115, 22, 0.26);
-  --favorite-btn-active-color: #9a3412;
-  --icon-on-accent: rgba(65, 20, 12, 0.97);
-  --overlay-icon: rgba(65, 20, 12, 0.74);
-  --overlay-icon-hover: rgba(65, 20, 12, 0.97);
-  --control-hover-bg: rgba(127, 29, 29, 0.14);
-  --control-soft-hover-bg: rgba(127, 29, 29, 0.1);
-  --text-high: rgba(72, 28, 19, 0.95);
-  --text-mid: rgba(111, 53, 37, 0.76);
-  --text-low: rgba(149, 92, 73, 0.62);
-  --settings-shell-bg: #fff3ee;
-  --settings-sidebar-bg: #fff9f5;
-  --settings-sidebar-border: rgba(232, 93, 58, 0.16);
-  --settings-sidebar-shadow:
-    inset -1px 0 0 rgba(232, 93, 58, 0.11),
-    0 1px 0 rgba(127, 29, 29, 0.04);
-  --settings-content-bg: transparent;
-  --settings-head-bg: rgba(255, 255, 255, 0.88);
-  --settings-head-border: rgba(232, 93, 58, 0.15);
-  --settings-card-bg: #fffdfb;
-  --settings-card-border: rgba(244, 114, 54, 0.25);
-  --settings-card-shadow:
-    0 1px 2px rgba(127, 29, 29, 0.06),
-    0 4px 12px rgba(154, 52, 18, 0.08);
-  --settings-card-shadow-hover:
-    0 8px 20px rgba(154, 52, 18, 0.12),
-    0 2px 6px rgba(127, 29, 29, 0.08);
-  --settings-card-hover-lift: -1px;
-  --settings-control-bg: rgba(255, 245, 240, 0.96);
-  --settings-control-border: rgba(232, 93, 58, 0.2);
-  --settings-control-line: rgba(232, 93, 58, 0.28);
-  --settings-control-line-focus: rgba(232, 93, 58, 0.9);
-  --settings-control-hover: rgba(232, 93, 58, 0.09);
-  --settings-divider: rgba(232, 93, 58, 0.22);
-  --settings-sidebar-hover-bg: rgba(232, 93, 58, 0.1);
-  --settings-sidebar-active-bg: rgba(232, 93, 58, 0.18);
-  --settings-sidebar-active-color: rgba(92, 36, 23, 0.96);
-  --settings-pill-bg: rgba(232, 93, 58, 0.1);
-  --settings-pill-border: rgba(232, 93, 58, 0.18);
-  --settings-inset-bg: rgba(255, 247, 242, 0.96);
-  --settings-inset-border: rgba(232, 93, 58, 0.2);
-  --settings-select-option-bg: #fffaf7;
-  --settings-select-option-color: #4c1d13;
-  --settings-check-border: rgba(194, 65, 12, 0.44);
-  --settings-check-ring: rgba(232, 93, 58, 0.22);
-  --elev-1: 0 2px 6px rgba(127, 29, 29, 0.1), 0 1px 2px rgba(127, 29, 29, 0.08);
-  --elev-2: 0 10px 22px rgba(127, 29, 29, 0.15), 0 2px 8px rgba(127, 29, 29, 0.11);
-  --elev-3: 0 18px 34px rgba(127, 29, 29, 0.19), 0 6px 14px rgba(127, 29, 29, 0.13);
-}
-
-:root[data-theme="amber-mist"] {
-  color-scheme: light;
-  --bg: #fff9e8;
-  --surface: #fffef8;
-  --surface-2: #fff2c9;
-  --surface-3: #f3dea0;
-  --bg-accent: rgba(161, 98, 7, 0.15);
-  --primary: #a16207;
-  --primary-soft: rgba(161, 98, 7, 0.18);
-  --app-brand-color: #6a4a16;
-  --selection-bar-bg: rgba(255, 251, 230, 0.97);
-  --selection-bar-item: rgba(70, 49, 16, 0.9);
-  --selection-bar-hover: rgba(161, 98, 7, 0.98);
-  --selection-bar-custom: rgba(180, 83, 9, 0.9);
-  --selection-bar-border: rgba(161, 98, 7, 0.24);
-  --selection-bar-outline: rgba(161, 98, 7, 0.14);
-  --selection-bar-elev: 0 8px 20px rgba(120, 53, 15, 0.14);
-  --selection-bar-btn-hover-bg: rgba(161, 98, 7, 0.12);
-  --select-surface: rgba(120, 53, 15, 0.06);
-  --select-surface-hover: rgba(161, 98, 7, 0.12);
-  --select-outline-soft: rgba(161, 98, 7, 0.22);
-  --select-line: rgba(120, 53, 15, 0.4);
-  --select-line-focus: rgba(161, 98, 7, 0.96);
-  --select-focus-ring: rgba(161, 98, 7, 0.22);
-  --select-chevron: rgba(120, 53, 15, 0.8);
-  --tag-bg: rgba(120, 53, 15, 0.08);
-  --tag-color: rgba(120, 53, 15, 0.9);
-  --tag-border: rgba(120, 53, 15, 0.2);
-  --favorite-btn-bg: rgba(120, 53, 15, 0.1);
-  --favorite-btn-color: rgba(120, 53, 15, 0.8);
-  --favorite-btn-hover-bg: rgba(161, 98, 7, 0.15);
-  --favorite-btn-hover-color: rgba(120, 53, 15, 0.96);
-  --favorite-btn-active-bg: rgba(217, 119, 6, 0.25);
-  --favorite-btn-active-color: #92400e;
-  --icon-on-accent: rgba(58, 41, 10, 0.97);
-  --overlay-icon: rgba(58, 41, 10, 0.74);
-  --overlay-icon-hover: rgba(58, 41, 10, 0.97);
-  --control-hover-bg: rgba(120, 53, 15, 0.14);
-  --control-soft-hover-bg: rgba(120, 53, 15, 0.1);
-  --text-high: rgba(64, 46, 12, 0.95);
-  --text-mid: rgba(101, 77, 22, 0.76);
-  --text-low: rgba(136, 109, 47, 0.62);
-  --settings-shell-bg: #fff8ea;
-  --settings-sidebar-bg: #fffdf6;
-  --settings-sidebar-border: rgba(161, 98, 7, 0.15);
-  --settings-sidebar-shadow:
-    inset -1px 0 0 rgba(161, 98, 7, 0.1),
-    0 1px 0 rgba(120, 53, 15, 0.04);
-  --settings-content-bg: transparent;
-  --settings-head-bg: rgba(255, 255, 255, 0.9);
-  --settings-head-border: rgba(161, 98, 7, 0.14);
-  --settings-card-bg: #fffefb;
-  --settings-card-border: rgba(217, 119, 6, 0.23);
-  --settings-card-shadow:
-    0 1px 2px rgba(120, 53, 15, 0.06),
-    0 4px 12px rgba(120, 53, 15, 0.08);
-  --settings-card-shadow-hover:
-    0 8px 20px rgba(120, 53, 15, 0.11),
-    0 2px 6px rgba(120, 53, 15, 0.07);
-  --settings-card-hover-lift: -1px;
-  --settings-control-bg: rgba(255, 247, 225, 0.96);
-  --settings-control-border: rgba(161, 98, 7, 0.21);
-  --settings-control-line: rgba(161, 98, 7, 0.29);
-  --settings-control-line-focus: rgba(161, 98, 7, 0.9);
-  --settings-control-hover: rgba(161, 98, 7, 0.09);
-  --settings-divider: rgba(161, 98, 7, 0.21);
-  --settings-sidebar-hover-bg: rgba(161, 98, 7, 0.1);
-  --settings-sidebar-active-bg: rgba(161, 98, 7, 0.18);
-  --settings-sidebar-active-color: rgba(70, 49, 16, 0.96);
-  --settings-pill-bg: rgba(161, 98, 7, 0.1);
-  --settings-pill-border: rgba(161, 98, 7, 0.18);
-  --settings-inset-bg: rgba(255, 250, 235, 0.96);
-  --settings-inset-border: rgba(161, 98, 7, 0.21);
-  --settings-select-option-bg: #fffef8;
-  --settings-select-option-color: #4b3608;
-  --settings-check-border: rgba(146, 64, 14, 0.44);
-  --settings-check-ring: rgba(161, 98, 7, 0.22);
-  --elev-1: 0 2px 6px rgba(120, 53, 15, 0.09), 0 1px 2px rgba(120, 53, 15, 0.07);
-  --elev-2: 0 10px 20px rgba(120, 53, 15, 0.13), 0 2px 8px rgba(120, 53, 15, 0.09);
-  --elev-3: 0 18px 32px rgba(120, 53, 15, 0.17), 0 6px 14px rgba(120, 53, 15, 0.11);
-}
-
-:root[data-theme="white"] .clip-item.kind-link,
-:root[data-theme="daylight"] .clip-item.kind-link {
-  background:
-    linear-gradient(
-      to bottom right,
-      rgba(37, 99, 235, 0.27) 0%,
-      rgba(59, 130, 246, 0.17) 44%,
-      rgba(255, 255, 255, 0.95) 100%
-    ),
-    #ffffff;
-}
-
-:root[data-theme="white"] .clip-item.kind-image,
-:root[data-theme="daylight"] .clip-item.kind-image {
-  background:
-    linear-gradient(
-      to bottom right,
-      rgba(139, 92, 246, 0.24) 0%,
-      rgba(99, 102, 241, 0.16) 44%,
-      rgba(255, 255, 255, 0.95) 100%
-    ),
-    #ffffff;
-}
-
-:root[data-theme="white"] .clip-item.pinned,
-:root[data-theme="daylight"] .clip-item.pinned {
-  background:
-    linear-gradient(
-      to bottom right,
-      rgba(245, 158, 11, 0.24) 0%,
-      rgba(251, 191, 36, 0.16) 44%,
-      rgba(255, 255, 255, 0.95) 100%
-    ),
-    #ffffff;
-}
-
-:root[data-theme="sunrise"] .clip-item.kind-link {
-  background:
-    linear-gradient(
-      to bottom right,
-      rgba(79, 70, 229, 0.25) 0%,
-      rgba(59, 130, 246, 0.16) 48%,
-      rgba(255, 249, 245, 0.95) 100%
-    ),
-    #fff9f5;
-}
-
-:root[data-theme="sunrise"] .clip-item.kind-image {
-  background:
-    linear-gradient(
-      to bottom right,
-      rgba(190, 24, 93, 0.26) 0%,
-      rgba(236, 72, 153, 0.18) 48%,
-      rgba(255, 249, 245, 0.95) 100%
-    ),
-    #fff9f5;
-}
-
-:root[data-theme="sunrise"] .clip-item.pinned {
-  background:
-    linear-gradient(
-      to bottom right,
-      rgba(249, 115, 22, 0.27) 0%,
-      rgba(251, 146, 60, 0.18) 48%,
-      rgba(255, 249, 245, 0.95) 100%
-    ),
-    #fff9f5;
-}
-
-:root[data-theme="amber-mist"] .clip-item.kind-link {
-  background:
-    linear-gradient(
-      to bottom right,
-      rgba(14, 116, 144, 0.24) 0%,
-      rgba(6, 182, 212, 0.16) 48%,
-      rgba(255, 254, 248, 0.96) 100%
-    ),
-    #fffef8;
-}
-
-:root[data-theme="amber-mist"] .clip-item.kind-image {
-  background:
-    linear-gradient(
-      to bottom right,
-      rgba(16, 185, 129, 0.22) 0%,
-      rgba(110, 231, 183, 0.14) 48%,
-      rgba(255, 254, 248, 0.96) 100%
-    ),
-    #fffef8;
-}
-
-:root[data-theme="amber-mist"] .clip-item.pinned {
-  background:
-    linear-gradient(
-      to bottom right,
-      rgba(217, 119, 6, 0.28) 0%,
-      rgba(245, 158, 11, 0.19) 48%,
-      rgba(255, 254, 248, 0.96) 100%
-    ),
-    #fffef8;
-}
+/* Theme presets are defined in the consolidated section below. */
 
 html[data-window="selection_bar"],
 html[data-window="selection_bar"] body,
@@ -491,7 +106,7 @@ html[data-window="selection_result"],
 html[data-window="selection_result"] body,
 html[data-window="selection_result"] #root,
 html[data-window="selection_result"] .window-root {
-  background: var(--surface, #1e1e1e) !important;
+  background: transparent !important;
   background-image: none !important;
   border-radius: 10px !important;
   overflow: hidden;
@@ -512,7 +127,7 @@ html[data-window="ocr_result"],
 html[data-window="ocr_result"] body,
 html[data-window="ocr_result"] #root,
 html[data-window="ocr_result"] .window-root {
-  background: var(--surface, #1e1e1e) !important;
+  background: transparent !important;
   background-image: none !important;
   border-radius: 10px !important;
   overflow: hidden;
@@ -529,6 +144,7 @@ body,
   height: 100vh;
   min-height: 100vh;
   overflow: hidden;
+  background: transparent !important;
 }
 
 button,
@@ -541,7 +157,7 @@ select {
 .window-root {
   height: 100vh;
   min-height: 0;
-  background: var(--bg);
+  background: transparent !important;
   color: var(--text-high);
 }
 
@@ -550,7 +166,7 @@ select {
   justify-content: space-between;
   align-items: center;
   padding: calc(var(--grid) * 0.72) calc(var(--grid) * 1);
-  background: var(--surface);
+  background: transparent;
   box-shadow: var(--elev-2);
   -webkit-app-region: drag;
 }
@@ -577,17 +193,27 @@ select {
   border-radius: 50%;
   padding: 0;
   line-height: 0;
-  background: var(--surface-2);
+  background: transparent;
   color: var(--text-mid);
   display: grid;
   place-items: center;
-  box-shadow: var(--elev-1);
+  box-shadow: none;
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease;
 }
 
+.panel-head .icon-btn {
+  background: transparent;
+  box-shadow: none;
+}
+
+.panel-head .icon-btn:hover {
+  background: rgba(45, 45, 45, 0.5);
+  color: var(--text-high);
+}
+
 .icon-btn:hover {
-  background: var(--surface-3);
+  background: rgba(45, 45, 45, 0.4);
   color: var(--text-high);
 }
 
@@ -603,7 +229,7 @@ select {
   display: inline-flex;
   align-items: center;
   gap: calc(var(--grid) * 0.75);
-  background: var(--surface-2);
+  background: rgba(36, 36, 36, 0.35);
   color: var(--text-high);
   box-shadow: var(--elev-1);
   cursor: pointer;
@@ -611,7 +237,7 @@ select {
 }
 
 .tonal-btn:hover:not(:disabled) {
-  background: var(--surface-3);
+  background: rgba(45, 45, 45, 0.4);
 }
 
 .tonal-btn:disabled {
@@ -674,8 +300,9 @@ select {
   width: fit-content;
   max-width: 100%;
   height: 30px;
+  box-sizing: border-box;
   border-radius: 7px;
-  background: var(--selection-bar-bg);
+  background: rgba(23, 23, 23, 0.5);
   box-shadow: var(--selection-bar-elev);
   border: 1px solid var(--selection-bar-outline);
   outline: none;
@@ -741,16 +368,13 @@ select {
 
 @keyframes selection-brand-glow {
   0% {
-    opacity: 0.88;
-    filter: drop-shadow(0 0 0 transparent);
+    opacity: 0.9;
   }
   50% {
     opacity: 1;
-    filter: drop-shadow(0 0 5px var(--selection-bar-hover));
   }
   100% {
-    opacity: 0.88;
-    filter: drop-shadow(0 0 0 transparent);
+    opacity: 0.9;
   }
 }
 
@@ -800,7 +424,6 @@ select {
 }
 
 .selection-result-window {
-  background: var(--surface, #1e1e1e);
   padding: 0;
   border-radius: 0;
   overflow: hidden;
@@ -812,7 +435,6 @@ select {
   display: grid;
   grid-template-rows: auto 1fr;
   border-radius: 0;
-  background: var(--surface, #1e1e1e);
   box-shadow: none;
   overflow: hidden;
 }
@@ -823,7 +445,6 @@ select {
   justify-content: space-between;
   min-height: 34px;
   padding: 0 calc(var(--grid) * 0.7) 0 calc(var(--grid) * 0.9);
-  background: var(--surface-2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   -webkit-app-region: drag;
 }
@@ -1135,7 +756,6 @@ select {
 }
 
 .ocr-result-window {
-  background: var(--surface, #1e1e1e);
   padding: 0;
   border-radius: 0;
   overflow: hidden;
@@ -1147,7 +767,6 @@ select {
   display: grid;
   grid-template-rows: auto 1fr;
   border-radius: 0;
-  background: var(--surface, #1e1e1e);
   box-shadow: none;
   overflow: hidden;
 }
@@ -1158,7 +777,6 @@ select {
   justify-content: space-between;
   min-height: 34px;
   padding: 0 calc(var(--grid) * 0.8);
-  background: var(--surface-2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   -webkit-app-region: drag;
 }
@@ -1685,19 +1303,19 @@ select {
   color: rgba(180, 83, 9, 0.96);
 }
 
-:root:not([data-theme="white"]):not([data-theme="daylight"]):not([data-theme="sunrise"]):not([data-theme="amber-mist"]) .clip-item.kind-link .tag {
+:root[data-theme="dark"] .clip-item.kind-link .tag {
   background: rgba(59, 130, 246, 0.2);
   border-color: rgba(96, 165, 250, 0.34);
   color: rgba(191, 219, 254, 0.96);
 }
 
-:root:not([data-theme="white"]):not([data-theme="daylight"]):not([data-theme="sunrise"]):not([data-theme="amber-mist"]) .clip-item.kind-image .tag {
+:root[data-theme="dark"] .clip-item.kind-image .tag {
   background: rgba(16, 185, 129, 0.18);
   border-color: rgba(45, 212, 191, 0.3);
   color: rgba(167, 243, 208, 0.98);
 }
 
-:root:not([data-theme="white"]):not([data-theme="daylight"]):not([data-theme="sunrise"]):not([data-theme="amber-mist"]) .clip-item.pinned .tag {
+:root[data-theme="dark"] .clip-item.pinned .tag {
   background: rgba(245, 158, 11, 0.2);
   border-color: rgba(251, 191, 36, 0.34);
   color: rgba(253, 230, 138, 0.98);
@@ -1768,11 +1386,11 @@ select {
   display: grid;
   grid-template-columns: 176px minmax(0, 1fr);
   min-height: 100vh;
-  background: var(--settings-shell-bg);
+  background: transparent;
 }
 
 .settings-sidebar {
-  background: var(--settings-sidebar-bg);
+  background: rgba(30, 30, 30, 0.3);
   box-shadow: var(--settings-sidebar-shadow);
   border-right: 1px solid var(--settings-sidebar-border);
   padding: calc(var(--grid) * 0.95);
@@ -1871,7 +1489,7 @@ select {
 }
 
 .settings-card {
-  background: var(--settings-card-bg);
+  background: rgba(30, 30, 30, 0.25);
   border: 1px solid var(--settings-card-border);
   border-radius: var(--radius-card);
   box-shadow: var(--settings-card-shadow);
@@ -1970,7 +1588,7 @@ select {
   position: relative;
   display: grid;
   gap: calc(var(--grid) * 0.5);
-  background: var(--settings-control-bg);
+  background: rgba(36, 36, 36, 0.25);
   border: 1px solid var(--settings-control-border);
   border-radius: 10px;
   padding: calc(var(--grid) * 0.64) calc(var(--grid) * 0.86) calc(var(--grid) * 0.56);
@@ -2144,7 +1762,7 @@ select {
   overflow: auto;
   border-radius: 8px;
   border: 1px solid var(--settings-inset-border);
-  background: var(--settings-inset-bg);
+  background: rgba(20, 20, 20, 0.2);
   padding: calc(var(--grid) * 0.36) calc(var(--grid) * 0.68);
   scrollbar-width: thin;
 }
@@ -2280,7 +1898,7 @@ select {
 
 .agent-detail-pane {
   min-height: 0;
-  background: var(--settings-inset-bg);
+  background: rgba(20, 20, 20, 0.2);
   border: 1px solid var(--settings-inset-border);
   border-radius: var(--radius-card);
   padding: calc(var(--grid) * 0.86);
@@ -2423,6 +2041,7 @@ select {
   border-radius: 10px;
   border: 1px solid var(--settings-control-border);
   background: var(--settings-control-bg);
+  box-shadow: none;
   user-select: none;
 }
 
@@ -2740,169 +2359,84 @@ select {
    =========================== */
 
 :root,
-:root[data-theme="blue"],
-:root[data-theme="black"],
-:root[data-theme="md2-dark"] {
+:root[data-theme="dark"] {
+  --appearance-blur-px: 16px;
+  --appearance-saturate-percent: 135%;
+  --appearance-window-opacity: 0.16;
+  --appearance-surface-opacity: 0.35;
+  --appearance-card-opacity: 0.3;
+  --appearance-border-opacity: 0.1;
+  --appearance-shadow-opacity: 1;
+  --appearance-radius-px: 9px;
+  --appearance-font-scale: 1;
+  --appearance-accent-color: #8e8e8e;
+  --appearance-text-color: #f5f5f5;
+  --appearance-text-muted-color: #c8c8c8;
+
   color-scheme: dark;
-  --bg: #0a0f18;
-  --surface: #131b2a;
-  --surface-2: #1b2436;
-  --surface-3: #24314a;
-  --bg-accent: rgba(84, 131, 255, 0.2);
-  --primary: #6aa6ff;
-  --primary-soft: rgba(106, 166, 255, 0.22);
-  --icon-on-accent: #f3f7ff;
+  --bg: transparent;
+  --surface: rgba(14, 14, 14, var(--appearance-surface-opacity));
+  --surface-2: rgba(20, 20, 20, calc(0.08 + var(--appearance-surface-opacity) * 0.72));
+  --surface-3: rgba(29, 29, 29, calc(0.16 + var(--appearance-surface-opacity) * 0.62));
+  --bg-accent: rgba(255, 255, 255, 0.04);
+  --primary: var(--appearance-accent-color);
+  --primary-soft: color-mix(in srgb, var(--appearance-accent-color) 18%, transparent);
+  --icon-on-accent: #f4f4f4;
 
-  --text-high: rgba(244, 248, 255, 0.93);
-  --text-mid: rgba(206, 219, 244, 0.7);
-  --text-low: rgba(180, 197, 226, 0.48);
+  --text-high: var(--appearance-text-color);
+  --text-mid: var(--appearance-text-muted-color);
+  --text-low: color-mix(in srgb, var(--appearance-text-muted-color) 68%, transparent);
 
-  --elev-1: 0 8px 20px rgba(1, 5, 13, 0.34), 0 2px 6px rgba(0, 0, 0, 0.26);
-  --elev-2: 0 14px 28px rgba(2, 6, 16, 0.4), 0 3px 10px rgba(0, 0, 0, 0.28);
-  --elev-3: 0 20px 40px rgba(2, 6, 16, 0.48), 0 8px 18px rgba(0, 0, 0, 0.3);
+  --elev-1:
+    0 8px 20px rgba(0, 0, 0, calc(0.34 * var(--appearance-shadow-opacity))),
+    0 2px 6px rgba(0, 0, 0, calc(0.26 * var(--appearance-shadow-opacity)));
+  --elev-2:
+    0 14px 28px rgba(0, 0, 0, calc(0.4 * var(--appearance-shadow-opacity))),
+    0 3px 10px rgba(0, 0, 0, calc(0.28 * var(--appearance-shadow-opacity)));
+  --elev-3:
+    0 20px 40px rgba(0, 0, 0, calc(0.48 * var(--appearance-shadow-opacity))),
+    0 8px 18px rgba(0, 0, 0, calc(0.3 * var(--appearance-shadow-opacity)));
 
-  --settings-shell-bg: #0b1220;
-  --settings-sidebar-bg: rgba(18, 27, 43, 0.88);
-  --settings-sidebar-border: rgba(145, 173, 223, 0.16);
+  --settings-shell-bg: transparent;
+  --settings-sidebar-bg: rgba(16, 16, 16, calc(var(--appearance-card-opacity) * 0.88));
+  --settings-sidebar-border: rgba(255, 255, 255, var(--appearance-border-opacity));
   --settings-sidebar-shadow:
-    inset -1px 0 0 rgba(145, 173, 223, 0.12),
-    0 8px 24px rgba(1, 6, 16, 0.28);
+    inset -1px 0 0 rgba(255, 255, 255, calc(var(--appearance-border-opacity) * 0.66)),
+    0 8px 22px rgba(0, 0, 0, calc(0.3 * var(--appearance-shadow-opacity)));
   --settings-content-bg: transparent;
-  --settings-head-bg: rgba(19, 30, 46, 0.84);
-  --settings-head-border: rgba(145, 173, 223, 0.2);
-  --settings-card-bg: rgba(21, 33, 50, 0.88);
-  --settings-card-border: rgba(153, 181, 232, 0.18);
+  --settings-head-bg: transparent;
+  --settings-head-border: rgba(255, 255, 255, calc(var(--appearance-border-opacity) + 0.04));
+  --settings-card-bg: rgba(20, 20, 20, var(--appearance-card-opacity));
+  --settings-card-border: rgba(255, 255, 255, var(--appearance-border-opacity));
   --settings-card-shadow: var(--elev-1);
   --settings-card-shadow-hover: var(--elev-2);
   --settings-card-hover-lift: -1px;
-  --settings-control-bg: rgba(27, 39, 58, 0.84);
-  --settings-control-border: rgba(153, 181, 232, 0.2);
-  --settings-control-line: rgba(153, 181, 232, 0.3);
-  --settings-control-line-focus: rgba(106, 166, 255, 0.96);
-  --settings-control-hover: rgba(106, 166, 255, 0.12);
-  --settings-divider: rgba(153, 181, 232, 0.16);
-  --settings-sidebar-hover-bg: rgba(106, 166, 255, 0.14);
-  --settings-sidebar-active-bg: rgba(106, 166, 255, 0.24);
-  --settings-sidebar-active-color: #ecf4ff;
-  --settings-pill-bg: rgba(106, 166, 255, 0.15);
-  --settings-pill-border: rgba(153, 181, 232, 0.22);
-  --settings-inset-bg: rgba(18, 27, 43, 0.64);
-  --settings-inset-border: rgba(153, 181, 232, 0.15);
-  --settings-select-option-bg: #1a2538;
-  --settings-select-option-color: #eaf1ff;
-  --settings-check-border: rgba(177, 201, 240, 0.5);
-  --settings-check-ring: rgba(106, 166, 255, 0.24);
-
-  --selection-bar-bg: rgba(15, 23, 35, 0.9);
-  --selection-bar-item: rgba(231, 241, 255, 0.88);
-  --selection-bar-hover: #8ab7ff;
-  --selection-bar-custom: #7fe7c2;
-  --selection-bar-border: rgba(144, 172, 220, 0.24);
-  --selection-bar-outline: rgba(153, 181, 232, 0.22);
-  --selection-bar-elev: 0 10px 24px rgba(2, 9, 22, 0.42);
-  --selection-bar-btn-hover-bg: rgba(106, 166, 255, 0.16);
-
-  --select-surface: rgba(255, 255, 255, 0.04);
-  --select-surface-hover: rgba(106, 166, 255, 0.12);
-  --select-outline-soft: rgba(153, 181, 232, 0.18);
-  --select-line: rgba(153, 181, 232, 0.34);
-  --select-line-focus: rgba(106, 166, 255, 0.96);
-  --select-focus-ring: rgba(106, 166, 255, 0.24);
-  --select-chevron: rgba(231, 241, 255, 0.86);
-
-  --tag-bg: rgba(231, 241, 255, 0.11);
-  --tag-color: rgba(231, 241, 255, 0.86);
-  --tag-border: rgba(231, 241, 255, 0.2);
-  --favorite-btn-bg: rgba(231, 241, 255, 0.1);
-  --favorite-btn-color: rgba(231, 241, 255, 0.78);
-  --favorite-btn-hover-bg: rgba(106, 166, 255, 0.2);
-  --favorite-btn-hover-color: rgba(241, 247, 255, 0.98);
-  --favorite-btn-active-bg: rgba(255, 203, 74, 0.25);
-  --favorite-btn-active-color: #ffd978;
-
-  --app-brand-color: rgba(241, 247, 255, 0.95);
-  --control-hover-bg: rgba(106, 166, 255, 0.14);
-  --control-soft-hover-bg: rgba(106, 166, 255, 0.1);
-
-  --radius-card: 12px;
-  --radius-pill: 999px;
-  --settings-font-xs: 0.72rem;
-  --settings-font-sm: 0.8rem;
-  --settings-font-md: 0.88rem;
-  --settings-font-lg: 0.96rem;
-  --settings-font-xl: 1.04rem;
-
-  --clip-link-start: rgba(102, 164, 255, 0.24);
-  --clip-link-mid: rgba(102, 164, 255, 0.1);
-  --clip-image-start: rgba(87, 219, 193, 0.22);
-  --clip-image-mid: rgba(87, 219, 193, 0.08);
-  --clip-pin-start: rgba(255, 194, 82, 0.24);
-  --clip-pin-mid: rgba(255, 194, 82, 0.1);
-
-  color: var(--text-high);
-  font-family:
-    "Segoe UI Variable Text",
-    "Segoe UI",
-    "PingFang SC",
-    "Noto Sans SC",
-    sans-serif;
-  background: var(--bg);
-}
-
-:root[data-theme="deep-black"] {
-  color-scheme: dark;
-  --bg: #060606;
-  --surface: #0e0e0e;
-  --surface-2: #141414;
-  --surface-3: #1d1d1d;
-  --bg-accent: rgba(255, 255, 255, 0.04);
-  --primary: #8e8e8e;
-  --primary-soft: rgba(142, 142, 142, 0.16);
-  --icon-on-accent: #f4f4f4;
-
-  --text-high: rgba(245, 245, 245, 0.94);
-  --text-mid: rgba(210, 210, 210, 0.7);
-  --text-low: rgba(170, 170, 170, 0.48);
-
-  --settings-shell-bg: #090909;
-  --settings-sidebar-bg: rgba(16, 16, 16, 0.92);
-  --settings-sidebar-border: rgba(255, 255, 255, 0.1);
-  --settings-sidebar-shadow:
-    inset -1px 0 0 rgba(255, 255, 255, 0.06),
-    0 8px 22px rgba(0, 0, 0, 0.3);
-  --settings-content-bg: transparent;
-  --settings-head-bg: rgba(18, 18, 18, 0.88);
-  --settings-head-border: rgba(255, 255, 255, 0.12);
-  --settings-card-bg: rgba(20, 20, 20, 0.9);
-  --settings-card-border: rgba(255, 255, 255, 0.1);
-  --settings-card-shadow: 0 10px 24px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.34);
-  --settings-card-shadow-hover: 0 12px 28px rgba(0, 0, 0, 0.46), 0 3px 10px rgba(0, 0, 0, 0.38);
-  --settings-card-hover-lift: -1px;
-  --settings-control-bg: rgba(24, 24, 24, 0.9);
-  --settings-control-border: rgba(255, 255, 255, 0.14);
-  --settings-control-line: rgba(255, 255, 255, 0.24);
-  --settings-control-line-focus: rgba(192, 192, 192, 0.92);
+  --settings-control-bg: rgba(24, 24, 24, calc(0.08 + var(--appearance-card-opacity) * 0.72));
+  --settings-control-border: rgba(255, 255, 255, calc(var(--appearance-border-opacity) + 0.04));
+  --settings-control-line: rgba(255, 255, 255, calc(var(--appearance-border-opacity) + 0.14));
+  --settings-control-line-focus: color-mix(in srgb, var(--appearance-accent-color) 84%, #ffffff);
   --settings-control-hover: rgba(255, 255, 255, 0.08);
-  --settings-divider: rgba(255, 255, 255, 0.1);
+  --settings-divider: rgba(255, 255, 255, calc(var(--appearance-border-opacity) + 0.02));
   --settings-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
-  --settings-sidebar-active-bg: rgba(255, 255, 255, 0.16);
+  --settings-sidebar-active-bg: color-mix(in srgb, var(--appearance-accent-color) 26%, transparent);
   --settings-sidebar-active-color: rgba(248, 248, 248, 0.96);
-  --settings-pill-bg: rgba(255, 255, 255, 0.1);
-  --settings-pill-border: rgba(255, 255, 255, 0.16);
-  --settings-inset-bg: rgba(22, 22, 22, 0.82);
-  --settings-inset-border: rgba(255, 255, 255, 0.1);
+  --settings-pill-bg: color-mix(in srgb, var(--appearance-accent-color) 16%, transparent);
+  --settings-pill-border: rgba(255, 255, 255, calc(var(--appearance-border-opacity) + 0.06));
+  --settings-inset-bg: rgba(22, 22, 22, 0.2);
+  --settings-inset-border: rgba(255, 255, 255, calc(var(--appearance-border-opacity) + 0.02));
   --settings-select-option-bg: #111111;
   --settings-select-option-color: #f2f2f2;
-  --settings-check-border: rgba(230, 230, 230, 0.52);
-  --settings-check-ring: rgba(180, 180, 180, 0.24);
+  --settings-check-border: color-mix(in srgb, var(--appearance-accent-color) 38%, #ffffff);
+  --settings-check-ring: color-mix(in srgb, var(--appearance-accent-color) 24%, transparent);
 
-  --selection-bar-bg: rgba(12, 12, 12, 0.94);
+  --selection-bar-bg: rgba(12, 12, 12, var(--selection-bar-opacity));
   --selection-bar-item: rgba(237, 237, 237, 0.9);
-  --selection-bar-hover: #ffffff;
+  --selection-bar-hover: color-mix(in srgb, var(--appearance-accent-color) 70%, #ffffff);
   --selection-bar-custom: #d4d4d8;
-  --selection-bar-border: rgba(255, 255, 255, 0.14);
-  --selection-bar-outline: rgba(255, 255, 255, 0.16);
-  --selection-bar-elev: 0 8px 20px rgba(0, 0, 0, 0.5);
+  --selection-bar-border: rgba(255, 255, 255, calc(var(--appearance-border-opacity) + 0.04));
+  --selection-bar-outline: rgba(255, 255, 255, calc(var(--appearance-border-opacity) + 0.06));
+  --selection-bar-elev:
+    0 8px 20px rgba(0, 0, 0, calc(0.5 * var(--appearance-shadow-opacity)));
   --selection-bar-btn-hover-bg: rgba(255, 255, 255, 0.08);
 
   --select-surface: rgba(255, 255, 255, 0.03);
@@ -2927,297 +2461,29 @@ select {
   --control-hover-bg: rgba(255, 255, 255, 0.1);
   --control-soft-hover-bg: rgba(255, 255, 255, 0.07);
 
+  --radius-card: var(--appearance-radius-px);
+  --radius-pill: 999px;
+  --settings-font-xs: calc(0.72rem * var(--appearance-font-scale));
+  --settings-font-sm: calc(0.8rem * var(--appearance-font-scale));
+  --settings-font-md: calc(0.88rem * var(--appearance-font-scale));
+  --settings-font-lg: calc(0.96rem * var(--appearance-font-scale));
+  --settings-font-xl: calc(1.04rem * var(--appearance-font-scale));
+
   --clip-link-start: rgba(76, 148, 255, 0.24);
   --clip-link-mid: rgba(76, 148, 255, 0.1);
   --clip-image-start: rgba(16, 185, 129, 0.24);
   --clip-image-mid: rgba(16, 185, 129, 0.1);
   --clip-pin-start: rgba(255, 195, 74, 0.24);
   --clip-pin-mid: rgba(255, 195, 74, 0.1);
-}
 
-:root[data-theme="midnight"] {
-  color-scheme: dark;
-  --bg: #060b15;
-  --surface: #101a2f;
-  --surface-2: #172541;
-  --surface-3: #22335a;
-  --bg-accent: rgba(101, 132, 255, 0.22);
-  --primary: #7f9cff;
-  --primary-soft: rgba(127, 156, 255, 0.24);
-  --selection-bar-hover: #9cb4ff;
-  --selection-bar-custom: #76e4d7;
-  --selection-bar-btn-hover-bg: rgba(127, 156, 255, 0.2);
-  --app-brand-color: rgba(240, 246, 255, 0.97);
-  --clip-link-start: rgba(127, 156, 255, 0.28);
-  --clip-link-mid: rgba(127, 156, 255, 0.11);
-  --clip-image-start: rgba(94, 211, 255, 0.25);
-  --clip-image-mid: rgba(94, 211, 255, 0.1);
-  --clip-pin-start: rgba(255, 191, 102, 0.25);
-  --clip-pin-mid: rgba(255, 191, 102, 0.11);
-}
-
-:root[data-theme="gray"],
-:root[data-theme="graphite"] {
-  color-scheme: dark;
-  --bg: #1a1c1f;
-  --surface: #26292e;
-  --surface-2: #31353c;
-  --surface-3: #3a404a;
-  --bg-accent: rgba(166, 174, 190, 0.15);
-  --primary: #a7b2c4;
-  --primary-soft: rgba(167, 178, 196, 0.22);
-  --selection-bar-hover: #d1d5db;
-  --selection-bar-custom: #93c5fd;
-  --app-brand-color: rgba(245, 249, 255, 0.95);
-  --clip-link-start: rgba(88, 154, 255, 0.22);
-  --clip-link-mid: rgba(88, 154, 255, 0.09);
-  --clip-image-start: rgba(28, 189, 136, 0.22);
-  --clip-image-mid: rgba(28, 189, 136, 0.09);
-  --clip-pin-start: rgba(251, 191, 36, 0.22);
-  --clip-pin-mid: rgba(251, 191, 36, 0.1);
-  --settings-shell-bg: #1b1d21;
-  --settings-sidebar-bg: rgba(38, 41, 46, 0.9);
-  --settings-sidebar-border: rgba(200, 208, 220, 0.16);
-  --settings-sidebar-shadow:
-    inset -1px 0 0 rgba(200, 208, 220, 0.1),
-    0 8px 24px rgba(0, 0, 0, 0.22);
-  --settings-head-bg: rgba(42, 46, 52, 0.86);
-  --settings-head-border: rgba(200, 208, 220, 0.2);
-  --settings-card-bg: rgba(44, 48, 55, 0.88);
-  --settings-card-border: rgba(200, 208, 220, 0.2);
-  --settings-control-bg: rgba(55, 60, 68, 0.86);
-  --settings-control-border: rgba(200, 208, 220, 0.22);
-  --settings-control-line: rgba(200, 208, 220, 0.32);
-  --settings-control-line-focus: rgba(170, 184, 205, 0.95);
-  --settings-control-hover: rgba(170, 184, 205, 0.14);
-  --settings-divider: rgba(200, 208, 220, 0.16);
-  --settings-sidebar-hover-bg: rgba(170, 184, 205, 0.12);
-  --settings-sidebar-active-bg: rgba(170, 184, 205, 0.22);
-  --settings-sidebar-active-color: #f2f5fa;
-  --settings-pill-bg: rgba(170, 184, 205, 0.15);
-  --settings-pill-border: rgba(200, 208, 220, 0.22);
-  --settings-inset-bg: rgba(43, 48, 55, 0.64);
-  --settings-inset-border: rgba(200, 208, 220, 0.16);
-  --settings-select-option-bg: #353a43;
-  --settings-select-option-color: #edf1f8;
-  --settings-check-border: rgba(208, 216, 229, 0.5);
-  --settings-check-ring: rgba(170, 184, 205, 0.24);
-}
-
-:root[data-theme="white"],
-:root[data-theme="daylight"] {
-  color-scheme: light;
-  --bg: #f1f6ff;
-  --surface: #ffffff;
-  --surface-2: #f8fbff;
-  --surface-3: #edf4ff;
-  --bg-accent: rgba(54, 121, 255, 0.12);
-  --primary: #2f6feb;
-  --primary-soft: rgba(47, 111, 235, 0.16);
-  --icon-on-accent: #f8fbff;
-  --text-high: rgba(19, 33, 54, 0.92);
-  --text-mid: rgba(55, 76, 106, 0.72);
-  --text-low: rgba(96, 120, 154, 0.58);
-  --selection-bar-bg: rgba(255, 255, 255, 0.92);
-  --selection-bar-item: rgba(20, 41, 72, 0.85);
-  --selection-bar-hover: #2f6feb;
-  --selection-bar-custom: #12746c;
-  --selection-bar-border: rgba(86, 124, 183, 0.3);
-  --selection-bar-outline: rgba(86, 124, 183, 0.28);
-  --selection-bar-elev: 0 10px 24px rgba(28, 54, 97, 0.14);
-  --selection-bar-btn-hover-bg: rgba(47, 111, 235, 0.1);
-  --settings-shell-bg: #eef4ff;
-  --settings-sidebar-bg: rgba(250, 253, 255, 0.94);
-  --settings-sidebar-border: rgba(100, 132, 187, 0.22);
-  --settings-sidebar-shadow:
-    inset -1px 0 0 rgba(100, 132, 187, 0.18),
-    0 8px 24px rgba(32, 62, 110, 0.1);
-  --settings-head-bg: rgba(255, 255, 255, 0.88);
-  --settings-head-border: rgba(100, 132, 187, 0.24);
-  --settings-card-bg: rgba(255, 255, 255, 0.88);
-  --settings-card-border: rgba(100, 132, 187, 0.2);
-  --settings-control-bg: rgba(246, 250, 255, 0.92);
-  --settings-control-border: rgba(100, 132, 187, 0.24);
-  --settings-control-line: rgba(100, 132, 187, 0.34);
-  --settings-control-line-focus: rgba(47, 111, 235, 0.92);
-  --settings-control-hover: rgba(47, 111, 235, 0.08);
-  --settings-divider: rgba(100, 132, 187, 0.2);
-  --settings-sidebar-hover-bg: rgba(47, 111, 235, 0.09);
-  --settings-sidebar-active-bg: rgba(47, 111, 235, 0.16);
-  --settings-sidebar-active-color: rgba(19, 33, 54, 0.95);
-  --settings-pill-bg: rgba(47, 111, 235, 0.1);
-  --settings-pill-border: rgba(100, 132, 187, 0.22);
-  --settings-inset-bg: rgba(245, 250, 255, 0.84);
-  --settings-inset-border: rgba(100, 132, 187, 0.2);
-  --settings-select-option-bg: #ffffff;
-  --settings-select-option-color: #132136;
-  --settings-check-border: rgba(70, 100, 150, 0.46);
-  --settings-check-ring: rgba(47, 111, 235, 0.22);
-  --select-surface: rgba(33, 67, 120, 0.05);
-  --select-surface-hover: rgba(47, 111, 235, 0.1);
-  --select-outline-soft: rgba(100, 132, 187, 0.2);
-  --select-line: rgba(70, 100, 150, 0.34);
-  --select-line-focus: rgba(47, 111, 235, 0.88);
-  --select-focus-ring: rgba(47, 111, 235, 0.2);
-  --select-chevron: rgba(40, 62, 93, 0.74);
-  --favorite-btn-bg: rgba(30, 60, 110, 0.08);
-  --favorite-btn-color: rgba(30, 60, 110, 0.72);
-  --favorite-btn-hover-bg: rgba(47, 111, 235, 0.14);
-  --favorite-btn-hover-color: rgba(24, 52, 98, 0.92);
-  --favorite-btn-active-bg: rgba(240, 171, 66, 0.24);
-  --favorite-btn-active-color: #9b5a0a;
-  --control-hover-bg: rgba(47, 111, 235, 0.12);
-  --control-soft-hover-bg: rgba(47, 111, 235, 0.1);
-  --app-brand-color: #244d93;
-  --elev-1: 0 8px 20px rgba(42, 74, 128, 0.11), 0 2px 6px rgba(42, 74, 128, 0.08);
-  --elev-2: 0 14px 30px rgba(42, 74, 128, 0.14), 0 4px 10px rgba(42, 74, 128, 0.1);
-  --elev-3: 0 22px 42px rgba(42, 74, 128, 0.16), 0 8px 18px rgba(42, 74, 128, 0.12);
-  --clip-link-start: rgba(47, 111, 235, 0.23);
-  --clip-link-mid: rgba(47, 111, 235, 0.1);
-  --clip-image-start: rgba(14, 165, 151, 0.2);
-  --clip-image-mid: rgba(14, 165, 151, 0.09);
-  --clip-pin-start: rgba(245, 158, 11, 0.22);
-  --clip-pin-mid: rgba(245, 158, 11, 0.1);
-}
-
-:root[data-theme="sunrise"] {
-  color-scheme: light;
-  --bg: #fff5ef;
-  --surface: #fffdfb;
-  --surface-2: #fff7f2;
-  --surface-3: #ffeade;
-  --bg-accent: rgba(227, 112, 63, 0.14);
-  --primary: #d76a44;
-  --primary-soft: rgba(215, 106, 68, 0.18);
-  --icon-on-accent: #fffaf7;
-  --text-high: rgba(79, 35, 22, 0.93);
-  --text-mid: rgba(116, 59, 41, 0.74);
-  --text-low: rgba(153, 99, 81, 0.62);
-  --selection-bar-bg: rgba(255, 250, 246, 0.92);
-  --selection-bar-item: rgba(86, 36, 22, 0.88);
-  --selection-bar-hover: #cd5f3b;
-  --selection-bar-custom: #b24378;
-  --selection-bar-border: rgba(192, 112, 80, 0.34);
-  --selection-bar-outline: rgba(192, 112, 80, 0.3);
-  --selection-bar-elev: 0 10px 24px rgba(126, 58, 30, 0.16);
-  --selection-bar-btn-hover-bg: rgba(215, 106, 68, 0.12);
-  --settings-shell-bg: #fff3ed;
-  --settings-sidebar-bg: rgba(255, 250, 246, 0.95);
-  --settings-sidebar-border: rgba(200, 123, 89, 0.24);
-  --settings-sidebar-shadow:
-    inset -1px 0 0 rgba(200, 123, 89, 0.2),
-    0 8px 24px rgba(126, 58, 30, 0.1);
-  --settings-head-bg: rgba(255, 255, 255, 0.88);
-  --settings-head-border: rgba(200, 123, 89, 0.24);
-  --settings-card-bg: rgba(255, 255, 255, 0.9);
-  --settings-card-border: rgba(200, 123, 89, 0.22);
-  --settings-control-bg: rgba(255, 245, 240, 0.92);
-  --settings-control-border: rgba(200, 123, 89, 0.24);
-  --settings-control-line: rgba(200, 123, 89, 0.34);
-  --settings-control-line-focus: rgba(215, 106, 68, 0.9);
-  --settings-control-hover: rgba(215, 106, 68, 0.09);
-  --settings-divider: rgba(200, 123, 89, 0.2);
-  --settings-sidebar-hover-bg: rgba(215, 106, 68, 0.1);
-  --settings-sidebar-active-bg: rgba(215, 106, 68, 0.18);
-  --settings-sidebar-active-color: rgba(79, 35, 22, 0.96);
-  --settings-pill-bg: rgba(215, 106, 68, 0.12);
-  --settings-pill-border: rgba(200, 123, 89, 0.22);
-  --settings-inset-bg: rgba(255, 247, 241, 0.9);
-  --settings-inset-border: rgba(200, 123, 89, 0.2);
-  --settings-select-option-bg: #fffefb;
-  --settings-select-option-color: #4f2316;
-  --settings-check-border: rgba(160, 85, 55, 0.48);
-  --settings-check-ring: rgba(215, 106, 68, 0.2);
-  --select-surface: rgba(105, 45, 28, 0.05);
-  --select-surface-hover: rgba(215, 106, 68, 0.11);
-  --select-outline-soft: rgba(200, 123, 89, 0.22);
-  --select-line: rgba(160, 85, 55, 0.34);
-  --select-line-focus: rgba(215, 106, 68, 0.9);
-  --select-focus-ring: rgba(215, 106, 68, 0.2);
-  --select-chevron: rgba(79, 35, 22, 0.72);
-  --favorite-btn-bg: rgba(105, 45, 28, 0.08);
-  --favorite-btn-color: rgba(105, 45, 28, 0.72);
-  --favorite-btn-hover-bg: rgba(215, 106, 68, 0.14);
-  --favorite-btn-hover-color: rgba(79, 35, 22, 0.92);
-  --favorite-btn-active-bg: rgba(255, 189, 97, 0.24);
-  --favorite-btn-active-color: #9e4f12;
-  --app-brand-color: #a34f34;
-  --clip-link-start: rgba(214, 106, 68, 0.22);
-  --clip-link-mid: rgba(214, 106, 68, 0.1);
-  --clip-image-start: rgba(189, 74, 133, 0.2);
-  --clip-image-mid: rgba(189, 74, 133, 0.08);
-  --clip-pin-start: rgba(248, 163, 57, 0.23);
-  --clip-pin-mid: rgba(248, 163, 57, 0.11);
-}
-
-:root[data-theme="amber-mist"] {
-  color-scheme: light;
-  --bg: #fff9ee;
-  --surface: #fffef9;
-  --surface-2: #fff8e7;
-  --surface-3: #f9ebc9;
-  --bg-accent: rgba(182, 129, 27, 0.14);
-  --primary: #af7c1d;
-  --primary-soft: rgba(175, 124, 29, 0.18);
-  --icon-on-accent: #fffdfa;
-  --text-high: rgba(77, 55, 14, 0.93);
-  --text-mid: rgba(112, 85, 27, 0.76);
-  --text-low: rgba(146, 118, 57, 0.62);
-  --selection-bar-bg: rgba(255, 253, 241, 0.93);
-  --selection-bar-item: rgba(82, 57, 14, 0.88);
-  --selection-bar-hover: #986813;
-  --selection-bar-custom: #1f7f80;
-  --selection-bar-border: rgba(182, 129, 27, 0.32);
-  --selection-bar-outline: rgba(182, 129, 27, 0.28);
-  --selection-bar-elev: 0 10px 24px rgba(121, 79, 10, 0.14);
-  --selection-bar-btn-hover-bg: rgba(175, 124, 29, 0.12);
-  --settings-shell-bg: #fff8ec;
-  --settings-sidebar-bg: rgba(255, 254, 248, 0.95);
-  --settings-sidebar-border: rgba(182, 129, 27, 0.24);
-  --settings-sidebar-shadow:
-    inset -1px 0 0 rgba(182, 129, 27, 0.2),
-    0 8px 24px rgba(121, 79, 10, 0.08);
-  --settings-head-bg: rgba(255, 255, 255, 0.9);
-  --settings-head-border: rgba(182, 129, 27, 0.24);
-  --settings-card-bg: rgba(255, 255, 255, 0.92);
-  --settings-card-border: rgba(182, 129, 27, 0.22);
-  --settings-control-bg: rgba(255, 251, 236, 0.92);
-  --settings-control-border: rgba(182, 129, 27, 0.24);
-  --settings-control-line: rgba(182, 129, 27, 0.34);
-  --settings-control-line-focus: rgba(175, 124, 29, 0.9);
-  --settings-control-hover: rgba(175, 124, 29, 0.08);
-  --settings-divider: rgba(182, 129, 27, 0.19);
-  --settings-sidebar-hover-bg: rgba(175, 124, 29, 0.1);
-  --settings-sidebar-active-bg: rgba(175, 124, 29, 0.18);
-  --settings-sidebar-active-color: rgba(77, 55, 14, 0.96);
-  --settings-pill-bg: rgba(175, 124, 29, 0.12);
-  --settings-pill-border: rgba(182, 129, 27, 0.22);
-  --settings-inset-bg: rgba(255, 251, 237, 0.9);
-  --settings-inset-border: rgba(182, 129, 27, 0.2);
-  --settings-select-option-bg: #fffef8;
-  --settings-select-option-color: #4d370e;
-  --settings-check-border: rgba(145, 102, 26, 0.48);
-  --settings-check-ring: rgba(175, 124, 29, 0.2);
-  --select-surface: rgba(90, 66, 17, 0.05);
-  --select-surface-hover: rgba(175, 124, 29, 0.11);
-  --select-outline-soft: rgba(182, 129, 27, 0.22);
-  --select-line: rgba(145, 102, 26, 0.34);
-  --select-line-focus: rgba(175, 124, 29, 0.9);
-  --select-focus-ring: rgba(175, 124, 29, 0.2);
-  --select-chevron: rgba(77, 55, 14, 0.72);
-  --favorite-btn-bg: rgba(90, 66, 17, 0.08);
-  --favorite-btn-color: rgba(90, 66, 17, 0.72);
-  --favorite-btn-hover-bg: rgba(175, 124, 29, 0.14);
-  --favorite-btn-hover-color: rgba(77, 55, 14, 0.92);
-  --favorite-btn-active-bg: rgba(255, 183, 62, 0.24);
-  --favorite-btn-active-color: #8a5b0b;
-  --app-brand-color: #8c6418;
-  --clip-link-start: rgba(16, 132, 167, 0.22);
-  --clip-link-mid: rgba(16, 132, 167, 0.09);
-  --clip-image-start: rgba(34, 173, 138, 0.2);
-  --clip-image-mid: rgba(34, 173, 138, 0.08);
-  --clip-pin-start: rgba(218, 137, 20, 0.24);
-  --clip-pin-mid: rgba(218, 137, 20, 0.1);
+  color: var(--text-high);
+  font-family:
+    "Segoe UI Variable Text",
+    "Segoe UI",
+    "PingFang SC",
+    "Noto Sans SC",
+    sans-serif;
+  background: transparent;
 }
 
 html,
@@ -3226,12 +2492,35 @@ body,
   background: var(--bg);
 }
 
+html[data-window="selection_bar"] {
+  --appearance-blur-px: 16px !important;
+  --appearance-saturate-percent: 135% !important;
+  --primary: #8e8e8e !important;
+  --primary-soft: rgba(142, 142, 142, 0.16) !important;
+  --selection-bar-bg: rgba(12, 12, 12, var(--selection-bar-opacity)) !important;
+  --selection-bar-item: rgba(237, 237, 237, 0.9) !important;
+  --selection-bar-hover: #ffffff !important;
+  --selection-bar-custom: #d4d4d8 !important;
+  --selection-bar-border: rgba(255, 255, 255, 0.14) !important;
+  --selection-bar-outline: rgba(255, 255, 255, 0.16) !important;
+  --selection-bar-elev: 0 8px 20px rgba(0, 0, 0, 0.5) !important;
+  --selection-bar-btn-hover-bg: rgba(255, 255, 255, 0.08) !important;
+  --text-high: rgba(245, 245, 245, 0.94) !important;
+  --text-mid: rgba(210, 210, 210, 0.7) !important;
+  --text-low: rgba(170, 170, 170, 0.48) !important;
+}
+
 body {
   letter-spacing: 0.01em;
+  font-size: calc(14px * var(--appearance-font-scale));
 }
 
 .window-root {
   background:
+    linear-gradient(
+      rgba(0, 0, 0, var(--appearance-window-opacity)),
+      rgba(0, 0, 0, var(--appearance-window-opacity))
+    ),
     radial-gradient(140% 90% at 0% 0%, var(--bg-accent) 0%, transparent 44%),
     radial-gradient(140% 95% at 100% 100%, rgba(255, 255, 255, 0.02) 0%, transparent 52%),
     var(--bg);
@@ -3251,8 +2540,8 @@ html[data-window="ocr_result"] .window-root {
 .ocr-result-shell,
 .agent-modal,
 .selection-bar-shell {
-  backdrop-filter: saturate(135%) blur(16px);
-  -webkit-backdrop-filter: saturate(135%) blur(16px);
+  backdrop-filter: saturate(var(--appearance-saturate-percent)) blur(var(--appearance-blur-px));
+  -webkit-backdrop-filter: saturate(var(--appearance-saturate-percent)) blur(var(--appearance-blur-px));
 }
 
 .panel-head {
@@ -3272,8 +2561,8 @@ html[data-window="ocr_result"] .window-root {
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  background: var(--settings-control-bg);
-  border: 1px solid var(--settings-control-border);
+  background: transparent;
+  border: 1px solid transparent;
   box-shadow: none;
   color: var(--text-mid);
   transition:
@@ -3468,7 +2757,8 @@ html[data-window="ocr_result"] .window-root {
   --selection-shell-radius: 10px;
   min-height: 30px;
   height: 30px;
-  padding: 3px 6px;
+  padding: 0 6px;
+  box-sizing: border-box;
 }
 
 .selection-action-btn {
@@ -3476,6 +2766,11 @@ html[data-window="ocr_result"] .window-root {
   border-radius: 7px;
   font-size: 0.69rem;
   padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  line-height: 1;
 }
 
 .selection-action-btn.compact {
@@ -3488,14 +2783,14 @@ html[data-window="ocr_result"] .window-root {
 .ocr-result-shell {
   border-radius: 14px;
   border: 1px solid var(--settings-card-border);
-  background: var(--settings-card-bg);
-  box-shadow: var(--elev-2);
+  background: transparent;
+  box-shadow: none;
 }
 
 .selection-result-titlebar,
 .ocr-result-titlebar {
   min-height: 36px;
-  background: var(--settings-control-bg);
+  background: transparent;
   border-bottom: 1px solid var(--settings-divider);
 }
 
@@ -3838,7 +3133,7 @@ html[data-window="settings"] body {
   border-radius: 12px;
   border: 1px solid var(--settings-card-border);
   background: var(--settings-card-bg);
-  box-shadow: var(--settings-card-shadow);
+  box-shadow: none;
   padding: 18px 20px;
   gap: 10px;
 }
@@ -3931,6 +3226,101 @@ html[data-window="settings"] body {
   color: var(--settings-select-option-color);
 }
 
+.appearance-fold {
+  margin-top: 10px;
+  border: 1px solid var(--settings-card-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--settings-card-bg) 88%, transparent);
+  overflow: hidden;
+}
+
+.appearance-fold > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  padding: 10px 12px;
+  font-size: var(--settings-font-md);
+  font-weight: 600;
+  color: var(--text-high);
+  list-style: none;
+}
+
+.appearance-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.appearance-fold > summary::after {
+  content: "▾";
+  color: var(--text-mid);
+  font-size: 0.86rem;
+  line-height: 1;
+  transform: rotate(-90deg);
+  transition: transform 140ms ease;
+}
+
+.appearance-fold[open] > summary::after {
+  transform: rotate(0deg);
+}
+
+.appearance-fold[open] > summary {
+  border-bottom: 1px solid var(--settings-divider);
+}
+
+.appearance-fold .appearance-grid {
+  margin: 10px;
+}
+
+.appearance-range-row,
+.appearance-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.appearance-range {
+  flex: 1;
+  accent-color: var(--primary);
+  min-width: 0;
+}
+
+.appearance-value {
+  font-size: 0.82rem;
+  color: var(--text-mid);
+  min-width: 72px;
+  text-align: right;
+}
+
+.appearance-color {
+  width: 34px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1px solid var(--settings-control-border);
+  background: transparent;
+  padding: 0;
+}
+
+.appearance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.appearance-slider-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.appearance-grid .filled-control {
+  margin-top: 0;
+}
+
+.appearance-cell {
+  min-width: 0;
+}
+
 .status-pill,
 .settings-window .tonal-btn,
 .settings-window .icon-btn {
@@ -3945,14 +3335,15 @@ html[data-window="settings"] body {
   background: var(--settings-control-hover);
 }
 
-.settings-window .shortcut-item,
-.settings-window .settings-json,
-.settings-window .blocked-app-picker-list,
-.settings-window .bar-order-list,
+.settings-window .bar-order-list {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
 .settings-window .bar-order-item {
   border-radius: 10px;
   border-color: var(--settings-control-border);
-  background: var(--settings-inset-bg);
+  background: rgba(20, 20, 20, 0.2);
   box-shadow: none;
 }
 
@@ -3976,8 +3367,8 @@ html[data-window="settings"] body {
 }
 
 .settings-window *::-webkit-scrollbar {
-  width: 1px;
-  height: 1px;
+  width: 0.5px;
+  height: 0.5px;
 }
 
 .settings-window *::-webkit-scrollbar-track {
@@ -4024,12 +3415,13 @@ html[data-window="settings"] body {
 /* Clipboard: keep item and window corner radius consistent */
 .clipboard-window {
   --clipboard-window-radius: 12px;
+  --clipboard-inner-radius: 8px; /* Slightly smaller than outer window to look nested */
   border-radius: var(--clipboard-window-radius);
   overflow: hidden;
 }
 
 .clipboard-window .clip-item {
-  border-radius: var(--clipboard-window-radius) !important;
+  border-radius: var(--clipboard-inner-radius) !important;
 }
 
 html[data-window="main"] .window-root {
@@ -4079,7 +3471,6 @@ html[data-window="ocr_result"] .window-root {
 .selection-result-content,
 .ocr-result-content {
   border-radius: 0 0 12px 12px;
-  background: var(--settings-card-bg);
 }
 
 /* Selection bar: slightly smaller roundness */
@@ -4115,12 +3506,12 @@ html[data-window="selection_result"] #root,
 html[data-window="ocr_result"],
 html[data-window="ocr_result"] body,
 html[data-window="ocr_result"] #root {
-  background: var(--surface, #1e1e1e) !important;
+  background: transparent !important;
 }
 
 html[data-window="selection_result"] .window-root,
 html[data-window="ocr_result"] .window-root {
-  background: var(--surface, #1e1e1e) !important;
+  background: transparent !important;
   border-radius: 0 !important;
   overflow: hidden !important;
   padding: 0 !important;
@@ -4130,7 +3521,7 @@ html[data-window="ocr_result"] .window-root {
 .ocr-result-window {
   border-radius: 0 !important;
   overflow: hidden !important;
-  background: var(--settings-card-bg) !important;
+  background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
 }
@@ -4141,7 +3532,7 @@ html[data-window="ocr_result"] .window-root {
   overflow: hidden !important;
   border: 1px solid var(--settings-card-border) !important;
   box-shadow: none !important;
-  background: var(--settings-card-bg) !important;
+  background: transparent !important;
 }
 
 .selection-result-titlebar,
@@ -4149,6 +3540,15 @@ html[data-window="ocr_result"] .window-root {
 .selection-result-content,
 .ocr-result-content {
   border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.ocr-result-block {
+  background: rgba(20, 20, 20, 0.35) !important;
+}
+
+.selection-textarea {
+  background: transparent !important;
 }
 
 /* Clipboard: polished refresh + corner artifact fix */
@@ -4158,49 +3558,43 @@ html[data-window="ocr_result"] .window-root {
   --clip-pin-overlay-opacity: 0.9;
 }
 
-:root[data-theme="white"],
-:root[data-theme="daylight"],
-:root[data-theme="sunrise"],
-:root[data-theme="amber-mist"] {
-  --clip-link-overlay-opacity: 0.78;
-  --clip-image-overlay-opacity: 0.84;
-  --clip-pin-overlay-opacity: 0.78;
-}
-
 html[data-window="main"],
 html[data-window="main"] body,
 html[data-window="main"] #root {
-  background: var(--surface, #1e1e1e) !important;
+  background: transparent !important;
 }
 
 html[data-window="main"] .window-root {
   --clipboard-window-radius: 14px;
   border-radius: var(--clipboard-window-radius) !important;
-  background: var(--surface, #1e1e1e) !important;
+  background: transparent !important;
   overflow: hidden !important;
   clip-path: inset(0 round var(--clipboard-window-radius));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--settings-card-border) 76%, transparent);
 }
 
 .clipboard-window {
+  --clipboard-fill-layer-bg: rgba(30, 30, 30, 0.25);
   border-radius: inherit !important;
-  background:
-    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--bg-accent) 32%, transparent) 0%, transparent 52%),
-    var(--surface, #1e1e1e) !important;
+  background: transparent !important;
 }
 
 .clipboard-window .panel-head {
-  border-radius: 11px;
+  border-radius: 9px;
   padding: calc(var(--grid) * 0.64) calc(var(--grid) * 0.82);
   border: 1px solid var(--settings-card-border);
-  background: color-mix(in srgb, var(--settings-card-bg) 92%, transparent);
+  background: rgba(30, 30, 30, 0.25);
   box-shadow: none;
+}
+
+html[data-window="main"] .clipboard-window .panel-head .app-brand-gradient {
+  margin-left: 3px;
 }
 
 .clipboard-window .toolbar {
   border-radius: 10px;
   border: 1px solid var(--settings-control-border);
-  background: color-mix(in srgb, var(--settings-control-bg) 94%, transparent);
+  background: rgba(36, 36, 36, 0.25);
   box-shadow: none;
 }
 
@@ -4216,9 +3610,9 @@ html[data-window="main"] .window-root {
 
 .clipboard-window .category-chip {
   min-height: 22px;
-  border-radius: 999px;
+  border-radius: 9px;
   border: 1px solid var(--settings-control-border);
-  background: color-mix(in srgb, var(--settings-control-bg) 96%, transparent);
+  background: rgba(36, 36, 36, 0.25);
   padding: calc(var(--grid) * 0.26) calc(var(--grid) * 0.66);
   font-weight: 540;
 }
@@ -4243,7 +3637,7 @@ html[data-window="main"] .window-root {
   position: relative;
   border-radius: 14px !important;
   border: 1px solid color-mix(in srgb, var(--settings-card-border) 86%, transparent);
-  background: color-mix(in srgb, var(--surface-2) 96%, transparent);
+  background: var(--clipboard-fill-layer-bg);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.02);
   overflow: hidden;
   transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
@@ -4339,7 +3733,7 @@ html[data-window="main"] .window-root {
 html[data-window="main"],
 html[data-window="main"] body,
 html[data-window="main"] #root {
-  background: var(--surface, #1e1e1e) !important;
+  background: transparent !important;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -4350,24 +3744,39 @@ html[data-window="main"] .window-root {
   overflow: hidden !important;
   clip-path: none !important;
   box-shadow: none !important;
-  background: var(--surface, #1e1e1e) !important;
+  background: transparent !important;
 }
 
 .clipboard-window {
   display: flex !important;
   flex-direction: column;
-  gap: calc(var(--grid) * 0.62);
+  gap: 4px;
+  padding: 0 !important;
   border-radius: var(--clipboard-window-radius) !important;
   overflow: hidden !important;
 }
 
 .clipboard-window.top-controls-collapsed {
-  gap: calc(var(--grid) * 0.3);
+  gap: 2px;
 }
 
 .clipboard-window .panel-head,
 .clipboard-window .clipboard-top-controls {
   flex: 0 0 auto;
+  margin-left: 4px;
+  margin-right: 4px;
+}
+
+.clipboard-window .panel-head {
+  margin-top: 4px;
+}
+
+.clipboard-window .clipboard-top-controls {
+  gap: 4px !important;
+}
+
+.clipboard-window .category-row {
+  padding-bottom: 0 !important;
 }
 
 .clipboard-window .clip-stream {
@@ -4376,14 +3785,14 @@ html[data-window="main"] .window-root {
   align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;
-  gap: calc(var(--grid) * 0.72) !important;
-  padding-top: calc(var(--grid) * 0.2);
+  gap: 4px !important;
+  padding: 0 4px 4px;
 }
 
 .clipboard-window .clip-item {
   flex: 0 0 auto;
   width: 100%;
-  border-radius: var(--clipboard-window-radius) !important;
+  border-radius: 9px !important;
   isolation: isolate;
 }
 
@@ -4426,6 +3835,7 @@ html[data-window="settings"],
 html[data-window="settings"] body,
 html[data-window="settings"] #root {
   background: transparent !important;
+  background-color: transparent !important;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -4434,21 +3844,16 @@ html[data-window="settings"] .window-root.settings-window {
   --settings-window-radius: 12px;
   position: relative;
   border-radius: var(--settings-window-radius) !important;
-  overflow: hidden !important;
-  clip-path: inset(0 round var(--settings-window-radius));
+  overflow: visible !important;
+  clip-path: none !important;
   background: transparent !important;
+  background-color: transparent !important;
   border: 1px solid var(--settings-sidebar-border);
 }
 
 html[data-window="settings"] .window-root.settings-window::before {
-  content: "" !important;
-  display: block !important;
-  position: absolute;
-  inset: 1px;
-  border-radius: calc(var(--settings-window-radius) - 1px);
-  background: var(--settings-shell-bg);
-  pointer-events: none;
-  z-index: 0;
+  content: none !important;
+  display: none !important;
 }
 
 html[data-window="settings"] .settings-sidebar,
@@ -4458,7 +3863,13 @@ html[data-window="settings"] .settings-content {
 }
 
 html[data-window="settings"] .settings-sidebar {
-  border-radius: calc(var(--settings-window-radius) - 1px) 0 0 calc(var(--settings-window-radius) - 1px);
+  border-radius: 0 0 0 calc(var(--settings-window-radius) - 1px);
+  margin-top: -1px;
+  margin-left: -1px;
+  margin-bottom: -1px;
+  padding-top: calc(var(--grid) * 0.95 + 1px);
+  padding-left: calc(var(--grid) * 0.95 + 1px);
+  padding-bottom: calc(var(--grid) * 0.95 + 1px);
 }
 
 html[data-window="settings"] .settings-content {
@@ -4476,7 +3887,7 @@ html[data-window="selection_bar"] .selection-bar-window {
 }
 
 .selection-bar-window {
-  padding: 0 !important;
+  padding: 2px !important;
 }
 
 .selection-bar-shell {
@@ -4497,9 +3908,10 @@ html[data-window="selection_bar"] .selection-bar-window {
 html[data-window="settings"] .window-root.settings-window {
   --settings-window-radius: 12px;
   border-radius: var(--settings-window-radius) !important;
+  overflow: visible !important;
   clip-path: none !important;
-  overflow: hidden !important;
-  background: var(--settings-shell-bg) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   border: 1px solid var(--settings-sidebar-border) !important;
   box-shadow: none !important;
 }
@@ -4510,10 +3922,17 @@ html[data-window="settings"] .window-root.settings-window::after {
   display: none !important;
 }
 
-html[data-window="settings"] .settings-sidebar,
+html[data-window="settings"] .settings-sidebar {
+  border-radius: 0 !important;
+  background-clip: border-box;
+  overflow: hidden !important;
+}
+
 html[data-window="settings"] .settings-content {
   border-radius: 0 !important;
-  background-clip: padding-box;
+  background-clip: border-box;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 /* 3) Clipboard search: remove outer border ring and align width with clip items */
@@ -4534,7 +3953,7 @@ html[data-window="settings"] .settings-content {
   box-shadow: none !important;
   border-radius: 10px;
   padding: calc(var(--grid) * 0.42) calc(var(--grid) * 0.82);
-  background: color-mix(in srgb, var(--settings-control-bg) 96%, transparent) !important;
+  background: rgba(36, 36, 36, 0.25) !important;
 }
 
 .clipboard-window .search-box:focus-within {
@@ -4548,7 +3967,8 @@ html[data-window="settings"] .settings-content {
 html[data-window="settings"],
 html[data-window="settings"] body,
 html[data-window="settings"] #root {
-  background: var(--settings-shell-bg) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   border-radius: 12px !important;
   overflow: hidden !important;
   box-shadow: none !important;
@@ -4560,14 +3980,111 @@ html[data-window="settings"] .window-root.settings-window {
   box-shadow: none !important;
   outline: none !important;
   clip-path: none !important;
-  background: var(--settings-shell-bg) !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 html[data-window="settings"] .settings-sidebar,
 html[data-window="settings"] .settings-content {
-  border-radius: 0 !important;
   box-shadow: none !important;
   background-clip: padding-box;
+}
+
+html[data-window="settings"] .settings-sidebar {
+  border-radius: 0 calc(var(--settings-window-radius) - 1px) calc(var(--settings-window-radius) - 1px) 0 !important;
+  overflow: hidden !important;
+}
+
+html[data-window="settings"] .settings-content {
+  border-radius: 0 !important;
+}
+
+/* Settings: unified smaller radius scale + sidebar seam fix */
+html[data-window="settings"],
+html[data-window="settings"] body,
+html[data-window="settings"] #root {
+  border-radius: 9px !important;
+}
+
+html[data-window="settings"] .window-root.settings-window {
+  --settings-window-radius: 9px;
+  border-radius: var(--settings-window-radius) !important;
+  overflow: hidden !important;
+}
+
+html[data-window="settings"] .settings-sidebar {
+  margin: 0 !important;
+  padding: 12px 5px !important;
+  border-radius: 0 calc(var(--settings-window-radius) - 3px) calc(var(--settings-window-radius) - 3px) 0 !important;
+  border-top: 1px solid color-mix(in srgb, var(--settings-sidebar-border) 52%, transparent) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--settings-sidebar-border) 52%, transparent) !important;
+}
+
+html[data-window="settings"] .settings-card {
+  border-radius: 9px !important;
+}
+
+html[data-window="settings"] .sidebar-item {
+  border-radius: 7px !important;
+}
+
+html[data-window="settings"] .filled-control,
+html[data-window="settings"] .settings-window .md2-select,
+html[data-window="settings"] .shortcut-item,
+html[data-window="settings"] .settings-json,
+html[data-window="settings"] .blocked-app-picker-list,
+html[data-window="settings"] .bar-order-item {
+  border-radius: 7px !important;
+}
+
+html[data-window="settings"] .settings-window .md2-check {
+  border-radius: 4px !important;
+}
+
+html[data-window="settings"] .settings-head {
+  display: none !important;
+}
+
+html[data-window="settings"] .settings-content {
+  padding: 0 10px 10px !important;
+  gap: 0 !important;
+}
+
+html[data-window="settings"] .settings-stack {
+  margin-top: 0 !important;
+  gap: 10px !important;
+  padding-bottom: 0 !important;
+}
+
+html[data-window="settings"],
+html[data-window="settings"] body,
+html[data-window="settings"] #root,
+html[data-window="settings"] .window-root.settings-window {
+  overflow: hidden !important;
+}
+
+html[data-window="settings"] .settings-content {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html[data-window="settings"] .settings-window * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+html[data-window="settings"] .settings-window *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+html[data-window="settings"] .settings-window *::-webkit-scrollbar-button {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 /* Clipboard search: same subtle border style as clip items + focused highlight */
@@ -4577,15 +4094,164 @@ html[data-window="settings"] .settings-content {
 
 .clipboard-window .search-box {
   width: 100%;
-  border: 1px solid color-mix(in srgb, var(--settings-card-border) 86%, transparent) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--settings-card-border) 32%, transparent) !important;
+  border-radius: var(--clipboard-inner-radius) !important;
+  border: 0 !important;
+  box-shadow: none !important;
   background-clip: padding-box;
   outline: none;
 }
 
 .clipboard-window .search-box:focus-within {
-  border-color: color-mix(in srgb, var(--primary) 86%, var(--settings-card-border)) !important;
-  box-shadow:
-    inset 0 0 0 2px color-mix(in srgb, var(--primary) 46%, transparent),
-    inset 0 0 0 999px color-mix(in srgb, var(--primary) 6%, transparent) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: color-mix(in srgb, var(--settings-control-bg) 92%, var(--primary) 8%) !important;
+}
+
+/* Result titlebar controls: icon-only style (remove outer wrapper feel and borders) */
+.selection-result-window-controls .icon-btn,
+.ocr-result-window-controls .icon-btn {
+  width: 20px !important;
+  height: 20px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.selection-result-window-controls .icon-btn:hover,
+.ocr-result-window-controls .icon-btn:hover,
+.selection-result-window-controls .icon-btn:focus-visible,
+.ocr-result-window-controls .icon-btn:focus-visible,
+.selection-result-window-controls .icon-btn.active,
+.ocr-result-window-controls .icon-btn.active {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Clipboard card gradient toggle */
+html[data-window="main"][data-clip-gradients="off"] .clipboard-window .clip-item.kind-link,
+html[data-window="main"][data-clip-gradients="off"] .clipboard-window .clip-item.kind-image,
+html[data-window="main"][data-clip-gradients="off"] .clipboard-window .clip-item.pinned {
+  background: color-mix(in srgb, var(--surface) 90%, transparent) !important;
+}
+
+html[data-window="main"][data-clip-gradients="off"] .clipboard-window .clip-item.kind-link::before,
+html[data-window="main"][data-clip-gradients="off"] .clipboard-window .clip-item.kind-image::before,
+html[data-window="main"][data-clip-gradients="off"] .clipboard-window .clip-item.pinned::before {
+  content: none !important;
+  background: none !important;
+}
+
+html[data-window="main"][data-clip-gradients="off"] .clipboard-window .clip-item.kind-link .link-text {
+  color: var(--text-high) !important;
+}
+
+html[data-window="main"][data-clip-gradients="off"] .clipboard-window .clip-item.kind-image .item-image {
+  border-color: var(--settings-control-border) !important;
+  background: color-mix(in srgb, var(--surface-2) 95%, transparent) !important;
+}
+
+html[data-window="main"][data-clip-gradients="off"] .clipboard-window .clip-item .tag {
+  background: var(--tag-bg) !important;
+  border-color: var(--tag-border) !important;
+  color: var(--tag-color) !important;
+}
+
+/* Appearance runtime: keep window opacity and blur controls effective across app windows */
+html[data-window="main"] .window-root,
+html[data-window="settings"] .window-root.settings-window,
+html[data-window="selection_result"] .window-root,
+html[data-window="ocr_result"] .window-root {
+  background:
+    linear-gradient(
+      rgba(0, 0, 0, var(--appearance-window-opacity)),
+      rgba(0, 0, 0, var(--appearance-window-opacity))
+    ),
+    radial-gradient(140% 90% at 0% 0%, var(--bg-accent) 0%, transparent 44%),
+    radial-gradient(140% 95% at 100% 100%, rgba(255, 255, 255, 0.02) 0%, transparent 52%),
+    transparent !important;
+  backdrop-filter: saturate(var(--appearance-saturate-percent)) blur(var(--appearance-blur-px)) !important;
+  -webkit-backdrop-filter: saturate(var(--appearance-saturate-percent)) blur(var(--appearance-blur-px)) !important;
+}
+
+html[data-window="main"] .panel-head,
+html[data-window="main"] .clipboard-window .search-box,
+html[data-window="main"] .clipboard-window .category-chip,
+html[data-window="main"] .clipboard-window .clip-item,
+html[data-window="settings"] .settings-sidebar,
+html[data-window="settings"] .settings-card,
+html[data-window="settings"] .filled-control,
+html[data-window="settings"] .shortcut-item,
+html[data-window="settings"] .settings-json,
+html[data-window="settings"] .blocked-app-picker-list,
+html[data-window="settings"] .bar-order-item,
+html[data-window="selection_result"] .selection-result-shell,
+html[data-window="selection_result"] .selection-result-text,
+html[data-window="ocr_result"] .ocr-result-shell {
+  backdrop-filter: saturate(var(--appearance-saturate-percent)) blur(var(--appearance-blur-px)) !important;
+  -webkit-backdrop-filter: saturate(var(--appearance-saturate-percent)) blur(var(--appearance-blur-px)) !important;
+}
+
+html[data-window="selection_result"] .selection-result-shell,
+html[data-window="ocr_result"] .ocr-result-shell {
+  background: color-mix(in srgb, var(--surface) 92%, transparent) !important;
+}
+
+html[data-window="settings"] .window-root.settings-window {
+  border: 0 !important;
+}
+
+html[data-window="settings"] .settings-sidebar {
+  background-clip: border-box !important;
+  border-top: 1px solid var(--settings-card-border) !important;
+  border-right: 1px solid var(--settings-card-border) !important;
+  border-bottom: 1px solid var(--settings-card-border) !important;
+  box-shadow: none !important;
+}
+
+html[data-window="settings"] .settings-card {
+  border: 1px solid var(--settings-card-border) !important;
+  box-shadow: var(--settings-card-shadow) !important;
+  background: var(--settings-card-bg) !important;
+}
+
+html[data-window="main"] .clipboard-window .panel-head {
+  border: 1px solid var(--settings-card-border) !important;
+  background: var(--clipboard-fill-layer-bg) !important;
+  box-shadow: var(--settings-card-shadow) !important;
+}
+
+html[data-window="main"] .clipboard-window .toolbar {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-window="main"] .clipboard-window .search-box {
+  border: 1px solid var(--settings-card-border) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--settings-card-border) 26%, transparent) !important;
+  background: rgb(24 24 24 / calc(0.04 + var(--appearance-window-opacity) * 0.72)) !important;
+  backdrop-filter: saturate(var(--appearance-saturate-percent)) blur(var(--appearance-blur-px)) !important;
+  -webkit-backdrop-filter: saturate(var(--appearance-saturate-percent)) blur(var(--appearance-blur-px)) !important;
+}
+
+html[data-window="main"] .clipboard-window .search-box:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 46%, var(--settings-card-border)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 24%, transparent) !important;
+  background: color-mix(in srgb, var(--settings-control-bg) 92%, var(--primary) 8%) !important;
+}
+
+html[data-window="main"] .clipboard-window .clip-item {
+  box-shadow: var(--settings-card-shadow) !important;
+}
+
+html[data-window="selection_result"] .selection-result-shell,
+html[data-window="ocr_result"] .ocr-result-shell {
+  border: 1px solid var(--settings-card-border) !important;
+  box-shadow: var(--settings-card-shadow) !important;
 }

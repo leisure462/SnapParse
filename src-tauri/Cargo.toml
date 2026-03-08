@@ -1,6 +1,6 @@
 [package]
 name = "snapparse-clipboard"
-version = "2.0.7"
+version = "2.0.8"
 description = "A Tauri v2 clipboard utility for Windows"
 authors = ["you"]
 edition = "2021"
@@ -30,6 +30,7 @@ tauri-plugin-process = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
 urlencoding = "2.1"
+window-vibrancy = "0.7.1"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.59", features = [
