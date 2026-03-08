@@ -43,7 +43,6 @@ export interface SelectionAssistantSettings {
   showIconAnimation: boolean;
   compactMode: boolean;
   barOpacity: number;
-  autoHideMs: number;
   searchUrlTemplate: string;
   minChars: number;
   maxChars: number;
@@ -177,7 +176,6 @@ export interface SelectionAssistantSettingsPatch {
   showIconAnimation?: boolean;
   compactMode?: boolean;
   barOpacity?: number;
-  autoHideMs?: number;
   searchUrlTemplate?: string;
   minChars?: number;
   maxChars?: number;

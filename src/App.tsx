@@ -115,7 +115,6 @@ const FALLBACK_OCR_SHORTCUT = "Alt+S";
 
 const POLL_MS_RANGE = { min: 400, max: 5000 };
 const HISTORY_MAX_RANGE = { min: 20, max: 500 };
-const SELECTION_AUTO_HIDE_RANGE = { min: 800, max: 30000 };
 const SELECTION_MIN_CHARS_RANGE = { min: 1, max: 64 };
 const SELECTION_MAX_CHARS_RANGE = { min: 128, max: 100000 };
 const SELECTION_BAR_OPACITY_RANGE = { min: 0.35, max: 0.94 };
@@ -151,7 +150,6 @@ const FALLBACK_SETTINGS: AppSettings = {
     showIconAnimation: true,
     compactMode: false,
     barOpacity: 0.94,
-    autoHideMs: 5000,
     searchUrlTemplate: "https://www.google.com/search?q={query}",
     minChars: 2,
     maxChars: 12000,
@@ -1042,20 +1040,6 @@ function sanitizeSettings(input: AppSettings): AppSettings {
             input.selectionAssistant?.barOpacity ??
               FALLBACK_SETTINGS.selectionAssistant.barOpacity
           ) || FALLBACK_SETTINGS.selectionAssistant.barOpacity
-        )
-      ),
-      autoHideMs: Math.min(
-        30000,
-        Math.max(
-          800,
-          (() => {
-            const parsed =
-              Number(
-                input.selectionAssistant?.autoHideMs ??
-                  FALLBACK_SETTINGS.selectionAssistant.autoHideMs
-              ) || FALLBACK_SETTINGS.selectionAssistant.autoHideMs;
-            return parsed === 3600 ? 5000 : parsed;
-          })()
         )
       ),
       searchUrlTemplate:
@@ -3519,7 +3503,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const [numberDrafts, setNumberDrafts] = useState<
     Partial<
       Record<
-        | "selection-auto-hide"
         | "selection-min-chars"
         | "selection-max-chars"
         | "llm-temperature"
@@ -4117,7 +4100,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
   function getNumberInputValue(
     key:
-      | "selection-auto-hide"
       | "selection-min-chars"
       | "selection-max-chars"
       | "llm-temperature"
@@ -4136,7 +4118,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
   function setNumberInputValue(
     key:
-      | "selection-auto-hide"
       | "selection-min-chars"
       | "selection-max-chars"
       | "llm-temperature"
@@ -4158,7 +4139,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
   function clearNumberInputDraft(
     key:
-      | "selection-auto-hide"
       | "selection-min-chars"
       | "selection-max-chars"
       | "llm-temperature"
@@ -4200,7 +4180,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
 
   async function commitIntegerInput(
     key:
-      | "selection-auto-hide"
       | "selection-min-chars"
       | "selection-max-chars"
       | "llm-max-tokens"
@@ -5015,34 +4994,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                 />
               </div>
 
-              <div className="filled-control">
-                <label htmlFor="selection-auto-hide">条形栏自动隐藏 (ms)</label>
-                <input
-                  id="selection-auto-hide"
-                  type="number"
-                  min={SELECTION_AUTO_HIDE_RANGE.min}
-                  max={SELECTION_AUTO_HIDE_RANGE.max}
-                  value={getNumberInputValue(
-                    "selection-auto-hide",
-                    settings.selectionAssistant.autoHideMs
-                  )}
-                  onChange={(event) => {
-                    setNumberInputValue("selection-auto-hide", event.target.value);
-                  }}
-                  onKeyDown={blurNumberInputOnEnter}
-                  onBlur={() => {
-                    void commitIntegerInput(
-                      "selection-auto-hide",
-                      settings.selectionAssistant.autoHideMs,
-                      SELECTION_AUTO_HIDE_RANGE.min,
-                      SELECTION_AUTO_HIDE_RANGE.max,
-                      (next) => ({
-                        selectionAssistant: { autoHideMs: next }
-                      })
-                    );
-                  }}
-                />
-              </div>
               <div className="filled-control">
                 <label htmlFor="selection-min-chars">最小字符数</label>
                 <input

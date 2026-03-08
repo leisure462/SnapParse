@@ -117,13 +117,18 @@ const MAX_OCR_RESULT_WINDOW_HEIGHT: u32 = 1100;
 const STREAM_EMIT_THROTTLE_MS: u64 = 24;
 const DEFAULT_TTS_VOICE_ZH_CN: &str = "zh-CN-XiaoxiaoNeural";
 const DEFAULT_TTS_VOICE_EN_US: &str = "en-US-JennyNeural";
-const DEFAULT_SELECTION_BAR_AUTO_HIDE_MS: u64 = 5_000;
 const MIN_TTS_RATE_PERCENT: i32 = -50;
 const MAX_TTS_RATE_PERCENT: i32 = 100;
 const MAX_TTS_TEXT_CHARS: usize = 12_000;
 const TASK_REPLACED_ERROR: &str = "__TASK_REPLACED__";
 const SELECTION_REPEAT_DEDUPE_WINDOW_MS: u64 = 900;
 const SELECTION_TEXT_COOLDOWN_MS: u64 = 2_500;
+const SELECTION_RECENT_DISMISS_COOLDOWN_MS: u64 = 950;
+const SELECTION_BAR_CLOSE_GUARD_MS: u64 = 320;
+const MAIN_WINDOW_BLUR_HIDE_DELAY_MS: u64 = 220;
+const RESULT_WINDOW_BLUR_HIDE_DELAY_MS: u64 = 220;
+const OCR_CAPTURE_BLUR_HIDE_DELAY_MS: u64 = 120;
+const RESULT_WINDOW_BLUR_SUPPRESS_MS: u64 = 420;
 const OCR_CAPTURE_BLUR_SUPPRESS_MS: u64 = 1_100;
 const COPY_TRIGGER_CTRL_HOLD_MS: u64 = 380;
 const MODEL_REQUEST_MAX_ATTEMPTS: usize = 3;
@@ -267,7 +272,6 @@ struct SelectionAssistantSettings {
     show_icon_animation: bool,
     compact_mode: bool,
     bar_opacity: f32,
-    auto_hide_ms: u64,
     search_url_template: String,
     min_chars: usize,
     max_chars: usize,
@@ -285,7 +289,6 @@ impl Default for SelectionAssistantSettings {
             show_icon_animation: true,
             compact_mode: false,
             bar_opacity: 0.94,
-            auto_hide_ms: DEFAULT_SELECTION_BAR_AUTO_HIDE_MS,
             search_url_template: "https://www.google.com/search?q={query}".to_string(),
             min_chars: 2,
             max_chars: 12_000,
@@ -648,7 +651,6 @@ struct SelectionAssistantSettingsPatch {
     show_icon_animation: Option<bool>,
     compact_mode: Option<bool>,
     bar_opacity: Option<f32>,
-    auto_hide_ms: Option<u64>,
     search_url_template: Option<String>,
     min_chars: Option<usize>,
     max_chars: Option<usize>,
@@ -814,14 +816,26 @@ struct SelectionDispatchMarker {
     emitted_at_ms: u64,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct SelectionDismissMarker {
+    text_hash: u64,
+    source_hwnd: isize,
+    mode: SelectionTriggerMode,
+    dismissed_at_ms: u64,
+}
+
 #[derive(Default)]
 struct SelectionRuntimeState {
     detector_running: AtomicBool,
     detector_guard_running: AtomicBool,
     detector_heartbeat_ms: AtomicU64,
     last_dispatch_marker: Mutex<Option<SelectionDispatchMarker>>,
+    visible_bar_marker: Mutex<Option<SelectionDispatchMarker>>,
+    last_dismissed_marker: Mutex<Option<SelectionDismissMarker>>,
+    selection_bar_close_guard_until_ms: AtomicU64,
     last_clipboard_observed: Mutex<String>,
     active_result_request_nonce: AtomicU64,
+    suppress_result_blur_until_ms: AtomicU64,
 }
 
 struct OcrCaptureSnapshot {
@@ -834,6 +848,7 @@ struct OcrRuntimeState {
     capture_active: AtomicBool,
     active_result_request_nonce: AtomicU64,
     suppress_blur_until_ms: AtomicU64,
+    suppress_result_blur_until_ms: AtomicU64,
     capture_snapshot: Mutex<Option<OcrCaptureSnapshot>>,
 }
 
@@ -843,6 +858,7 @@ impl Default for OcrRuntimeState {
             capture_active: AtomicBool::new(false),
             active_result_request_nonce: AtomicU64::new(0),
             suppress_blur_until_ms: AtomicU64::new(0),
+            suppress_result_blur_until_ms: AtomicU64::new(0),
             capture_snapshot: Mutex::new(None),
         }
     }
@@ -1142,10 +1158,6 @@ fn clamp_ocr_result_window_width(value: u32) -> u32 {
 
 fn clamp_ocr_result_window_height(value: u32) -> u32 {
     value.clamp(MIN_OCR_RESULT_WINDOW_HEIGHT, MAX_OCR_RESULT_WINDOW_HEIGHT)
-}
-
-fn clamp_selection_auto_hide_ms(value: u64) -> u64 {
-    value.clamp(800, 30_000)
 }
 
 fn clamp_selection_min_chars(value: usize) -> usize {
@@ -1538,11 +1550,6 @@ fn normalize_settings(settings: &mut AppSettings) {
         }
     }
 
-    if settings.selection_assistant.auto_hide_ms == 3600 {
-        settings.selection_assistant.auto_hide_ms = DEFAULT_SELECTION_BAR_AUTO_HIDE_MS;
-    }
-    settings.selection_assistant.auto_hide_ms =
-        clamp_selection_auto_hide_ms(settings.selection_assistant.auto_hide_ms);
     settings.selection_assistant.bar_opacity = clamp_f32(
         settings.selection_assistant.bar_opacity,
         MIN_SELECTION_BAR_OPACITY,
@@ -1705,9 +1712,6 @@ fn apply_settings_patch(settings: &mut AppSettings, patch: SettingsPatch) {
                 MIN_SELECTION_BAR_OPACITY,
                 MAX_SELECTION_BAR_OPACITY,
             );
-        }
-        if let Some(ms) = selection_patch.auto_hide_ms {
-            settings.selection_assistant.auto_hide_ms = ms;
         }
         if let Some(template) = selection_patch.search_url_template {
             settings.selection_assistant.search_url_template = template;
@@ -4164,11 +4168,63 @@ fn apply_result_windows_background<R: Runtime>(app: &AppHandle<R>, settings: &Ap
     }
 }
 
+fn is_any_other_snapparse_window_focused<R: Runtime>(
+    app: &AppHandle<R>,
+    excluded_label: &str,
+) -> bool {
+    [
+        MAIN_WINDOW_LABEL,
+        SETTINGS_WINDOW_LABEL,
+        SELECTION_BAR_WINDOW_LABEL,
+        SELECTION_RESULT_WINDOW_LABEL,
+        OCR_CAPTURE_WINDOW_LABEL,
+        OCR_RESULT_WINDOW_LABEL,
+    ]
+    .iter()
+    .filter(|label| **label != excluded_label)
+    .any(|label| {
+        app.get_webview_window(label)
+            .and_then(|window| window.is_focused().ok())
+            .unwrap_or(false)
+    })
+}
+
+fn should_hide_window_after_blur<R: Runtime>(app: &AppHandle<R>, label: &str) -> bool {
+    let Some(window) = app.get_webview_window(label) else {
+        return false;
+    };
+    let still_visible = window.is_visible().unwrap_or(false);
+    let still_unfocused = window.is_focused().map(|focused| !focused).unwrap_or(false);
+    still_visible && still_unfocused && !is_any_other_snapparse_window_focused(app, label)
+}
+
+fn suppress_selection_result_blur_auto_hide<R: Runtime>(app: &AppHandle<R>, delay_ms: u64) {
+    if let Some(runtime) = app.try_state::<SelectionRuntimeState>() {
+        runtime.suppress_result_blur_until_ms.store(
+            now_epoch_millis().saturating_add(delay_ms),
+            Ordering::Relaxed,
+        );
+    }
+}
+
+fn suppress_ocr_result_blur_auto_hide<R: Runtime>(app: &AppHandle<R>, delay_ms: u64) {
+    if let Some(runtime) = app.try_state::<OcrRuntimeState>() {
+        runtime.suppress_result_blur_until_ms.store(
+            now_epoch_millis().saturating_add(delay_ms),
+            Ordering::Relaxed,
+        );
+    }
+}
+
 fn selection_result_window_is_pinned<R: Runtime>(app: &AppHandle<R>) -> bool {
     let pinned_by_window = app
         .get_webview_window(SELECTION_RESULT_WINDOW_LABEL)
-        .and_then(|window| window.is_always_on_top().ok())
-        .unwrap_or(false);
+        .and_then(|window| {
+            if !window.is_visible().ok().unwrap_or(false) {
+                return None;
+            }
+            window.is_always_on_top().ok()
+        });
     let pinned_by_settings = app
         .try_state::<AppSettingsState>()
         .and_then(|state| {
@@ -4179,14 +4235,18 @@ fn selection_result_window_is_pinned<R: Runtime>(app: &AppHandle<R>) -> bool {
                 .map(|settings| settings.selection_assistant.result_window_always_on_top)
         })
         .unwrap_or(false);
-    pinned_by_window || pinned_by_settings
+    pinned_by_window.unwrap_or(pinned_by_settings)
 }
 
 fn ocr_result_window_is_pinned<R: Runtime>(app: &AppHandle<R>) -> bool {
     let pinned_by_window = app
         .get_webview_window(OCR_RESULT_WINDOW_LABEL)
-        .and_then(|window| window.is_always_on_top().ok())
-        .unwrap_or(false);
+        .and_then(|window| {
+            if !window.is_visible().ok().unwrap_or(false) {
+                return None;
+            }
+            window.is_always_on_top().ok()
+        });
     let pinned_by_settings = app
         .try_state::<AppSettingsState>()
         .and_then(|state| {
@@ -4197,7 +4257,7 @@ fn ocr_result_window_is_pinned<R: Runtime>(app: &AppHandle<R>) -> bool {
                 .map(|settings| settings.ocr.result_window_always_on_top)
         })
         .unwrap_or(false);
-    pinned_by_window || pinned_by_settings
+    pinned_by_window.unwrap_or(pinned_by_settings)
 }
 
 fn show_selection_bar_window<R: Runtime>(
@@ -4234,6 +4294,9 @@ fn show_selection_bar_window<R: Runtime>(
     }
 
     // Keep terminal/native selection highlight: show bar without activating it first.
+    if let Some(runtime) = app.try_state::<SelectionRuntimeState>() {
+        bump_selection_bar_close_guard(&runtime);
+    }
     let _ = window.set_focusable(false);
     let _ = window.set_size(Size::Logical(LogicalSize::new(width as f64, height as f64)));
     let target = selection_bar_target_position(app, payload.x, payload.y, width, height);
@@ -4250,6 +4313,9 @@ fn show_selection_bar_window<R: Runtime>(
 }
 
 fn hide_selection_bar_window<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(runtime) = app.try_state::<SelectionRuntimeState>() {
+        remember_selection_bar_hidden(&runtime);
+    }
     if let Some(window) = app.get_webview_window(SELECTION_BAR_WINDOW_LABEL) {
         let _ = window.hide();
     }
@@ -4320,6 +4386,7 @@ fn show_selection_result_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), Co
     }
 
     let _ = window.set_always_on_top(always_on_top);
+    suppress_selection_result_blur_auto_hide(app, RESULT_WINDOW_BLUR_SUPPRESS_MS);
     let _ = window.show();
     let _ = window.set_focus();
     Ok(())
@@ -4418,6 +4485,7 @@ fn show_ocr_result_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), CommandE
     }
 
     let _ = window.set_always_on_top(always_on_top);
+    suppress_ocr_result_blur_auto_hide(app, RESULT_WINDOW_BLUR_SUPPRESS_MS);
     let _ = window.show();
     let _ = window.set_focus();
     Ok(())
@@ -6886,6 +6954,73 @@ fn remember_latest_selection(
     true
 }
 
+fn sync_visible_selection_bar_marker(runtime: &SelectionRuntimeState) {
+    let marker = runtime
+        .last_dispatch_marker
+        .lock()
+        .ok()
+        .and_then(|guard| *guard);
+    if let Ok(mut visible_marker) = runtime.visible_bar_marker.lock() {
+        *visible_marker = marker;
+    }
+}
+
+fn bump_selection_bar_close_guard(runtime: &SelectionRuntimeState) {
+    runtime.selection_bar_close_guard_until_ms.store(
+        now_epoch_millis().saturating_add(SELECTION_BAR_CLOSE_GUARD_MS),
+        Ordering::Relaxed,
+    );
+}
+
+fn remember_selection_bar_hidden(runtime: &SelectionRuntimeState) {
+    let marker = runtime
+        .visible_bar_marker
+        .lock()
+        .ok()
+        .and_then(|guard| *guard);
+    if let Some(marker) = marker {
+        if let Ok(mut dismissed_marker) = runtime.last_dismissed_marker.lock() {
+            *dismissed_marker = Some(SelectionDismissMarker {
+                text_hash: marker.text_hash,
+                source_hwnd: marker.source_hwnd,
+                mode: marker.mode,
+                dismissed_at_ms: now_epoch_millis(),
+            });
+        }
+    }
+    if let Ok(mut visible_marker) = runtime.visible_bar_marker.lock() {
+        *visible_marker = None;
+    }
+}
+
+fn was_selection_recently_dismissed(
+    runtime: &SelectionRuntimeState,
+    text: &str,
+    source_hwnd: isize,
+    mode: SelectionTriggerMode,
+) -> bool {
+    let Some(previous) = runtime
+        .last_dismissed_marker
+        .lock()
+        .ok()
+        .and_then(|guard| *guard)
+    else {
+        return false;
+    };
+
+    if previous.mode != mode || previous.source_hwnd != source_hwnd {
+        return false;
+    }
+
+    if now_epoch_millis().saturating_sub(previous.dismissed_at_ms)
+        > SELECTION_RECENT_DISMISS_COOLDOWN_MS
+    {
+        return false;
+    }
+
+    previous.text_hash == stable_text_hash(text.trim())
+}
+
 fn is_task_replaced_error(error: &CommandError) -> bool {
     matches!(error, CommandError::Settings(message) if message == TASK_REPLACED_ERROR)
 }
@@ -6930,16 +7065,6 @@ fn is_ocr_result_task_active<R: Runtime>(app: &AppHandle<R>, nonce: u64) -> bool
         .unwrap_or(true)
 }
 
-fn schedule_selection_bar_auto_hide<R: Runtime>(app: AppHandle<R>, delay_ms: u64) {
-    if delay_ms == 0 {
-        return;
-    }
-    std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(delay_ms));
-        hide_selection_bar_window(&app);
-    });
-}
-
 fn publish_selection_detected<R: Runtime>(
     app: &AppHandle<R>,
     text: String,
@@ -6958,14 +7083,8 @@ fn publish_selection_detected<R: Runtime>(
     };
     emit_selection_detected(app, payload.clone());
     show_selection_bar_window(app, &payload)?;
-
-    if let Some(settings_state) = app.try_state::<AppSettingsState>() {
-        let delay_ms = settings_state
-            .data
-            .lock()
-            .map(|settings| settings.selection_assistant.auto_hide_ms)
-            .unwrap_or(3600);
-        schedule_selection_bar_auto_hide(app.clone(), delay_ms);
+    if let Some(runtime) = app.try_state::<SelectionRuntimeState>() {
+        sync_visible_selection_bar_marker(&runtime);
     }
     Ok(())
 }
@@ -7024,6 +7143,7 @@ fn start_selection_detector_thread(app: AppHandle) {
         let mut last_escape_down = false;
         let mut last_ctrl_down = false;
         let mut detect_phase = SelectionDetectPhase::Idle;
+        let mut selection_bar_outside_press_started = false;
         let mut mouse_down_started_at_ms: u64 = 0;
         let mut mouse_down_position: Option<PhysicalPosition<i32>> = None;
         let mut mouse_down_started_in_client_area = false;
@@ -7080,8 +7200,7 @@ fn start_selection_detector_thread(app: AppHandle) {
                 .and_then(|window| window.is_visible().ok())
                 .unwrap_or(false);
             if selection_bar_visible {
-                let released = last_outside_click_mouse_down && !mouse_down_now;
-                if released {
+                if mouse_down_now && !last_outside_click_mouse_down {
                     let pointer = current_pointer_position();
                     let inside_bar = pointer
                         .and_then(|point| {
@@ -7100,10 +7219,46 @@ fn start_selection_detector_thread(app: AppHandle) {
                                 })
                         })
                         .unwrap_or(false);
-                    if !inside_bar {
+                    selection_bar_outside_press_started = !inside_bar;
+                }
+                let released = last_outside_click_mouse_down && !mouse_down_now;
+                if released {
+                    let suppress_close_until = app
+                        .try_state::<SelectionRuntimeState>()
+                        .map(|runtime| {
+                            runtime
+                                .selection_bar_close_guard_until_ms
+                                .load(Ordering::Relaxed)
+                        })
+                        .unwrap_or(0);
+                    let pointer = current_pointer_position();
+                    let inside_bar = pointer
+                        .and_then(|point| {
+                            app.get_webview_window(SELECTION_BAR_WINDOW_LABEL)
+                                .and_then(|window| {
+                                    let position = window.outer_position().ok()?;
+                                    let size = window.outer_size().ok()?;
+                                    let width = to_i32(size.width);
+                                    let height = to_i32(size.height);
+                                    Some(
+                                        point.x >= position.x
+                                            && point.x < position.x.saturating_add(width)
+                                            && point.y >= position.y
+                                            && point.y < position.y.saturating_add(height),
+                                    )
+                                })
+                        })
+                        .unwrap_or(false);
+                    if selection_bar_outside_press_started
+                        && now_epoch_millis() >= suppress_close_until
+                        && !inside_bar
+                    {
                         hide_selection_bar_window(&app);
                     }
+                    selection_bar_outside_press_started = false;
                 }
+            } else {
+                selection_bar_outside_press_started = false;
             }
             last_outside_click_mouse_down = mouse_down_now;
 
@@ -7122,6 +7277,7 @@ fn start_selection_detector_thread(app: AppHandle) {
                 drag_foreground_hwnd = 0;
                 mouse_down_started_in_client_area = false;
                 mouse_down_clipboard_text = None;
+                selection_bar_outside_press_started = false;
                 ctrl_down_started_at_ms = 0;
                 ctrl_hold_triggered = false;
                 continue;
@@ -7240,7 +7396,22 @@ fn start_selection_detector_thread(app: AppHandle) {
                     if is_console && !clipboard_changed {
                         continue;
                     }
+                    if !is_console && !clipboard_changed {
+                        let deliberate_same_clipboard_drag =
+                            drag_duration >= 220 || drag_distance >= 18;
+                        if !deliberate_same_clipboard_drag {
+                            continue;
+                        }
+                    }
                     if !selection_text_in_range(&assistant, &selected) {
+                        continue;
+                    }
+                    if was_selection_recently_dismissed(
+                        &runtime_state,
+                        &selected,
+                        hwnd,
+                        SelectionTriggerMode::AutoDetect,
+                    ) {
                         continue;
                     }
                     let allow_repeat_same = if is_console {
@@ -7420,24 +7591,13 @@ fn open_search_with_text(app: AppHandle, text: String) -> Result<(), CommandErro
 }
 
 #[tauri::command]
-fn set_result_window_pinned_cmd(
-    app: AppHandle,
-    pinned: bool,
-    settings_state: State<'_, AppSettingsState>,
-) -> Result<bool, CommandError> {
+fn set_result_window_pinned_cmd(app: AppHandle, pinned: bool) -> Result<bool, CommandError> {
     if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
         window
             .set_always_on_top(pinned)
             .map_err(|error| CommandError::Settings(error.to_string()))?;
     }
-
-    let snapshot = {
-        let mut settings = with_settings_lock(&settings_state)?;
-        settings.selection_assistant.result_window_always_on_top = pinned;
-        settings.clone()
-    };
-    let _ = persist_settings_state(&settings_state);
-    emit_settings_updated(&app, &snapshot);
+    suppress_selection_result_blur_auto_hide(&app, RESULT_WINDOW_BLUR_SUPPRESS_MS);
 
     Ok(pinned)
 }
@@ -7448,8 +7608,10 @@ fn get_result_window_pinned_cmd(
     settings_state: State<'_, AppSettingsState>,
 ) -> bool {
     if let Some(window) = app.get_webview_window(SELECTION_RESULT_WINDOW_LABEL) {
-        if let Ok(pinned) = window.is_always_on_top() {
-            return pinned;
+        if window.is_visible().ok().unwrap_or(false) {
+            if let Ok(pinned) = window.is_always_on_top() {
+                return pinned;
+            }
         }
     }
     settings_state
@@ -7945,8 +8107,10 @@ fn get_ocr_result_window_pinned_cmd(
     settings_state: State<'_, AppSettingsState>,
 ) -> bool {
     if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
-        if let Ok(pinned) = window.is_always_on_top() {
-            return pinned;
+        if window.is_visible().ok().unwrap_or(false) {
+            if let Ok(pinned) = window.is_always_on_top() {
+                return pinned;
+            }
         }
     }
     settings_state
@@ -7957,24 +8121,13 @@ fn get_ocr_result_window_pinned_cmd(
 }
 
 #[tauri::command]
-fn set_ocr_result_window_pinned_cmd(
-    app: AppHandle,
-    pinned: bool,
-    settings_state: State<'_, AppSettingsState>,
-) -> Result<bool, CommandError> {
+fn set_ocr_result_window_pinned_cmd(app: AppHandle, pinned: bool) -> Result<bool, CommandError> {
     if let Some(window) = app.get_webview_window(OCR_RESULT_WINDOW_LABEL) {
         window
             .set_always_on_top(pinned)
             .map_err(|error| CommandError::Settings(error.to_string()))?;
     }
-
-    let snapshot = {
-        let mut settings = with_settings_lock(&settings_state)?;
-        settings.ocr.result_window_always_on_top = pinned;
-        settings.clone()
-    };
-    let _ = persist_settings_state(&settings_state);
-    emit_settings_updated(&app, &snapshot);
+    suppress_ocr_result_blur_auto_hide(&app, RESULT_WINDOW_BLUR_SUPPRESS_MS);
 
     Ok(pinned)
 }
@@ -8444,7 +8597,6 @@ fn reset_settings(
             show_icon_animation: Some(defaults.selection_assistant.show_icon_animation),
             compact_mode: Some(defaults.selection_assistant.compact_mode),
             bar_opacity: Some(defaults.selection_assistant.bar_opacity),
-            auto_hide_ms: Some(defaults.selection_assistant.auto_hide_ms),
             search_url_template: Some(defaults.selection_assistant.search_url_template.clone()),
             min_chars: Some(defaults.selection_assistant.min_chars),
             max_chars: Some(defaults.selection_assistant.max_chars),
@@ -9464,7 +9616,7 @@ pub fn run() {
             {
                 let app_handle = window.app_handle().clone();
                 std::thread::spawn(move || {
-                    std::thread::sleep(Duration::from_millis(180));
+                    std::thread::sleep(Duration::from_millis(MAIN_WINDOW_BLUR_HIDE_DELAY_MS));
 
                     let Some(main_window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) else {
                         return;
@@ -9483,11 +9635,7 @@ pub fn run() {
                         return;
                     }
 
-                    let still_unfocused = main_window
-                        .is_focused()
-                        .map(|focused| !focused)
-                        .unwrap_or(false);
-                    if !still_unfocused {
+                    if !should_hide_window_after_blur(&app_handle, MAIN_WINDOW_LABEL) {
                         return;
                     }
 
@@ -9513,11 +9661,18 @@ pub fn run() {
             {
                 let app_handle = window.app_handle().clone();
                 std::thread::spawn(move || {
-                    std::thread::sleep(Duration::from_millis(150));
+                    std::thread::sleep(Duration::from_millis(RESULT_WINDOW_BLUR_HIDE_DELAY_MS));
                     let Some(result_window) = app_handle.get_webview_window(SELECTION_RESULT_WINDOW_LABEL)
                     else {
                         return;
                     };
+                    let suppress_until = app_handle
+                        .try_state::<SelectionRuntimeState>()
+                        .map(|runtime| runtime.suppress_result_blur_until_ms.load(Ordering::Relaxed))
+                        .unwrap_or(0);
+                    if suppress_until > now_epoch_millis() {
+                        return;
+                    }
                     if selection_result_window_is_pinned(&app_handle) {
                         return;
                     }
@@ -9534,11 +9689,7 @@ pub fn run() {
                     if !should_hide {
                         return;
                     }
-                    let still_unfocused = result_window
-                        .is_focused()
-                        .map(|focused| !focused)
-                        .unwrap_or(false);
-                    if still_unfocused {
+                    if should_hide_window_after_blur(&app_handle, SELECTION_RESULT_WINDOW_LABEL) {
                         let _ = result_window.hide();
                     }
                 });
@@ -9549,8 +9700,8 @@ pub fn run() {
             {
                 let app_handle = window.app_handle().clone();
                 std::thread::spawn(move || {
-                    std::thread::sleep(Duration::from_millis(100));
-                    let Some(capture_window) = app_handle.get_webview_window(OCR_CAPTURE_WINDOW_LABEL)
+                    std::thread::sleep(Duration::from_millis(OCR_CAPTURE_BLUR_HIDE_DELAY_MS));
+                    let Some(_capture_window) = app_handle.get_webview_window(OCR_CAPTURE_WINDOW_LABEL)
                     else {
                         return;
                     };
@@ -9563,11 +9714,7 @@ pub fn run() {
                     if still_active {
                         return;
                     }
-                    let still_unfocused = capture_window
-                        .is_focused()
-                        .map(|focused| !focused)
-                        .unwrap_or(true);
-                    if !still_unfocused {
+                    if !should_hide_window_after_blur(&app_handle, OCR_CAPTURE_WINDOW_LABEL) {
                         return;
                     }
                     hide_ocr_capture_window(&app_handle);
@@ -9579,11 +9726,18 @@ pub fn run() {
             {
                 let app_handle = window.app_handle().clone();
                 std::thread::spawn(move || {
-                    std::thread::sleep(Duration::from_millis(150));
+                    std::thread::sleep(Duration::from_millis(RESULT_WINDOW_BLUR_HIDE_DELAY_MS));
                     let Some(result_window) = app_handle.get_webview_window(OCR_RESULT_WINDOW_LABEL)
                     else {
                         return;
                     };
+                    let suppress_until = app_handle
+                        .try_state::<OcrRuntimeState>()
+                        .map(|runtime| runtime.suppress_result_blur_until_ms.load(Ordering::Relaxed))
+                        .unwrap_or(0);
+                    if suppress_until > now_epoch_millis() {
+                        return;
+                    }
                     if ocr_result_window_is_pinned(&app_handle) {
                         return;
                     }
@@ -9600,11 +9754,7 @@ pub fn run() {
                     if !should_hide {
                         return;
                     }
-                    let still_unfocused = result_window
-                        .is_focused()
-                        .map(|focused| !focused)
-                        .unwrap_or(false);
-                    if still_unfocused {
+                    if should_hide_window_after_blur(&app_handle, OCR_RESULT_WINDOW_LABEL) {
                         let _ = result_window.hide();
                     }
                 });
