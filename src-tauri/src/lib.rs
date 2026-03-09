@@ -67,8 +67,9 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId,
-    IsIconic, IsWindow, SetForegroundWindow, ShowWindow, SW_RESTORE, SW_SHOWNORMAL,
+    GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindowInfo, GetWindowRect,
+    GetWindowThreadProcessId, IsIconic, IsWindow, SetForegroundWindow, ShowWindow, WindowFromPoint,
+    GA_ROOT, SW_RESTORE, SW_SHOWNORMAL, WINDOWINFO,
 };
 
 const SETTINGS_VERSION: u32 = 9;
@@ -3305,7 +3306,81 @@ fn is_ctrl_pressed() -> bool {
 }
 
 #[cfg(target_os = "windows")]
-fn is_point_likely_window_title_bar(hwnd_raw: isize, point: PhysicalPosition<i32>) -> bool {
+fn extended_top_chrome_exclusion_height(hwnd_raw: isize) -> i32 {
+    let Some(class_name) = window_class_name(hwnd_raw).map(|value| value.to_ascii_uppercase())
+    else {
+        return 0;
+    };
+
+    if class_name.contains("CHROME_WIDGETWIN") {
+        88
+    } else if class_name.contains("MOZILLAWINDOWCLASS") {
+        92
+    } else if class_name.contains("CABINETWCLASS") || class_name.contains("EXPLOREWCLASS") {
+        84
+    } else if class_name.contains("APPLICATIONFRAMEWINDOW") {
+        72
+    } else {
+        0
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn is_likely_text_selection_surface_class(class_name: &str) -> bool {
+    let class_name = class_name.to_ascii_uppercase();
+    class_name.contains("EDIT")
+        || class_name.contains("RICHEDIT")
+        || class_name.contains("SCINTILLA")
+        || class_name.contains("RENDERWIDGET")
+        || class_name.contains("CHROME_RENDERWIDGETHOSTHWND")
+        || class_name.contains("WEBVIEW")
+        || class_name.contains("INTERNET EXPLORER_SERVER")
+        || class_name.contains("CEF")
+        || class_name.contains("DIRECTUIHWND")
+}
+
+#[cfg(target_os = "windows")]
+fn window_client_top(hwnd_raw: isize) -> Option<i32> {
+    if hwnd_raw == 0 {
+        return None;
+    }
+
+    let hwnd = hwnd_raw as HWND;
+    if hwnd.is_null() || unsafe { IsWindow(hwnd) } == 0 {
+        return None;
+    }
+
+    let mut window_info = WINDOWINFO {
+        cbSize: std::mem::size_of::<WINDOWINFO>() as u32,
+        rcWindow: RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        },
+        rcClient: RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        },
+        dwStyle: 0,
+        dwExStyle: 0,
+        dwWindowStatus: 0,
+        cxWindowBorders: 0,
+        cyWindowBorders: 0,
+        atomWindowType: 0,
+        wCreatorVersion: 0,
+    };
+    if unsafe { GetWindowInfo(hwnd, &mut window_info as *mut WINDOWINFO) } == 0 {
+        return None;
+    }
+
+    Some(window_info.rcClient.top)
+}
+
+#[cfg(target_os = "windows")]
+fn is_point_likely_text_selection_origin(hwnd_raw: isize, point: PhysicalPosition<i32>) -> bool {
     if hwnd_raw == 0 {
         return false;
     }
@@ -3330,17 +3405,73 @@ fn is_point_likely_window_title_bar(hwnd_raw: isize, point: PhysicalPosition<i32
         return false;
     }
 
-    let title_band_height = if is_console_like_window(hwnd_raw) {
-        56
-    } else {
-        42
+    if window_client_top(hwnd_raw).is_some_and(|client_top| point.y < client_top) {
+        return false;
+    }
+
+    let extended_top_band_height = extended_top_chrome_exclusion_height(hwnd_raw);
+    if extended_top_band_height <= 0 {
+        return true;
+    }
+
+    if point.y >= rect.top.saturating_add(extended_top_band_height) {
+        return true;
+    }
+
+    let hit_hwnd = unsafe {
+        WindowFromPoint(POINT {
+            x: point.x,
+            y: point.y,
+        })
     };
-    point.y < rect.top.saturating_add(title_band_height)
+    if hit_hwnd.is_null() {
+        return false;
+    }
+
+    let hit_root = unsafe { GetAncestor(hit_hwnd, GA_ROOT) };
+    if !hit_root.is_null() && hit_root != hwnd {
+        return false;
+    }
+
+    let hit_raw = hit_hwnd as isize;
+    if hit_raw == hwnd_raw {
+        return false;
+    }
+
+    let hit_class_name = window_class_name(hit_raw);
+    if hit_class_name
+        .as_deref()
+        .is_some_and(is_likely_text_selection_surface_class)
+    {
+        return true;
+    }
+
+    let root_class_name = window_class_name(hwnd_raw);
+    if hit_class_name.is_some() && hit_class_name == root_class_name {
+        return false;
+    }
+
+    false
 }
 
 #[cfg(not(target_os = "windows"))]
-fn is_point_likely_window_title_bar(_hwnd_raw: isize, _point: PhysicalPosition<i32>) -> bool {
+fn extended_top_chrome_exclusion_height(_hwnd_raw: isize) -> i32 {
+    0
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_likely_text_selection_surface_class(_class_name: &str) -> bool {
     false
+}
+
+#[cfg(not(target_os = "windows"))]
+fn window_client_top(_hwnd_raw: isize) -> Option<i32> {
+    None
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_point_likely_text_selection_origin(_hwnd_raw: isize, _point: PhysicalPosition<i32>) -> bool {
+    true
 }
 
 fn capture_clipboard_snapshot(clipboard: &mut Clipboard) -> ClipboardSnapshot {
@@ -7307,11 +7438,7 @@ fn start_selection_detector_thread(app: AppHandle) {
                         drag_foreground_hwnd = flags.last_foreground_hwnd.load(Ordering::Relaxed);
                         mouse_down_started_in_client_area = mouse_down_position
                             .map(|point| {
-                                if is_console_like_window(drag_foreground_hwnd) {
-                                    !is_point_likely_window_title_bar(drag_foreground_hwnd, point)
-                                } else {
-                                    true
-                                }
+                                is_point_likely_text_selection_origin(drag_foreground_hwnd, point)
                             })
                             .unwrap_or(true);
                         mouse_down_clipboard_text = if is_console_like_window(drag_foreground_hwnd)
