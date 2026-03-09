@@ -4415,3 +4415,62 @@ html[data-window="selection_result"] .selection-result-titlebar,
 html[data-window="selection_result"] .selection-result-content {
   background-clip: padding-box;
 }
+
+/* Final radius balance: keep inner fill radii smaller than the host window radius. */
+html[data-window="selection_result"] .window-root,
+html[data-window="selection_result"] .selection-result-window {
+  --selection-result-window-radius: calc(var(--appearance-radius-px) + 3px);
+  --selection-result-shell-radius: calc(var(--selection-result-window-radius) - 2px);
+  --selection-result-output-radius: calc(var(--selection-result-shell-radius) - 1px);
+}
+
+html[data-window="selection_result"] .selection-result-shell {
+  border-radius: var(--selection-result-shell-radius) !important;
+}
+
+html[data-window="selection_result"] .selection-result-titlebar {
+  border-radius: var(--selection-result-shell-radius) var(--selection-result-shell-radius) 0 0
+    !important;
+}
+
+html[data-window="selection_result"] .selection-result-content {
+  border-radius: 0 0 var(--selection-result-shell-radius) var(--selection-result-shell-radius)
+    !important;
+}
+
+html[data-window="selection_result"] .selection-result-output,
+html[data-window="selection_result"] .selection-result-text {
+  border-radius: var(--selection-result-output-radius) !important;
+}
+
+html[data-window="main"] .window-root {
+  --clipboard-window-radius: 12px;
+  --clipboard-shell-radius: calc(var(--clipboard-window-radius) - 2px);
+  --clipboard-control-radius: calc(var(--clipboard-shell-radius) - 1px);
+  --clipboard-card-radius: calc(var(--clipboard-shell-radius) - 1px);
+  --clipboard-inline-radius: calc(var(--clipboard-control-radius) - 1px);
+  clip-path: inset(0 round var(--clipboard-window-radius));
+}
+
+.clipboard-window {
+  border-radius: var(--clipboard-shell-radius) !important;
+}
+
+.clipboard-window .panel-head,
+.clipboard-window .toolbar {
+  border-radius: var(--clipboard-control-radius) !important;
+}
+
+.clipboard-window .search-box,
+.clipboard-window .category-chip {
+  border-radius: var(--clipboard-inline-radius) !important;
+}
+
+.clipboard-window .clip-item {
+  border-radius: var(--clipboard-card-radius) !important;
+}
+
+.clipboard-window .clip-item.kind-image .item-image,
+.clipboard-window .clip-item .favorite-btn {
+  border-radius: calc(var(--clipboard-inline-radius) - 1px) !important;
+}
