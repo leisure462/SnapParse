@@ -809,6 +809,13 @@ enum SelectionDetectPhase {
     Dragging,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum TextSelectionSurfaceConfidence {
+    None,
+    Weak,
+    Strong,
+}
+
 #[derive(Clone, Copy, Debug)]
 struct SelectionDispatchMarker {
     text_hash: u64,
@@ -3326,17 +3333,24 @@ fn extended_top_chrome_exclusion_height(hwnd_raw: isize) -> i32 {
 }
 
 #[cfg(target_os = "windows")]
-fn is_likely_text_selection_surface_class(class_name: &str) -> bool {
+fn text_selection_surface_confidence_for_class(class_name: &str) -> TextSelectionSurfaceConfidence {
     let class_name = class_name.to_ascii_uppercase();
-    class_name.contains("EDIT")
+    if class_name.contains("EDIT")
         || class_name.contains("RICHEDIT")
         || class_name.contains("SCINTILLA")
-        || class_name.contains("RENDERWIDGET")
+    {
+        TextSelectionSurfaceConfidence::Strong
+    } else if class_name.contains("RENDERWIDGET")
         || class_name.contains("CHROME_RENDERWIDGETHOSTHWND")
         || class_name.contains("WEBVIEW")
         || class_name.contains("INTERNET EXPLORER_SERVER")
         || class_name.contains("CEF")
         || class_name.contains("DIRECTUIHWND")
+    {
+        TextSelectionSurfaceConfidence::Weak
+    } else {
+        TextSelectionSurfaceConfidence::None
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -3380,14 +3394,17 @@ fn window_client_top(hwnd_raw: isize) -> Option<i32> {
 }
 
 #[cfg(target_os = "windows")]
-fn is_point_likely_text_selection_origin(hwnd_raw: isize, point: PhysicalPosition<i32>) -> bool {
+fn text_selection_surface_confidence_at_point(
+    hwnd_raw: isize,
+    point: PhysicalPosition<i32>,
+) -> TextSelectionSurfaceConfidence {
     if hwnd_raw == 0 {
-        return false;
+        return TextSelectionSurfaceConfidence::None;
     }
 
     let hwnd = hwnd_raw as HWND;
     if hwnd.is_null() || unsafe { IsWindow(hwnd) } == 0 {
-        return false;
+        return TextSelectionSurfaceConfidence::None;
     }
 
     let mut rect = RECT {
@@ -3397,25 +3414,26 @@ fn is_point_likely_text_selection_origin(hwnd_raw: isize, point: PhysicalPositio
         bottom: 0,
     };
     if unsafe { GetWindowRect(hwnd, &mut rect as *mut RECT) } == 0 {
-        return false;
+        return TextSelectionSurfaceConfidence::None;
     }
 
     if point.x < rect.left || point.x >= rect.right || point.y < rect.top || point.y >= rect.bottom
     {
-        return false;
+        return TextSelectionSurfaceConfidence::None;
     }
 
     if window_client_top(hwnd_raw).is_some_and(|client_top| point.y < client_top) {
-        return false;
+        return TextSelectionSurfaceConfidence::None;
+    }
+
+    if is_console_like_window(hwnd_raw) {
+        return TextSelectionSurfaceConfidence::Strong;
     }
 
     let extended_top_band_height = extended_top_chrome_exclusion_height(hwnd_raw);
-    if extended_top_band_height <= 0 {
-        return true;
-    }
-
-    if point.y >= rect.top.saturating_add(extended_top_band_height) {
-        return true;
+    if extended_top_band_height > 0 && point.y < rect.top.saturating_add(extended_top_band_height)
+    {
+        return TextSelectionSurfaceConfidence::None;
     }
 
     let hit_hwnd = unsafe {
@@ -3425,33 +3443,39 @@ fn is_point_likely_text_selection_origin(hwnd_raw: isize, point: PhysicalPositio
         })
     };
     if hit_hwnd.is_null() {
-        return false;
+        return TextSelectionSurfaceConfidence::None;
     }
 
     let hit_root = unsafe { GetAncestor(hit_hwnd, GA_ROOT) };
     if !hit_root.is_null() && hit_root != hwnd {
-        return false;
+        return TextSelectionSurfaceConfidence::None;
     }
 
     let hit_raw = hit_hwnd as isize;
-    if hit_raw == hwnd_raw {
-        return false;
-    }
-
     let hit_class_name = window_class_name(hit_raw);
-    if hit_class_name
-        .as_deref()
-        .is_some_and(is_likely_text_selection_surface_class)
-    {
-        return true;
-    }
-
     let root_class_name = window_class_name(hwnd_raw);
-    if hit_class_name.is_some() && hit_class_name == root_class_name {
-        return false;
+    let hit_confidence = hit_class_name
+        .as_deref()
+        .map(text_selection_surface_confidence_for_class)
+        .unwrap_or(TextSelectionSurfaceConfidence::None);
+    let root_confidence = root_class_name
+        .as_deref()
+        .map(text_selection_surface_confidence_for_class)
+        .unwrap_or(TextSelectionSurfaceConfidence::None);
+
+    if hit_raw == hwnd_raw {
+        return root_confidence;
     }
 
-    false
+    if hit_confidence != TextSelectionSurfaceConfidence::None {
+        return hit_confidence;
+    }
+
+    if hit_class_name.is_some() && hit_class_name == root_class_name {
+        return root_confidence;
+    }
+
+    root_confidence
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -3460,8 +3484,8 @@ fn extended_top_chrome_exclusion_height(_hwnd_raw: isize) -> i32 {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn is_likely_text_selection_surface_class(_class_name: &str) -> bool {
-    false
+fn text_selection_surface_confidence_for_class(_class_name: &str) -> TextSelectionSurfaceConfidence {
+    TextSelectionSurfaceConfidence::None
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -3470,8 +3494,11 @@ fn window_client_top(_hwnd_raw: isize) -> Option<i32> {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn is_point_likely_text_selection_origin(_hwnd_raw: isize, _point: PhysicalPosition<i32>) -> bool {
-    true
+fn text_selection_surface_confidence_at_point(
+    _hwnd_raw: isize,
+    _point: PhysicalPosition<i32>,
+) -> TextSelectionSurfaceConfidence {
+    TextSelectionSurfaceConfidence::Weak
 }
 
 fn capture_clipboard_snapshot(clipboard: &mut Clipboard) -> ClipboardSnapshot {
@@ -7277,7 +7304,7 @@ fn start_selection_detector_thread(app: AppHandle) {
         let mut selection_bar_outside_press_started = false;
         let mut mouse_down_started_at_ms: u64 = 0;
         let mut mouse_down_position: Option<PhysicalPosition<i32>> = None;
-        let mut mouse_down_started_in_client_area = false;
+        let mut mouse_down_surface_confidence = TextSelectionSurfaceConfidence::None;
         let mut drag_foreground_hwnd: isize = 0;
         let mut mouse_down_clipboard_text: Option<String> = None;
         let mut ctrl_down_started_at_ms: u64 = 0;
@@ -7406,7 +7433,7 @@ fn start_selection_detector_thread(app: AppHandle) {
                 last_mouse_down = mouse_down_now;
                 detect_phase = SelectionDetectPhase::Idle;
                 drag_foreground_hwnd = 0;
-                mouse_down_started_in_client_area = false;
+                mouse_down_surface_confidence = TextSelectionSurfaceConfidence::None;
                 mouse_down_clipboard_text = None;
                 selection_bar_outside_press_started = false;
                 ctrl_down_started_at_ms = 0;
@@ -7436,11 +7463,14 @@ fn start_selection_detector_thread(app: AppHandle) {
                         let flags = app.state::<RuntimeFlags>();
                         capture_last_foreground_window(&flags);
                         drag_foreground_hwnd = flags.last_foreground_hwnd.load(Ordering::Relaxed);
-                        mouse_down_started_in_client_area = mouse_down_position
+                        mouse_down_surface_confidence = mouse_down_position
                             .map(|point| {
-                                is_point_likely_text_selection_origin(drag_foreground_hwnd, point)
+                                text_selection_surface_confidence_at_point(
+                                    drag_foreground_hwnd,
+                                    point,
+                                )
                             })
-                            .unwrap_or(true);
+                            .unwrap_or(TextSelectionSurfaceConfidence::None);
                         mouse_down_clipboard_text = if is_console_like_window(drag_foreground_hwnd)
                         {
                             read_clipboard_text_trimmed()
@@ -7473,8 +7503,8 @@ fn start_selection_detector_thread(app: AppHandle) {
 
                     let mut hwnd = drag_foreground_hwnd;
                     drag_foreground_hwnd = 0;
-                    let started_in_client_area = mouse_down_started_in_client_area;
-                    mouse_down_started_in_client_area = false;
+                    let started_surface_confidence = mouse_down_surface_confidence;
+                    mouse_down_surface_confidence = TextSelectionSurfaceConfidence::None;
                     let clipboard_before_drag = mouse_down_clipboard_text.take();
                     if hwnd == 0 {
                         let flags = app.state::<RuntimeFlags>();
@@ -7485,7 +7515,13 @@ fn start_selection_detector_thread(app: AppHandle) {
                         continue;
                     }
 
-                    if !started_in_client_area {
+                    let release_surface_confidence = release_position
+                        .map(|point| text_selection_surface_confidence_at_point(hwnd, point))
+                        .unwrap_or(TextSelectionSurfaceConfidence::None);
+
+                    if started_surface_confidence == TextSelectionSurfaceConfidence::None
+                        || release_surface_confidence == TextSelectionSurfaceConfidence::None
+                    {
                         continue;
                     }
 
@@ -7526,7 +7562,11 @@ fn start_selection_detector_thread(app: AppHandle) {
                     if !is_console && !clipboard_changed {
                         let deliberate_same_clipboard_drag =
                             drag_duration >= 220 || drag_distance >= 18;
-                        if !deliberate_same_clipboard_drag {
+                        let strong_text_surface_drag =
+                            started_surface_confidence >= TextSelectionSurfaceConfidence::Strong
+                                && release_surface_confidence
+                                    >= TextSelectionSurfaceConfidence::Strong;
+                        if !deliberate_same_clipboard_drag || !strong_text_surface_drag {
                             continue;
                         }
                     }
