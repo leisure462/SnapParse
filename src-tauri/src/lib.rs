@@ -3431,8 +3431,7 @@ fn text_selection_surface_confidence_at_point(
     }
 
     let extended_top_band_height = extended_top_chrome_exclusion_height(hwnd_raw);
-    if extended_top_band_height > 0 && point.y < rect.top.saturating_add(extended_top_band_height)
-    {
+    if extended_top_band_height > 0 && point.y < rect.top.saturating_add(extended_top_band_height) {
         return TextSelectionSurfaceConfidence::None;
     }
 
@@ -3484,7 +3483,9 @@ fn extended_top_chrome_exclusion_height(_hwnd_raw: isize) -> i32 {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn text_selection_surface_confidence_for_class(_class_name: &str) -> TextSelectionSurfaceConfidence {
+fn text_selection_surface_confidence_for_class(
+    _class_name: &str,
+) -> TextSelectionSurfaceConfidence {
     TextSelectionSurfaceConfidence::None
 }
 
@@ -7258,10 +7259,37 @@ fn is_any_snapparse_window_focused<R: Runtime>(app: &AppHandle<R>) -> bool {
     ]
     .iter()
     .any(|label| {
-        app.get_webview_window(label)
-            .and_then(|window| window.is_focused().ok())
-            .unwrap_or(false)
+        let Some(window) = app.get_webview_window(label) else {
+            return false;
+        };
+        if !window.is_visible().ok().unwrap_or(false) {
+            return false;
+        }
+        window.is_focused().ok().unwrap_or(false)
     })
+}
+
+fn clear_selection_detector_runtime<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(runtime) = app.try_state::<SelectionRuntimeState>() {
+        runtime.detector_running.store(false, Ordering::Relaxed);
+        runtime.detector_heartbeat_ms.store(0, Ordering::Relaxed);
+    }
+}
+
+struct SelectionDetectorThreadGuard {
+    app: AppHandle,
+}
+
+impl SelectionDetectorThreadGuard {
+    fn new(app: AppHandle) -> Self {
+        Self { app }
+    }
+}
+
+impl Drop for SelectionDetectorThreadGuard {
+    fn drop(&mut self) {
+        clear_selection_detector_runtime(&self.app);
+    }
 }
 
 fn start_selection_detector_thread(app: AppHandle) {
@@ -7296,395 +7324,415 @@ fn start_selection_detector_thread(app: AppHandle) {
         .store(now_epoch_millis(), Ordering::Relaxed);
 
     std::thread::spawn(move || {
-        let mut last_mouse_down = false;
-        let mut last_outside_click_mouse_down = false;
-        let mut last_escape_down = false;
-        let mut last_ctrl_down = false;
-        let mut detect_phase = SelectionDetectPhase::Idle;
-        let mut selection_bar_outside_press_started = false;
-        let mut mouse_down_started_at_ms: u64 = 0;
-        let mut mouse_down_position: Option<PhysicalPosition<i32>> = None;
-        let mut mouse_down_surface_confidence = TextSelectionSurfaceConfidence::None;
-        let mut drag_foreground_hwnd: isize = 0;
-        let mut mouse_down_clipboard_text: Option<String> = None;
-        let mut ctrl_down_started_at_ms: u64 = 0;
-        let mut ctrl_hold_triggered = false;
+        let _thread_guard = SelectionDetectorThreadGuard::new(app.clone());
+        let run_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut last_mouse_down = false;
+            let mut last_outside_click_mouse_down = false;
+            let mut last_escape_down = false;
+            let mut last_ctrl_down = false;
+            let mut detect_phase = SelectionDetectPhase::Idle;
+            let mut selection_bar_outside_press_started = false;
+            let mut mouse_down_started_at_ms: u64 = 0;
+            let mut mouse_down_position: Option<PhysicalPosition<i32>> = None;
+            let mut mouse_down_surface_confidence = TextSelectionSurfaceConfidence::None;
+            let mut drag_foreground_hwnd: isize = 0;
+            let mut mouse_down_clipboard_text: Option<String> = None;
+            let mut ctrl_down_started_at_ms: u64 = 0;
+            let mut ctrl_hold_triggered = false;
 
-        loop {
-            std::thread::sleep(Duration::from_millis(120));
-            if let Some(runtime_state) = app.try_state::<SelectionRuntimeState>() {
-                runtime_state
-                    .detector_heartbeat_ms
-                    .store(now_epoch_millis(), Ordering::Relaxed);
-            }
+            loop {
+                std::thread::sleep(Duration::from_millis(120));
+                if let Some(runtime_state) = app.try_state::<SelectionRuntimeState>() {
+                    runtime_state
+                        .detector_heartbeat_ms
+                        .store(now_epoch_millis(), Ordering::Relaxed);
+                }
 
-            let mouse_down_now = is_left_mouse_pressed();
-            let escape_down_now = is_escape_pressed();
-            let ctrl_down_now = is_ctrl_pressed();
+                let mouse_down_now = is_left_mouse_pressed();
+                let escape_down_now = is_escape_pressed();
+                let ctrl_down_now = is_ctrl_pressed();
 
-            if ctrl_down_now && !last_ctrl_down {
-                ctrl_down_started_at_ms = now_epoch_millis();
-                ctrl_hold_triggered = false;
-            } else if !ctrl_down_now {
-                ctrl_down_started_at_ms = 0;
-                ctrl_hold_triggered = false;
-            }
-            last_ctrl_down = ctrl_down_now;
+                if ctrl_down_now && !last_ctrl_down {
+                    ctrl_down_started_at_ms = now_epoch_millis();
+                    ctrl_hold_triggered = false;
+                } else if !ctrl_down_now {
+                    ctrl_down_started_at_ms = 0;
+                    ctrl_hold_triggered = false;
+                }
+                last_ctrl_down = ctrl_down_now;
 
-            if escape_down_now && !last_escape_down {
-                let mut should_cancel_capture = false;
-                if let Some(ocr_runtime) = app.try_state::<OcrRuntimeState>() {
-                    should_cancel_capture = ocr_runtime.capture_active.load(Ordering::Relaxed);
+                if escape_down_now && !last_escape_down {
+                    let mut should_cancel_capture = false;
+                    if let Some(ocr_runtime) = app.try_state::<OcrRuntimeState>() {
+                        should_cancel_capture = ocr_runtime.capture_active.load(Ordering::Relaxed);
+                        if should_cancel_capture {
+                            ocr_runtime.capture_active.store(false, Ordering::Relaxed);
+                            ocr_runtime
+                                .suppress_blur_until_ms
+                                .store(0, Ordering::Relaxed);
+                            if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
+                                *snapshot = None;
+                            }
+                        }
+                    }
+
                     if should_cancel_capture {
-                        ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-                        ocr_runtime
-                            .suppress_blur_until_ms
-                            .store(0, Ordering::Relaxed);
-                        if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
-                            *snapshot = None;
-                        }
+                        hide_ocr_capture_window(&app);
+                        emit_ocr_capture_canceled(&app);
                     }
                 }
+                last_escape_down = escape_down_now;
 
-                if should_cancel_capture {
-                    hide_ocr_capture_window(&app);
-                    emit_ocr_capture_canceled(&app);
-                }
-            }
-            last_escape_down = escape_down_now;
-
-            let selection_bar_visible = app
-                .get_webview_window(SELECTION_BAR_WINDOW_LABEL)
-                .and_then(|window| window.is_visible().ok())
-                .unwrap_or(false);
-            if selection_bar_visible {
-                if mouse_down_now && !last_outside_click_mouse_down {
-                    let pointer = current_pointer_position();
-                    let inside_bar = pointer
-                        .and_then(|point| {
-                            app.get_webview_window(SELECTION_BAR_WINDOW_LABEL)
-                                .and_then(|window| {
-                                    let position = window.outer_position().ok()?;
-                                    let size = window.outer_size().ok()?;
-                                    let width = to_i32(size.width);
-                                    let height = to_i32(size.height);
-                                    Some(
-                                        point.x >= position.x
-                                            && point.x < position.x.saturating_add(width)
-                                            && point.y >= position.y
-                                            && point.y < position.y.saturating_add(height),
-                                    )
-                                })
-                        })
-                        .unwrap_or(false);
-                    selection_bar_outside_press_started = !inside_bar;
-                }
-                let released = last_outside_click_mouse_down && !mouse_down_now;
-                if released {
-                    let suppress_close_until = app
-                        .try_state::<SelectionRuntimeState>()
-                        .map(|runtime| {
-                            runtime
-                                .selection_bar_close_guard_until_ms
-                                .load(Ordering::Relaxed)
-                        })
-                        .unwrap_or(0);
-                    let pointer = current_pointer_position();
-                    let inside_bar = pointer
-                        .and_then(|point| {
-                            app.get_webview_window(SELECTION_BAR_WINDOW_LABEL)
-                                .and_then(|window| {
-                                    let position = window.outer_position().ok()?;
-                                    let size = window.outer_size().ok()?;
-                                    let width = to_i32(size.width);
-                                    let height = to_i32(size.height);
-                                    Some(
-                                        point.x >= position.x
-                                            && point.x < position.x.saturating_add(width)
-                                            && point.y >= position.y
-                                            && point.y < position.y.saturating_add(height),
-                                    )
-                                })
-                        })
-                        .unwrap_or(false);
-                    if selection_bar_outside_press_started
-                        && now_epoch_millis() >= suppress_close_until
-                        && !inside_bar
-                    {
-                        hide_selection_bar_window(&app);
-                    }
-                    selection_bar_outside_press_started = false;
-                }
-            } else {
-                selection_bar_outside_press_started = false;
-            }
-            last_outside_click_mouse_down = mouse_down_now;
-
-            let Some(settings_state) = app.try_state::<AppSettingsState>() else {
-                continue;
-            };
-            let settings_snapshot = match settings_state.data.lock() {
-                Ok(settings) => settings.clone(),
-                Err(_) => continue,
-            };
-
-            let assistant = settings_snapshot.selection_assistant.clone();
-            if !assistant.enabled {
-                last_mouse_down = mouse_down_now;
-                detect_phase = SelectionDetectPhase::Idle;
-                drag_foreground_hwnd = 0;
-                mouse_down_surface_confidence = TextSelectionSurfaceConfidence::None;
-                mouse_down_clipboard_text = None;
-                selection_bar_outside_press_started = false;
-                ctrl_down_started_at_ms = 0;
-                ctrl_hold_triggered = false;
-                continue;
-            }
-
-            match assistant.mode {
-                SelectionTriggerMode::AutoDetect => {
-                    if is_any_snapparse_window_focused(&app) {
-                        last_mouse_down = mouse_down_now;
-                        if !mouse_down_now {
-                            detect_phase = SelectionDetectPhase::Idle;
-                        }
-                        if !mouse_down_now {
-                            drag_foreground_hwnd = 0;
-                            mouse_down_clipboard_text = None;
-                        }
-                        continue;
-                    }
-                    let mouse_down = mouse_down_now;
-                    if mouse_down && !last_mouse_down {
-                        detect_phase = SelectionDetectPhase::Dragging;
-                        mouse_down_started_at_ms = now_epoch_millis();
-                        mouse_down_position = current_pointer_position();
-
-                        let flags = app.state::<RuntimeFlags>();
-                        capture_last_foreground_window(&flags);
-                        drag_foreground_hwnd = flags.last_foreground_hwnd.load(Ordering::Relaxed);
-                        mouse_down_surface_confidence = mouse_down_position
-                            .map(|point| {
-                                text_selection_surface_confidence_at_point(
-                                    drag_foreground_hwnd,
-                                    point,
+                let selection_bar_visible = app
+                    .get_webview_window(SELECTION_BAR_WINDOW_LABEL)
+                    .and_then(|window| window.is_visible().ok())
+                    .unwrap_or(false);
+                if selection_bar_visible {
+                    if mouse_down_now && !last_outside_click_mouse_down {
+                        let pointer = current_pointer_position();
+                        let inside_bar = pointer
+                            .and_then(|point| {
+                                app.get_webview_window(SELECTION_BAR_WINDOW_LABEL).and_then(
+                                    |window| {
+                                        let position = window.outer_position().ok()?;
+                                        let size = window.outer_size().ok()?;
+                                        let width = to_i32(size.width);
+                                        let height = to_i32(size.height);
+                                        Some(
+                                            point.x >= position.x
+                                                && point.x < position.x.saturating_add(width)
+                                                && point.y >= position.y
+                                                && point.y < position.y.saturating_add(height),
+                                        )
+                                    },
                                 )
                             })
-                            .unwrap_or(TextSelectionSurfaceConfidence::None);
-                        mouse_down_clipboard_text = if is_console_like_window(drag_foreground_hwnd)
+                            .unwrap_or(false);
+                        selection_bar_outside_press_started = !inside_bar;
+                    }
+                    let released = last_outside_click_mouse_down && !mouse_down_now;
+                    if released {
+                        let suppress_close_until = app
+                            .try_state::<SelectionRuntimeState>()
+                            .map(|runtime| {
+                                runtime
+                                    .selection_bar_close_guard_until_ms
+                                    .load(Ordering::Relaxed)
+                            })
+                            .unwrap_or(0);
+                        let pointer = current_pointer_position();
+                        let inside_bar = pointer
+                            .and_then(|point| {
+                                app.get_webview_window(SELECTION_BAR_WINDOW_LABEL).and_then(
+                                    |window| {
+                                        let position = window.outer_position().ok()?;
+                                        let size = window.outer_size().ok()?;
+                                        let width = to_i32(size.width);
+                                        let height = to_i32(size.height);
+                                        Some(
+                                            point.x >= position.x
+                                                && point.x < position.x.saturating_add(width)
+                                                && point.y >= position.y
+                                                && point.y < position.y.saturating_add(height),
+                                        )
+                                    },
+                                )
+                            })
+                            .unwrap_or(false);
+                        if selection_bar_outside_press_started
+                            && now_epoch_millis() >= suppress_close_until
+                            && !inside_bar
                         {
-                            read_clipboard_text_trimmed()
-                        } else {
-                            None
-                        };
+                            hide_selection_bar_window(&app);
+                        }
+                        selection_bar_outside_press_started = false;
                     }
-                    let just_released = last_mouse_down && !mouse_down;
-                    last_mouse_down = mouse_down;
-                    if !just_released {
-                        continue;
-                    }
-                    if detect_phase != SelectionDetectPhase::Dragging {
-                        continue;
-                    }
+                } else {
+                    selection_bar_outside_press_started = false;
+                }
+                last_outside_click_mouse_down = mouse_down_now;
+
+                let Some(settings_state) = app.try_state::<AppSettingsState>() else {
+                    continue;
+                };
+                let settings_snapshot = match settings_state.data.lock() {
+                    Ok(settings) => settings.clone(),
+                    Err(_) => continue,
+                };
+
+                let assistant = settings_snapshot.selection_assistant.clone();
+                if !assistant.enabled {
+                    last_mouse_down = mouse_down_now;
                     detect_phase = SelectionDetectPhase::Idle;
-
-                    let drag_duration = now_epoch_millis().saturating_sub(mouse_down_started_at_ms);
-                    let release_position = current_pointer_position();
-                    let drag_distance = match (mouse_down_position, release_position) {
-                        (Some(start), Some(end)) => {
-                            let dx = (end.x - start.x).unsigned_abs();
-                            let dy = (end.y - start.y).unsigned_abs();
-                            dx.saturating_add(dy)
-                        }
-                        _ => 0,
-                    };
-                    mouse_down_started_at_ms = 0;
-                    mouse_down_position = None;
-
-                    let mut hwnd = drag_foreground_hwnd;
                     drag_foreground_hwnd = 0;
-                    let started_surface_confidence = mouse_down_surface_confidence;
                     mouse_down_surface_confidence = TextSelectionSurfaceConfidence::None;
-                    let clipboard_before_drag = mouse_down_clipboard_text.take();
-                    if hwnd == 0 {
-                        let flags = app.state::<RuntimeFlags>();
-                        capture_last_foreground_window(&flags);
-                        hwnd = flags.last_foreground_hwnd.load(Ordering::Relaxed);
-                    }
-                    if is_window_blocked_by_apps(hwnd, &assistant.blocked_apps) {
-                        continue;
-                    }
+                    mouse_down_clipboard_text = None;
+                    selection_bar_outside_press_started = false;
+                    ctrl_down_started_at_ms = 0;
+                    ctrl_hold_triggered = false;
+                    continue;
+                }
 
-                    let release_surface_confidence = release_position
-                        .map(|point| text_selection_surface_confidence_at_point(hwnd, point))
-                        .unwrap_or(TextSelectionSurfaceConfidence::None);
-
-                    if started_surface_confidence == TextSelectionSurfaceConfidence::None
-                        || release_surface_confidence == TextSelectionSurfaceConfidence::None
-                    {
-                        continue;
-                    }
-
-                    let is_console = is_console_like_window(hwnd);
-                    let (min_duration, min_distance) = if is_console {
-                        (120u64, 6u32)
-                    } else {
-                        (150u64, 10u32)
-                    };
-                    if drag_duration < min_duration || drag_distance < min_distance {
-                        continue;
-                    }
-                    let Some(runtime_state) = app.try_state::<SelectionRuntimeState>() else {
-                        continue;
-                    };
-
-                    let (selected, clipboard_changed) = if is_console {
-                        match capture_console_selection_without_shortcut(
-                            hwnd,
-                            clipboard_before_drag.as_deref(),
-                        ) {
-                            Some(payload) => payload,
-                            None => continue,
+                match assistant.mode {
+                    SelectionTriggerMode::AutoDetect => {
+                        if is_any_snapparse_window_focused(&app) {
+                            last_mouse_down = mouse_down_now;
+                            if !mouse_down_now {
+                                detect_phase = SelectionDetectPhase::Idle;
+                            }
+                            if !mouse_down_now {
+                                drag_foreground_hwnd = 0;
+                                mouse_down_clipboard_text = None;
+                            }
+                            continue;
                         }
-                    } else {
-                        match capture_selected_text_once(hwnd) {
-                            Ok(payload) => payload,
-                            Err(_) => continue,
-                        }
-                    };
+                        let mouse_down = mouse_down_now;
+                        if mouse_down && !last_mouse_down {
+                            detect_phase = SelectionDetectPhase::Dragging;
+                            mouse_down_started_at_ms = now_epoch_millis();
+                            mouse_down_position = current_pointer_position();
 
-                    // For regular apps, selected text may legitimately match the current
-                    // clipboard content. In that case we still want to wake the bar.
-                    // Console windows remain stricter to avoid replaying stale clipboard text.
-                    if is_console && !clipboard_changed {
-                        continue;
-                    }
-                    if !is_console && !clipboard_changed {
-                        let deliberate_same_clipboard_drag =
-                            drag_duration >= 220 || drag_distance >= 18;
-                        let strong_text_surface_drag =
-                            started_surface_confidence >= TextSelectionSurfaceConfidence::Strong
+                            let flags = app.state::<RuntimeFlags>();
+                            capture_last_foreground_window(&flags);
+                            drag_foreground_hwnd =
+                                flags.last_foreground_hwnd.load(Ordering::Relaxed);
+                            mouse_down_surface_confidence = mouse_down_position
+                                .map(|point| {
+                                    text_selection_surface_confidence_at_point(
+                                        drag_foreground_hwnd,
+                                        point,
+                                    )
+                                })
+                                .unwrap_or(TextSelectionSurfaceConfidence::None);
+                            mouse_down_clipboard_text =
+                                if is_console_like_window(drag_foreground_hwnd) {
+                                    read_clipboard_text_trimmed()
+                                } else {
+                                    None
+                                };
+                        }
+                        let just_released = last_mouse_down && !mouse_down;
+                        last_mouse_down = mouse_down;
+                        if !just_released {
+                            continue;
+                        }
+                        if detect_phase != SelectionDetectPhase::Dragging {
+                            continue;
+                        }
+                        detect_phase = SelectionDetectPhase::Idle;
+
+                        let drag_duration =
+                            now_epoch_millis().saturating_sub(mouse_down_started_at_ms);
+                        let release_position = current_pointer_position();
+                        let drag_distance = match (mouse_down_position, release_position) {
+                            (Some(start), Some(end)) => {
+                                let dx = (end.x - start.x).unsigned_abs();
+                                let dy = (end.y - start.y).unsigned_abs();
+                                dx.saturating_add(dy)
+                            }
+                            _ => 0,
+                        };
+                        mouse_down_started_at_ms = 0;
+                        mouse_down_position = None;
+
+                        let mut hwnd = drag_foreground_hwnd;
+                        drag_foreground_hwnd = 0;
+                        let started_surface_confidence = mouse_down_surface_confidence;
+                        mouse_down_surface_confidence = TextSelectionSurfaceConfidence::None;
+                        let clipboard_before_drag = mouse_down_clipboard_text.take();
+                        if hwnd == 0 {
+                            let flags = app.state::<RuntimeFlags>();
+                            capture_last_foreground_window(&flags);
+                            hwnd = flags.last_foreground_hwnd.load(Ordering::Relaxed);
+                        }
+                        if is_window_blocked_by_apps(hwnd, &assistant.blocked_apps) {
+                            continue;
+                        }
+
+                        let release_surface_confidence = release_position
+                            .map(|point| text_selection_surface_confidence_at_point(hwnd, point))
+                            .unwrap_or(TextSelectionSurfaceConfidence::None);
+
+                        if started_surface_confidence == TextSelectionSurfaceConfidence::None
+                            || release_surface_confidence == TextSelectionSurfaceConfidence::None
+                        {
+                            continue;
+                        }
+
+                        let is_console = is_console_like_window(hwnd);
+                        let (min_duration, min_distance) = if is_console {
+                            (120u64, 6u32)
+                        } else {
+                            (150u64, 10u32)
+                        };
+                        if drag_duration < min_duration || drag_distance < min_distance {
+                            continue;
+                        }
+                        let Some(runtime_state) = app.try_state::<SelectionRuntimeState>() else {
+                            continue;
+                        };
+
+                        let (selected, clipboard_changed) = if is_console {
+                            match capture_console_selection_without_shortcut(
+                                hwnd,
+                                clipboard_before_drag.as_deref(),
+                            ) {
+                                Some(payload) => payload,
+                                None => continue,
+                            }
+                        } else {
+                            match capture_selected_text_once(hwnd) {
+                                Ok(payload) => payload,
+                                Err(_) => continue,
+                            }
+                        };
+
+                        // For regular apps, selected text may legitimately match the current
+                        // clipboard content. In that case we still want to wake the bar.
+                        // Console windows remain stricter to avoid replaying stale clipboard text.
+                        if is_console && !clipboard_changed {
+                            continue;
+                        }
+                        if !is_console && !clipboard_changed {
+                            let deliberate_same_clipboard_drag =
+                                drag_duration >= 220 || drag_distance >= 18;
+                            let strong_text_surface_drag = started_surface_confidence
+                                >= TextSelectionSurfaceConfidence::Strong
                                 && release_surface_confidence
                                     >= TextSelectionSurfaceConfidence::Strong;
-                        if !deliberate_same_clipboard_drag || !strong_text_surface_drag {
+                            if !deliberate_same_clipboard_drag || !strong_text_surface_drag {
+                                continue;
+                            }
+                        }
+                        if !selection_text_in_range(&assistant, &selected) {
                             continue;
                         }
-                    }
-                    if !selection_text_in_range(&assistant, &selected) {
-                        continue;
-                    }
-                    if was_selection_recently_dismissed(
-                        &runtime_state,
-                        &selected,
-                        hwnd,
-                        SelectionTriggerMode::AutoDetect,
-                    ) {
-                        continue;
-                    }
-                    let allow_repeat_same = if is_console {
-                        true
-                    } else {
-                        app.get_webview_window(SELECTION_BAR_WINDOW_LABEL)
-                            .and_then(|window| window.is_visible().ok())
-                            .map(|visible| !visible)
-                            .unwrap_or(true)
-                    };
-                    if !remember_latest_selection(
-                        &runtime_state,
-                        &selected,
-                        hwnd,
-                        SelectionTriggerMode::AutoDetect,
-                        allow_repeat_same,
-                    ) {
-                        continue;
-                    }
-
-                    if let Err(error) =
-                        publish_selection_detected(&app, selected, SelectionTriggerMode::AutoDetect)
-                    {
-                        emit_selection_error(&app, &error.to_string());
-                    }
-                }
-                SelectionTriggerMode::CopyTrigger => {
-                    detect_phase = SelectionDetectPhase::Idle;
-                    if is_any_snapparse_window_focused(&app) {
-                        continue;
-                    }
-                    if !ctrl_down_now || ctrl_hold_triggered {
-                        continue;
-                    }
-                    if ctrl_down_started_at_ms == 0 {
-                        ctrl_down_started_at_ms = now_epoch_millis();
-                        continue;
-                    }
-                    let ctrl_hold_elapsed =
-                        now_epoch_millis().saturating_sub(ctrl_down_started_at_ms);
-                    if ctrl_hold_elapsed < COPY_TRIGGER_CTRL_HOLD_MS {
-                        continue;
-                    }
-                    ctrl_hold_triggered = true;
-
-                    let flags = app.state::<RuntimeFlags>();
-                    capture_last_foreground_window(&flags);
-                    let active_hwnd = flags.last_foreground_hwnd.load(Ordering::Relaxed);
-                    if is_window_blocked_by_apps(active_hwnd, &assistant.blocked_apps) {
-                        continue;
-                    }
-
-                    let before_clipboard_text = read_clipboard_text_trimmed();
-                    let (text, clipboard_changed) = if is_console_like_window(active_hwnd) {
-                        match capture_console_selection_without_shortcut(
-                            active_hwnd,
-                            before_clipboard_text.as_deref(),
+                        if was_selection_recently_dismissed(
+                            &runtime_state,
+                            &selected,
+                            hwnd,
+                            SelectionTriggerMode::AutoDetect,
                         ) {
-                            Some(payload) => payload,
-                            None => continue,
-                        }
-                    } else {
-                        match capture_selected_text_once(active_hwnd) {
-                            Ok(payload) => payload,
-                            Err(_) => continue,
-                        }
-                    };
-                    // Long-hold Ctrl should still work when the selected text is identical to
-                    // the existing clipboard content. Keep console windows conservative.
-                    if is_console_like_window(active_hwnd) && !clipboard_changed {
-                        continue;
-                    }
-                    if !selection_text_in_range(&assistant, &text) {
-                        continue;
-                    }
-
-                    let Some(runtime_state) = app.try_state::<SelectionRuntimeState>() else {
-                        continue;
-                    };
-                    {
-                        let mut observed = match runtime_state.last_clipboard_observed.lock() {
-                            Ok(value) => value,
-                            Err(_) => continue,
-                        };
-                        if *observed == text {
                             continue;
                         }
-                        *observed = text.clone();
-                    }
-                    if !remember_latest_selection(
-                        &runtime_state,
-                        &text,
-                        active_hwnd,
-                        SelectionTriggerMode::CopyTrigger,
-                        false,
-                    ) {
-                        continue;
-                    }
+                        let allow_repeat_same = if is_console {
+                            true
+                        } else {
+                            app.get_webview_window(SELECTION_BAR_WINDOW_LABEL)
+                                .and_then(|window| window.is_visible().ok())
+                                .map(|visible| !visible)
+                                .unwrap_or(true)
+                        };
+                        if !remember_latest_selection(
+                            &runtime_state,
+                            &selected,
+                            hwnd,
+                            SelectionTriggerMode::AutoDetect,
+                            allow_repeat_same,
+                        ) {
+                            continue;
+                        }
 
-                    if let Err(error) =
-                        publish_selection_detected(&app, text, SelectionTriggerMode::CopyTrigger)
-                    {
-                        emit_selection_error(&app, &error.to_string());
+                        if let Err(error) = publish_selection_detected(
+                            &app,
+                            selected,
+                            SelectionTriggerMode::AutoDetect,
+                        ) {
+                            emit_selection_error(&app, &error.to_string());
+                        }
+                    }
+                    SelectionTriggerMode::CopyTrigger => {
+                        detect_phase = SelectionDetectPhase::Idle;
+                        if is_any_snapparse_window_focused(&app) {
+                            continue;
+                        }
+                        if !ctrl_down_now || ctrl_hold_triggered {
+                            continue;
+                        }
+                        if ctrl_down_started_at_ms == 0 {
+                            ctrl_down_started_at_ms = now_epoch_millis();
+                            continue;
+                        }
+                        let ctrl_hold_elapsed =
+                            now_epoch_millis().saturating_sub(ctrl_down_started_at_ms);
+                        if ctrl_hold_elapsed < COPY_TRIGGER_CTRL_HOLD_MS {
+                            continue;
+                        }
+                        ctrl_hold_triggered = true;
+
+                        let flags = app.state::<RuntimeFlags>();
+                        capture_last_foreground_window(&flags);
+                        let active_hwnd = flags.last_foreground_hwnd.load(Ordering::Relaxed);
+                        if is_window_blocked_by_apps(active_hwnd, &assistant.blocked_apps) {
+                            continue;
+                        }
+
+                        let before_clipboard_text = read_clipboard_text_trimmed();
+                        let (text, clipboard_changed) = if is_console_like_window(active_hwnd) {
+                            match capture_console_selection_without_shortcut(
+                                active_hwnd,
+                                before_clipboard_text.as_deref(),
+                            ) {
+                                Some(payload) => payload,
+                                None => continue,
+                            }
+                        } else {
+                            match capture_selected_text_once(active_hwnd) {
+                                Ok(payload) => payload,
+                                Err(_) => continue,
+                            }
+                        };
+                        // Long-hold Ctrl should still work when the selected text is identical to
+                        // the existing clipboard content. Keep console windows conservative.
+                        if is_console_like_window(active_hwnd) && !clipboard_changed {
+                            continue;
+                        }
+                        if !selection_text_in_range(&assistant, &text) {
+                            continue;
+                        }
+
+                        let Some(runtime_state) = app.try_state::<SelectionRuntimeState>() else {
+                            continue;
+                        };
+                        {
+                            let mut observed = match runtime_state.last_clipboard_observed.lock() {
+                                Ok(value) => value,
+                                Err(_) => continue,
+                            };
+                            if *observed == text {
+                                continue;
+                            }
+                            *observed = text.clone();
+                        }
+                        if !remember_latest_selection(
+                            &runtime_state,
+                            &text,
+                            active_hwnd,
+                            SelectionTriggerMode::CopyTrigger,
+                            false,
+                        ) {
+                            continue;
+                        }
+
+                        if let Err(error) = publish_selection_detected(
+                            &app,
+                            text,
+                            SelectionTriggerMode::CopyTrigger,
+                        ) {
+                            emit_selection_error(&app, &error.to_string());
+                        }
                     }
                 }
             }
+        }));
+
+        if let Err(payload) = run_result {
+            let message = payload
+                .downcast_ref::<&str>()
+                .map(|value| (*value).to_string())
+                .or_else(|| payload.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "unknown panic".to_string());
+            eprintln!("[SelectionDetector] worker panicked: {message}");
         }
     });
 }
