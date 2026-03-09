@@ -147,7 +147,6 @@ const FALLBACK_SETTINGS: AppSettings = {
   selectionAssistant: {
     enabled: true,
     mode: "auto-detect",
-    showIconAnimation: true,
     compactMode: false,
     barOpacity: 0.94,
     searchUrlTemplate: "https://www.google.com/search?q={query}",
@@ -1024,10 +1023,6 @@ function sanitizeSettings(input: AppSettings): AppSettings {
         input.selectionAssistant?.enabled ?? FALLBACK_SETTINGS.selectionAssistant.enabled
       ),
       mode: parseSelectionMode(input.selectionAssistant?.mode),
-      showIconAnimation: Boolean(
-        input.selectionAssistant?.showIconAnimation ??
-          FALLBACK_SETTINGS.selectionAssistant.showIconAnimation
-      ),
       compactMode: Boolean(
         input.selectionAssistant?.compactMode ??
           FALLBACK_SETTINGS.selectionAssistant.compactMode
@@ -2307,12 +2302,7 @@ function SelectionBarWindow({ settingsApi }: { settingsApi: SettingsApi }) {
           settings.selectionAssistant.compactMode ? " compact" : ""
         }`}
       >
-        <div
-          className={`selection-brand${
-            settings.selectionAssistant.showIconAnimation ? " animate" : ""
-          }`}
-          title="SnapParse"
-        >
+        <div className="selection-brand" title="SnapParse">
           <img src={appLogo} alt="SnapParse" />
         </div>
         {orderedActions.map((item) => {
@@ -5110,19 +5100,6 @@ function SettingsWindow({ settingsApi }: { settingsApi: SettingsApi }) {
                 </div>
               </div>
 
-              <label className="check-row">
-                <span>显示软件图标动画</span>
-                <input
-                  className="md2-check"
-                  type="checkbox"
-                  checked={settings.selectionAssistant.showIconAnimation}
-                  onChange={(event) => {
-                    void applyPatch({
-                      selectionAssistant: { showIconAnimation: event.target.checked }
-                    });
-                  }}
-                />
-              </label>
               <div className="filled-control">
                 <label htmlFor="selection-bar-opacity">条形栏透明度</label>
                 <div className="appearance-range-row">

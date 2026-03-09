@@ -40,7 +40,6 @@ export interface WindowSettings {
 export interface SelectionAssistantSettings {
   enabled: boolean;
   mode: SelectionTriggerMode;
-  showIconAnimation: boolean;
   compactMode: boolean;
   barOpacity: number;
   searchUrlTemplate: string;
@@ -173,7 +172,6 @@ export interface WindowSettingsPatch {
 export interface SelectionAssistantSettingsPatch {
   enabled?: boolean;
   mode?: SelectionTriggerMode;
-  showIconAnimation?: boolean;
   compactMode?: boolean;
   barOpacity?: number;
   searchUrlTemplate?: string;
