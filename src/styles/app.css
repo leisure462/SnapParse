@@ -4474,3 +4474,37 @@ html[data-window="main"] .window-root {
 .clipboard-window .clip-item .favorite-btn {
   border-radius: calc(var(--clipboard-inline-radius) - 1px) !important;
 }
+
+/* Clipboard shell fill fix: move edge spacing into the shell so corners stay filled. */
+html[data-window="main"] .window-root {
+  --clipboard-window-radius: 12px;
+  --clipboard-shell-radius: calc(var(--clipboard-window-radius) - 2px);
+  clip-path: inset(0 round var(--clipboard-window-radius));
+}
+
+.clipboard-window {
+  padding: 4px !important;
+  box-sizing: border-box;
+  border-radius: var(--clipboard-shell-radius) !important;
+  background: color-mix(in srgb, var(--surface) 92%, transparent) !important;
+  background-clip: padding-box;
+}
+
+.clipboard-window .panel-head,
+.clipboard-window .clipboard-top-controls {
+  margin: 0 !important;
+}
+
+.clipboard-window .panel-head {
+  margin-top: 0 !important;
+}
+
+.clipboard-window .clip-stream {
+  padding: 0 !important;
+}
+
+.clipboard-window .panel-head,
+.clipboard-window .toolbar,
+.clipboard-window .clip-item {
+  background-clip: padding-box;
+}
