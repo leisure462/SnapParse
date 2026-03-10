@@ -131,6 +131,8 @@ const RESULT_WINDOW_BLUR_HIDE_DELAY_MS: u64 = 220;
 const OCR_CAPTURE_BLUR_HIDE_DELAY_MS: u64 = 120;
 const RESULT_WINDOW_BLUR_SUPPRESS_MS: u64 = 420;
 const OCR_CAPTURE_BLUR_SUPPRESS_MS: u64 = 1_100;
+const OCR_CAPTURE_TOPMOST_REASSERT_SHORT_MS: u64 = 28;
+const OCR_CAPTURE_TOPMOST_REASSERT_LONG_MS: u64 = 96;
 const COPY_TRIGGER_CTRL_HOLD_MS: u64 = 380;
 const MODEL_REQUEST_MAX_ATTEMPTS: usize = 3;
 const MODEL_REQUEST_RETRY_BASE_DELAY_MS: u64 = 140;
@@ -4558,24 +4560,25 @@ fn show_ocr_capture_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), Command
         ));
     };
 
+    let mut target_position: Option<PhysicalPosition<i32>> = None;
+    let mut target_size: Option<tauri::PhysicalSize<u32>> = None;
     let pointer = current_pointer_position().unwrap_or(PhysicalPosition::new(40, 40));
     if let Some(monitor) =
         monitor_for_point(app, pointer).or_else(|| app.primary_monitor().ok().flatten())
     {
-        let monitor_pos = monitor.position();
-        let monitor_size = monitor.size();
-        let _ = window.set_position(Position::Physical(*monitor_pos));
-        let _ = window.set_size(Size::Physical(tauri::PhysicalSize::new(
-            monitor_size.width,
-            monitor_size.height,
-        )));
+        let position = *monitor.position();
+        let size = tauri::PhysicalSize::new(monitor.size().width, monitor.size().height);
+        target_position = Some(position);
+        target_size = Some(size);
+        let _ = window.set_position(Position::Physical(position));
+        let _ = window.set_size(Size::Physical(size));
     }
 
     // Keep source app popups/tooltips alive while drawing OCR region:
     // show capture overlay without activating/focusing this window.
     let _ = window.set_focusable(false);
-    let _ = window.set_always_on_top(true);
     let _ = window.show();
+    reinforce_ocr_capture_window_front(app, target_position, target_size);
     Ok(())
 }
 
@@ -4650,6 +4653,60 @@ fn show_ocr_result_window<R: Runtime>(app: &AppHandle<R>) -> Result<(), CommandE
     Ok(())
 }
 
+fn deactivate_ocr_capture_runtime(ocr_runtime: &OcrRuntimeState) {
+    ocr_runtime.capture_active.store(false, Ordering::Relaxed);
+    ocr_runtime
+        .suppress_blur_until_ms
+        .store(0, Ordering::Relaxed);
+}
+
+fn reset_ocr_capture_runtime_state(ocr_runtime: &OcrRuntimeState) {
+    deactivate_ocr_capture_runtime(ocr_runtime);
+    if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
+        *snapshot = None;
+    }
+}
+
+fn reassert_ocr_capture_window_front<R: Runtime>(
+    app: &AppHandle<R>,
+    target_position: Option<PhysicalPosition<i32>>,
+    target_size: Option<tauri::PhysicalSize<u32>>,
+) {
+    let Some(window) = app.get_webview_window(OCR_CAPTURE_WINDOW_LABEL) else {
+        return;
+    };
+
+    if let Some(position) = target_position {
+        let _ = window.set_position(Position::Physical(position));
+    }
+    if let Some(size) = target_size {
+        let _ = window.set_size(Size::Physical(size));
+    }
+    let _ = window.show();
+    let _ = window.set_focusable(false);
+    let _ = window.set_always_on_top(false);
+    let _ = window.set_always_on_top(true);
+}
+
+fn reinforce_ocr_capture_window_front<R: Runtime>(
+    app: &AppHandle<R>,
+    target_position: Option<PhysicalPosition<i32>>,
+    target_size: Option<tauri::PhysicalSize<u32>>,
+) {
+    reassert_ocr_capture_window_front(app, target_position, target_size);
+
+    for delay_ms in [
+        OCR_CAPTURE_TOPMOST_REASSERT_SHORT_MS,
+        OCR_CAPTURE_TOPMOST_REASSERT_LONG_MS,
+    ] {
+        let app_handle = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(delay_ms));
+            reassert_ocr_capture_window_front(&app_handle, target_position, target_size);
+        });
+    }
+}
+
 fn start_ocr_capture_workflow<R: Runtime>(app: &AppHandle<R>) -> Result<(), CommandError> {
     let Some(settings_state) = app.try_state::<AppSettingsState>() else {
         return Err(CommandError::Settings(
@@ -4672,6 +4729,14 @@ fn start_ocr_capture_workflow<R: Runtime>(app: &AppHandle<R>) -> Result<(), Comm
             "OCR runtime state unavailable".to_string(),
         ));
     };
+    if !app
+        .get_webview_window(OCR_CAPTURE_WINDOW_LABEL)
+        .and_then(|window| window.is_visible().ok())
+        .unwrap_or(false)
+        && ocr_runtime.capture_active.load(Ordering::Relaxed)
+    {
+        reset_ocr_capture_runtime_state(&ocr_runtime);
+    }
     ocr_runtime.capture_active.store(true, Ordering::Relaxed);
     ocr_runtime.suppress_blur_until_ms.store(
         now_epoch_millis().saturating_add(OCR_CAPTURE_BLUR_SUPPRESS_MS),
@@ -6470,20 +6535,27 @@ fn toggle_ocr_capture_window<R: Runtime>(app: &AppHandle<R>) {
         .get_webview_window(OCR_CAPTURE_WINDOW_LABEL)
         .and_then(|window| window.is_visible().ok())
         .unwrap_or(false);
+    let capture_active = app
+        .try_state::<OcrRuntimeState>()
+        .map(|runtime| runtime.capture_active.load(Ordering::Relaxed))
+        .unwrap_or(false);
 
     if capture_visible {
         if let Some(ocr_runtime) = app.try_state::<OcrRuntimeState>() {
-            ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-            ocr_runtime
-                .suppress_blur_until_ms
-                .store(0, Ordering::Relaxed);
-            if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
-                *snapshot = None;
-            }
+            reset_ocr_capture_runtime_state(&ocr_runtime);
         }
         hide_ocr_capture_window(app);
-        emit_ocr_capture_canceled(app);
-        return;
+        if capture_active {
+            emit_ocr_capture_canceled(app);
+            return;
+        }
+    }
+
+    if capture_active {
+        if let Some(ocr_runtime) = app.try_state::<OcrRuntimeState>() {
+            reset_ocr_capture_runtime_state(&ocr_runtime);
+        }
+        hide_ocr_capture_window(app);
     }
 
     if let Err(error) = start_ocr_capture_workflow(app) {
@@ -7366,13 +7438,7 @@ fn start_selection_detector_thread(app: AppHandle) {
                     if let Some(ocr_runtime) = app.try_state::<OcrRuntimeState>() {
                         should_cancel_capture = ocr_runtime.capture_active.load(Ordering::Relaxed);
                         if should_cancel_capture {
-                            ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-                            ocr_runtime
-                                .suppress_blur_until_ms
-                                .store(0, Ordering::Relaxed);
-                            if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
-                                *snapshot = None;
-                            }
+                            reset_ocr_capture_runtime_state(&ocr_runtime);
                         }
                     }
 
@@ -8304,13 +8370,7 @@ fn cancel_ocr_capture_cmd(
     app: AppHandle,
     ocr_runtime: State<'_, OcrRuntimeState>,
 ) -> Result<(), CommandError> {
-    ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-    ocr_runtime
-        .suppress_blur_until_ms
-        .store(0, Ordering::Relaxed);
-    if let Ok(mut snapshot) = ocr_runtime.capture_snapshot.lock() {
-        *snapshot = None;
-    }
+    reset_ocr_capture_runtime_state(&ocr_runtime);
     hide_ocr_capture_window(&app);
     emit_ocr_capture_canceled(&app);
     Ok(())
@@ -8382,10 +8442,7 @@ async fn complete_ocr_capture_cmd(
     http_client_state: State<'_, HttpClientState>,
 ) -> Result<(), CommandError> {
     let task_nonce = begin_ocr_result_task(&app);
-    ocr_runtime.capture_active.store(false, Ordering::Relaxed);
-    ocr_runtime
-        .suppress_blur_until_ms
-        .store(0, Ordering::Relaxed);
+    deactivate_ocr_capture_runtime(&ocr_runtime);
 
     let snapshot = settings_state
         .data
