@@ -787,6 +787,7 @@ struct ClipboardEntry {
     kind: ClipboardKind,
     content: String,
     image_data_url: Option<String>,
+    thumbnail_data_url: Option<String>,
     copied_at: DateTime<Utc>,
     pinned: bool,
 }
@@ -2387,6 +2388,7 @@ fn parse_history_entry_compat(raw: &serde_json::Value) -> Option<ClipboardEntry>
         kind,
         content,
         image_data_url,
+        thumbnail_data_url: None,
         copied_at,
         pinned,
     })
@@ -3729,6 +3731,7 @@ fn build_text_entry(content: String) -> ClipboardEntry {
         kind,
         content: normalized,
         image_data_url: None,
+        thumbnail_data_url: None,
         copied_at: Utc::now(),
         pinned: false,
     }
@@ -3762,6 +3765,7 @@ fn build_image_entry(image: ImageData<'static>) -> Result<ClipboardEntry, Comman
         kind: ClipboardKind::Image,
         content: format!("Image {}x{}", width, height),
         image_data_url: Some(data_url),
+        thumbnail_data_url: None,
         copied_at: Utc::now(),
         pinned: false,
     })
