@@ -1942,10 +1942,10 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
             </div>
           </header>
 
-          {entry.kind === "image" && entry.imageDataUrl ? (
+          {entry.kind === "image" && (entry.thumbnailDataUrl || entry.imageDataUrl) ? (
             <img
               className="item-image"
-              src={entry.imageDataUrl}
+              src={(entry.thumbnailDataUrl || entry.imageDataUrl) as string}
               alt={`Clipboard image preview ${entry.content}`}
               loading="lazy"
             />
