@@ -3746,26 +3746,53 @@ fn build_image_entry(image: ImageData<'static>) -> Result<ClipboardEntry, Comman
         CommandError::InvalidImage("Invalid RGBA bytes for clipboard image".to_string())
     })?;
 
-    let mut cursor = Cursor::new(Vec::new());
-    DynamicImage::ImageRgba8(rgba)
-        .write_to(&mut cursor, ImageFormat::Png)
+    // Generate original base64
+    let mut original_cursor = Cursor::new(Vec::new());
+    DynamicImage::ImageRgba8(rgba.clone())
+        .write_to(&mut original_cursor, ImageFormat::Png)
         .map_err(|error| CommandError::InvalidImage(error.to_string()))?;
+    let original_encoded = BASE64.encode(original_cursor.into_inner());
+    let original_data_url = format!("data:image/png;base64,{original_encoded}");
 
-    let encoded = BASE64.encode(cursor.into_inner());
-    let data_url = format!("data:image/png;base64,{encoded}");
-    if data_url.len() > MAX_CLIPBOARD_IMAGE_DATA_URL_CHARS {
+    if original_data_url.len() > MAX_CLIPBOARD_IMAGE_DATA_URL_CHARS {
         return Err(CommandError::InvalidImage(format!(
             "Clipboard image too large ({} bytes), skipped",
-            data_url.len()
+            original_data_url.len()
         )));
     }
+
+    // Generate 120px thumbnail
+    let thumbnail_data_url = if width > MAX_THUMBNAIL_WIDTH {
+        let ratio = MAX_THUMBNAIL_WIDTH as f32 / width as f32;
+        let thumb_width = MAX_THUMBNAIL_WIDTH;
+        let thumb_height = (height as f32 * ratio) as u32;
+        let thumb = image::imageops::resize(
+            &rgba,
+            thumb_width,
+            thumb_height,
+            image::imageops::FilterType::Lanczos3,
+        );
+        let mut thumb_cursor = Cursor::new(Vec::new());
+        DynamicImage::ImageRgba8(thumb)
+            .write_to(&mut thumb_cursor, ImageFormat::Png)
+            .map_err(|error| CommandError::InvalidImage(error.to_string()))?;
+        let thumb_encoded = BASE64.encode(thumb_cursor.into_inner());
+        let thumb_data_url = format!("data:image/png;base64,{thumb_encoded}");
+        if thumb_data_url.len() <= MAX_THUMBNAIL_CHARS {
+            Some(thumb_data_url)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     Ok(ClipboardEntry {
         id: now_id(),
         kind: ClipboardKind::Image,
         content: format!("Image {}x{}", width, height),
-        image_data_url: Some(data_url),
-        thumbnail_data_url: None,
+        image_data_url: Some(original_data_url),
+        thumbnail_data_url,
         copied_at: Utc::now(),
         pinned: false,
     })
