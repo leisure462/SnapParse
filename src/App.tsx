@@ -85,6 +85,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { KeyboardEvent as ReactKeyboardEvent, WheelEvent as ReactWheelEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { List } from "react-window";
 import ReactMarkdown from "react-markdown";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
@@ -1639,6 +1640,7 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   const favoriteToggleInFlightRef = useRef<Set<string>>(new Set());
   const streamRef = useRef<HTMLElement | null>(null);
   const historyRef = useRef<ClipboardEntry[]>([]);
+  const [listHeight, setListHeight] = useState(600);
   const applyHistoryUpdate = useCallback((next: ClipboardEntry[]) => {
     setHistory((current) => (isSameHistoryList(current, next) ? current : next));
   }, []);
@@ -1646,6 +1648,20 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
+
+  useEffect(() => {
+    const element = streamRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setListHeight(entry.contentRect.height);
+      }
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.clipGradients = settings.history.enableItemGradients
@@ -1881,6 +1897,66 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
     return items;
   }, [filter, history, historySearchIndex, normalizedQuery]);
 
+  const ITEM_HEIGHT = 72;
+
+  const RenderRow = ({
+    index,
+    style,
+  }: {
+    index: number;
+    style: React.CSSProperties;
+  }) => {
+    const entry = filtered[index];
+    if (!entry) return null;
+    return (
+      <div style={style}>
+        <article
+          key={entry.id}
+          className={`clip-item kind-${entry.kind}${entry.pinned ? " pinned" : ""}`}
+          onClick={() => void copyByClick(entry)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              void copyByClick(entry);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          <header>
+            <time>{formatDate(entry.copiedAt)}</time>
+            <div className="clip-item-actions">
+              <div className="tag">{kindLabel(entry.kind)}</div>
+              <button
+                className={`favorite-btn${entry.pinned ? " active" : ""}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void toggleFavorite(entry.id);
+                }}
+                aria-label={entry.pinned ? "取消收藏" : "收藏"}
+                title={entry.pinned ? "取消收藏" : "收藏"}
+              >
+                <Star size={12} />
+              </button>
+            </div>
+          </header>
+
+          {entry.kind === "image" && entry.imageDataUrl ? (
+            <img
+              className="item-image"
+              src={entry.imageDataUrl}
+              alt={`Clipboard image preview ${entry.content}`}
+              loading="lazy"
+            />
+          ) : (
+            <pre className={entry.kind === "link" ? "link-text" : undefined}>{snippet(entry.content)}</pre>
+          )}
+        </article>
+      </div>
+    );
+  };
+
   function copyByClick(entry: ClipboardEntry) {
     return invoke<ClipboardEntry[]>("paste_entry_by_click", { id: entry.id })
       .then((items) => {
@@ -2081,51 +2157,15 @@ function ClipboardWindow({ settingsApi }: { settingsApi: SettingsApi }) {
       >
         {filtered.length === 0 && <div className="empty-note">暂无匹配内容</div>}
 
-        {filtered.map((entry) => (
-          <article
-            key={entry.id}
-            className={`clip-item kind-${entry.kind}${entry.pinned ? " pinned" : ""}`}
-            onClick={() => void copyByClick(entry)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                void copyByClick(entry);
-              }
-            }}
-            role="button"
-            tabIndex={0}
-          >
-            <header>
-              <time>{formatDate(entry.copiedAt)}</time>
-              <div className="clip-item-actions">
-                <div className="tag">{kindLabel(entry.kind)}</div>
-                <button
-                  className={`favorite-btn${entry.pinned ? " active" : ""}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    void toggleFavorite(entry.id);
-                  }}
-                  aria-label={entry.pinned ? "取消收藏" : "收藏"}
-                  title={entry.pinned ? "取消收藏" : "收藏"}
-                >
-                  <Star size={12} />
-                </button>
-              </div>
-            </header>
-
-            {entry.kind === "image" && entry.imageDataUrl ? (
-              <img
-                className="item-image"
-                src={entry.imageDataUrl}
-                alt={`Clipboard image preview ${entry.content}`}
-                loading="lazy"
-              />
-            ) : (
-              <pre className={entry.kind === "link" ? "link-text" : undefined}>{snippet(entry.content)}</pre>
-            )}
-          </article>
-        ))}
+        {filtered.length > 0 && (
+          <List<object>
+            rowCount={filtered.length}
+            rowHeight={ITEM_HEIGHT}
+            rowComponent={RenderRow}
+            rowProps={{}}
+            style={{ height: listHeight, width: "100%" }}
+          />
+        )}
       </section>
     </main>
   );
