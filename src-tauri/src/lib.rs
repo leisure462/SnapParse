@@ -139,10 +139,12 @@ const MODEL_REQUEST_RETRY_BASE_DELAY_MS: u64 = 140;
 const MODEL_REQUEST_RETRY_MAX_DELAY_MS: u64 = 850;
 const GLM_OCR_TEST_IMAGE_URL: &str = "https://cdn.bigmodel.cn/static/logo/introduction.png";
 const MAX_SETTINGS_FILE_BYTES: u64 = 2 * 1024 * 1024;
-const MAX_HISTORY_FILE_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_HISTORY_FILE_BYTES: u64 = 256 * 1024 * 1024;
 const SELECTION_DETECTOR_STALE_MS: u64 = 8_000;
 const MAX_CLIPBOARD_TEXT_CHARS: usize = 120_000;
 const MAX_CLIPBOARD_IMAGE_DATA_URL_CHARS: usize = 8_000_000;
+const MAX_THUMBNAIL_WIDTH: u32 = 120;
+const MAX_THUMBNAIL_CHARS: usize = 150_000;
 const MAX_OCR_IMAGE_DATA_URL_CHARS: usize = 12_000_000;
 static EDGE_TTS_AUTO_INSTALL_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 const EDGE_TTS_INSTALL_IN_PROGRESS: &str = "__EDGE_TTS_INSTALL_IN_PROGRESS__";
@@ -3983,7 +3985,13 @@ fn trim_history(history: &mut VecDeque<ClipboardEntry>, max_items: usize) {
         if let Some(index) = history.iter().rposition(|entry| !entry.pinned) {
             history.remove(index);
         } else {
-            break;
+            // All remaining items are pinned, remove the oldest pinned item
+            // to make room for the new entry
+            if let Some(index) = history.iter().rposition(|_| true) {
+                history.remove(index);
+            } else {
+                break;
+            }
         }
     }
 }
