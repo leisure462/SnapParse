@@ -5,6 +5,7 @@ export interface ClipboardEntry {
   kind: ClipboardKind;
   content: string;
   imageDataUrl: string | null;
+  thumbnailDataUrl: string | null;
   copiedAt: string;
   pinned: boolean;
 }
