@@ -29,7 +29,7 @@ void SystemTrayManager::init() {
         m_trayIcon->setToolTip("SnapParse 剪贴板管理");
         int trayIconSize = GetSystemMetrics(SM_CXSMICON);
         if (trayIconSize <= 0) trayIconSize = 16;
-        m_trayIcon->setIcon(FluentIcon::trayIcon(trayIconSize));
+        m_trayIcon->setIcon(FluentIcon::appIcon(trayIconSize));
         Logger::info(QString("SystemTrayManager: icon set at %1px").arg(trayIconSize));
 
         // Menu - parent to this so it's auto-deleted with SystemTrayManager

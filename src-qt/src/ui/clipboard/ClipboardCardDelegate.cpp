@@ -18,20 +18,23 @@
 static QCache<QString, QPixmap> s_thumbnailCache(150);
 static QCache<QString, QPixmap> s_appIconCache(100);
 
-static const QFont& getTextFont() {
-    static const QFont f("Microsoft YaHei UI", 9);
+static QFont getTextFont() {
+    QFont f = QGuiApplication::font();
+    f.setPointSize(9);
     return f;
 }
-static const QFontMetrics& getTextFm() {
-    static const QFontMetrics fm(getTextFont());
-    return fm;
+static QFontMetrics getTextFm() {
+    return QFontMetrics(getTextFont());
 }
-static const QFont& getDemiBoldFont() {
-    static const QFont f("Microsoft YaHei UI", 9, QFont::DemiBold);
+static QFont getDemiBoldFont() {
+    QFont f = QGuiApplication::font();
+    f.setPointSize(9);
+    f.setWeight(QFont::DemiBold);
     return f;
 }
-static const QFont& getSmallFont() {
-    static const QFont f("Microsoft YaHei UI", 8);
+static QFont getSmallFont() {
+    QFont f = QGuiApplication::font();
+    f.setPointSize(8);
     return f;
 }
 

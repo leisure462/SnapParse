@@ -56,7 +56,7 @@ SortItemCard::SortItemCard(SortableTreeDialog* dialog, const QString& key, const
     // 3. Name Label
     QLabel* textLabel = new QLabel(label, this);
     textLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
-    textLabel->setStyleSheet("background: transparent; border: none; font-family: 'Microsoft YaHei UI'; font-size: 12px; font-weight: 500; color: #f5f5f7;");
+    textLabel->setStyleSheet("background: transparent; border: none; font-size: 12px; font-weight: 500; color: #f5f5f7;");
     hLayout->addWidget(textLabel, 1);
 
     // 4. Checkbox on the right
@@ -171,7 +171,7 @@ SortableTreeDialog::SortableTreeDialog(const QString& title, bool checkable, QWi
     titleLayout->setSpacing(2);
 
     QLabel* titleLabel = new QLabel(title, this);
-    titleLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 14px; font-weight: bold; color: #ffffff;");
+    titleLabel->setStyleSheet("font-size: 14px; font-weight: bold; color: #ffffff;");
     titleLayout->addWidget(titleLabel);
 
     QString subText = checkable 
@@ -179,7 +179,7 @@ SortableTreeDialog::SortableTreeDialog(const QString& title, bool checkable, QWi
         : "按住左侧手柄拖动排序，排在前面的项目优先匹配。";
     QLabel* subLabel = new QLabel(subText, this);
     subLabel->setWordWrap(true);
-    subLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 11px; color: #86868b;");
+    subLabel->setStyleSheet("font-size: 11px; color: #86868b;");
     titleLayout->addWidget(subLabel);
 
     headerLayout->addLayout(titleLayout, 1);

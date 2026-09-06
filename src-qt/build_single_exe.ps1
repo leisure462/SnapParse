@@ -14,22 +14,29 @@ Write-Host "=================================================" -ForegroundColor 
 
 # 1. Initialize MSVC Environment (if not already active)
 Write-Host "[1/6] Initializing MSVC Compiler Environment..." -ForegroundColor Yellow
-if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
+if ((Get-Command "cl.exe" -ErrorAction SilentlyContinue) -and $env:INCLUDE -and $env:LIB) {
     Write-Host "  MSVC compiler already available in PATH." -ForegroundColor Green
 } else {
-    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (-not (Test-Path $vswhere)) {
-        throw "vswhere.exe not found. Visual Studio must be installed."
+    $vcvarsall = ""
+    $candidates = @(
+        "D:\dev\C++\VC\Auxiliary\Build\vcvarsall.bat",
+        "D:\dev\C++\VC\Auxiliary\Build\vcvars64.bat"
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path $c) { $vcvarsall = $c; break }
     }
-
-    $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-    if (-not $vsPath) {
-        throw "Visual Studio C++ environment not found."
+    if (-not $vcvarsall) {
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        if (Test-Path $vswhere) {
+            $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+            if ($vsPath) {
+                $candidate = Join-Path $vsPath "VC\Auxiliary\Build\vcvarsall.bat"
+                if (Test-Path $candidate) { $vcvarsall = $candidate }
+            }
+        }
     }
-
-    $vcvarsall = Join-Path $vsPath "VC\Auxiliary\Build\vcvarsall.bat"
-    if (-not (Test-Path $vcvarsall)) {
-        throw "vcvarsall.bat not found at $vcvarsall"
+    if (-not $vcvarsall) {
+        throw "vcvarsall.bat not found."
     }
 
     # Import VC environment variables

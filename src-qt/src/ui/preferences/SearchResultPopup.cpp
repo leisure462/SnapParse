@@ -63,6 +63,7 @@ void SearchResultPopup::initIndex() {
         {"workflow", "preview", "preview.delay", "悬停延迟", "设置鼠标悬停多久后显示预览"},
         {"workflow", "preview", "preview.space", "空格键预览", "按住空格键时预览当前选中的记录"},
         {"workflow", "appearance", "appearance.theme", "主题", "选择界面使用浅色、深色或跟随系统外观"},
+        {"workflow", "appearance", "appearance.fontFamily", "界面字体", "自定义软件界面显示的字体，检测所有本机已安装字体"},
         {"workflow", "appearance", "appearance.language", "语言", "切换 SnapParse 的界面语言"},
         {"workflow", "appearance", "appearance.textMaxLines", "文本内容最大显示行数", "限制文本记录在列表卡片中显示的行数"},
         {"workflow", "appearance", "appearance.imageMaxHeight", "图片最大显示高度", "限制图片记录在列表卡片中的缩略图高度"},

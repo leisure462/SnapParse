@@ -47,7 +47,6 @@ void FluentSearchLineEdit::updateStyles() {
                 border-radius: 7px;
                 padding-left: 28px;
                 padding-right: 28px;
-                font-family: 'Microsoft YaHei UI';
                 font-size: 12.5px;
                 color: #f5f5f7;
                 selection-background-color: %1;
@@ -66,7 +65,6 @@ void FluentSearchLineEdit::updateStyles() {
                 border-radius: 7px;
                 padding-left: 28px;
                 padding-right: 28px;
-                font-family: 'Microsoft YaHei UI';
                 font-size: 12.5px;
                 color: #1d1d1f;
                 selection-background-color: %1;

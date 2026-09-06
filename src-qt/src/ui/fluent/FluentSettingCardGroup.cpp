@@ -24,7 +24,7 @@ FluentSettingCardGroup::FluentSettingCardGroup(const QString& title, QWidget* pa
     auto updateTheme = [this]() {
         bool dark = ThemeManager::instance()->isDarkMode();
         if (m_titleLabel) {
-            m_titleLabel->setStyleSheet(QString("font-family: 'Microsoft YaHei UI'; font-size: 14px; font-weight: 600; color: %1;")
+            m_titleLabel->setStyleSheet(QString("font-size: 14px; font-weight: 600; color: %1;")
                 .arg(dark ? "#ffffff" : "#1d1d1f"));
         }
         if (m_cardContainer) {

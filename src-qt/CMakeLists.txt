@@ -82,6 +82,8 @@ set(SOURCES
     src/ui/fluent/FluentPushSettingCard.cpp
     src/ui/fluent/FluentColorSettingCard.h
     src/ui/fluent/FluentColorSettingCard.cpp
+    src/ui/fluent/FluentFontSettingCard.h
+    src/ui/fluent/FluentFontSettingCard.cpp
     src/ui/fluent/FluentSettingCardGroup.h
     src/ui/fluent/FluentSettingCardGroup.cpp
     src/ui/fluent/FluentSearchLineEdit.h

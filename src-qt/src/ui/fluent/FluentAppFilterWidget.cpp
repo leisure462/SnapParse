@@ -35,18 +35,18 @@ public:
         infoLayout->setAlignment(Qt::AlignVCenter);
 
         m_nameLabel = new QLabel(app.name.isEmpty() ? app.id : app.name, this);
-        m_nameLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 13px; font-weight: 500;");
+        m_nameLabel->setStyleSheet("font-size: 13px; font-weight: 500;");
         infoLayout->addWidget(m_nameLabel);
 
         m_idLabel = new QLabel(app.id, this);
-        m_idLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 11.5px; color: #86868b;");
+        m_idLabel->setStyleSheet("font-size: 11.5px; color: #86868b;");
         infoLayout->addWidget(m_idLabel);
 
         layout->addLayout(infoLayout, 1);
 
         // Status badge / text
         m_statusLabel = new QLabel(this);
-        m_statusLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 12px; margin-right: 4px;");
+        m_statusLabel->setStyleSheet("font-size: 12px; margin-right: 4px;");
         layout->addWidget(m_statusLabel);
 
         // Toggle Switch (Checked = 采集, Unchecked = 忽略)
@@ -101,21 +101,21 @@ private:
     void updateStatusText(bool captureEnabled) {
         if (captureEnabled) {
             m_statusLabel->setText("正在采集");
-            m_statusLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 12px; color: #52c41a; font-weight: 500;");
+            m_statusLabel->setStyleSheet("font-size: 12px; color: #52c41a; font-weight: 500;");
         } else {
             m_statusLabel->setText("已忽略");
-            m_statusLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 12px; color: #fa8c16; font-weight: 500;");
+            m_statusLabel->setStyleSheet("font-size: 12px; color: #fa8c16; font-weight: 500;");
         }
     }
 
     void updateTheme() {
         bool dark = ThemeManager::instance()->isDarkMode();
         if (m_nameLabel) {
-            m_nameLabel->setStyleSheet(QString("font-family: 'Microsoft YaHei UI'; font-size: 13px; font-weight: 500; color: %1;")
+            m_nameLabel->setStyleSheet(QString("font-size: 13px; font-weight: 500; color: %1;")
                 .arg(dark ? "#f5f5f7" : "#1d1d1f"));
         }
         if (m_idLabel) {
-            m_idLabel->setStyleSheet(QString("font-family: 'Microsoft YaHei UI'; font-size: 11.5px; color: %1;")
+            m_idLabel->setStyleSheet(QString("font-size: 11.5px; color: %1;")
                 .arg(dark ? "#8c8c8c" : "#86868b"));
         }
         if (m_deleteBtn) {
@@ -190,7 +190,7 @@ FluentAppFilterWidget::FluentAppFilterWidget(QWidget* parent) : QWidget(parent) 
     m_emptyLabel = new QLabel("暂无已配置的应用过滤项", m_cardContainer);
     m_emptyLabel->setAlignment(Qt::AlignCenter);
     m_emptyLabel->setFixedHeight(120);
-    m_emptyLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 13px; color: #86868b;");
+    m_emptyLabel->setStyleSheet("font-size: 13px; color: #86868b;");
     m_rowsLayout->addWidget(m_emptyLabel);
 
     rootLayout->addWidget(m_cardContainer);
@@ -214,7 +214,6 @@ FluentAppFilterWidget::FluentAppFilterWidget(QWidget* parent) : QWidget(parent) 
             QString refBorder = dark ? "rgba(255, 255, 255, 0.15)" : "rgba(0, 0, 0, 0.12)";
             m_btnRefresh->setStyleSheet(QString(R"(
                 QPushButton {
-                    font-family: 'Microsoft YaHei UI';
                     background-color: %1;
                     color: %2;
                     border: 1px solid %3;
@@ -232,7 +231,6 @@ FluentAppFilterWidget::FluentAppFilterWidget(QWidget* parent) : QWidget(parent) 
         if (m_btnAddApp) {
             m_btnAddApp->setStyleSheet(QString(R"(
                 QPushButton {
-                    font-family: 'Microsoft YaHei UI';
                     background-color: %1;
                     color: #ffffff;
                     border: none;

@@ -25,7 +25,7 @@ PreferenceSidebar::PreferenceSidebar(QWidget* parent) : QWidget(parent) {
     logoLabel->setPixmap(FluentIcon::appIcon(24, true).pixmap(24, 24));
 
     QLabel* nameLabel = new QLabel("SnapParse", this);
-    nameLabel->setStyleSheet("font-weight: 600; font-size: 14.5px; font-family: 'Microsoft YaHei UI', sans-serif;");
+    nameLabel->setStyleSheet("font-weight: 600; font-size: 14.5px;");
     nameLabel->setAlignment(Qt::AlignVCenter);
 
     brandLayout->addWidget(logoLabel, 0, Qt::AlignVCenter);

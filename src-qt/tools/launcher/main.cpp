@@ -114,8 +114,28 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     std::wstring runtimeDir = localAppData + L"\\SnapParseHub\\SnapParse\\runtime-" + APP_VERSION_TAG;
     std::wstring mainExePath = runtimeDir + L"\\SnapParse.exe";
 
-    // 1. Check if the runtime is already extracted and valid
-    if (!FileExists(mainExePath)) {
+    wchar_t launcherPath[MAX_PATH] = { 0 };
+    GetModuleFileNameW(NULL, launcherPath, MAX_PATH);
+
+    bool needExtract = !FileExists(mainExePath);
+
+    if (!needExtract) {
+        HANDLE hLauncher = CreateFileW(launcherPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+        HANDLE hTarget = CreateFileW(mainExePath.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+        if (hLauncher != INVALID_HANDLE_VALUE && hTarget != INVALID_HANDLE_VALUE) {
+            FILETIME ftLauncher = { 0 }, ftTarget = { 0 };
+            if (GetFileTime(hLauncher, NULL, NULL, &ftLauncher) && GetFileTime(hTarget, NULL, NULL, &ftTarget)) {
+                if (CompareFileTime(&ftLauncher, &ftTarget) > 0) {
+                    needExtract = true;
+                }
+            }
+        }
+        if (hLauncher != INVALID_HANDLE_VALUE) CloseHandle(hLauncher);
+        if (hTarget != INVALID_HANDLE_VALUE) CloseHandle(hTarget);
+    }
+
+    // 1. Check if the runtime needs extraction or update
+    if (needExtract) {
         CreateDirectoryRecursive(runtimeDir);
 
         std::wstring tempZip = GetTempPathStr() + L"snapparse_payload.zip";

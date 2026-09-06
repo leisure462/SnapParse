@@ -6,6 +6,7 @@
 #include "ClipboardCardDelegate.h"
 #include "EventBus.h"
 #include "FluentColorSettingCard.h"
+#include "FluentFontSettingCard.h"
 #include "Logger.h"
 
 WorkflowPage::WorkflowPage(QWidget* parent) : QScrollArea(parent) {
@@ -118,6 +119,14 @@ void WorkflowPage::setupUi() {
     });
     m_rows["appearance.accentColor"] = cardColor;
     m_appGroup->addSettingCard(cardColor);
+
+    auto* cardFont = new FluentFontSettingCard(FluentIconType::Note, "界面字体", "自定义软件界面显示的字体，支持检测所有本机已安装字体。", this);
+    cardFont->setCurrentFont(cfg->appearance.fontFamily);
+    connect(cardFont, &FluentFontSettingCard::fontChanged, this, [](const QString& fontFam) {
+        ThemeManager::instance()->setFontFamily(fontFam);
+    });
+    m_rows["appearance.fontFamily"] = cardFont;
+    m_appGroup->addSettingCard(cardFont);
 
     auto* cardLang = new FluentOptionsSettingCard(FluentIconType::Globe, "界面语言", "切换软件界面显示语言。", this);
     cardLang->setOptions({

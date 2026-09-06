@@ -19,6 +19,7 @@ struct AppearanceConfig {
     QString theme = "auto";       // auto, light, dark
     QString language = "zh-CN";   // zh-CN, en-US
     QString accentColor = "#1677ff"; // Hex accent color (default Aurora Blue)
+    QString fontFamily = "";      // Empty = System Default ("Microsoft YaHei UI")
 };
 
 struct ShortcutsConfig {

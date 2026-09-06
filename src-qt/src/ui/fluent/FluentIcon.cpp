@@ -252,35 +252,22 @@ QIcon FluentIcon::make(FluentIconType type, const QColor& color, int size) {
 
 QIcon FluentIcon::appIcon(int size, bool filled) {
     Q_UNUSED(filled)
-    QPixmap logo(":/icons/app_logo.png");
-    if (!logo.isNull()) {
-        int actualSize = size * 2;
-        QPixmap scaled = logo.scaled(actualSize, actualSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        return QIcon(scaled);
+    Q_UNUSED(size)
+    static QIcon s_appIcon;
+    if (s_appIcon.isNull()) {
+        QPixmap logo(":/icons/app_logo.png");
+        if (!logo.isNull()) {
+            const int standardSizes[] = { 16, 20, 24, 32, 48, 64, 128 };
+            for (int s : standardSizes) {
+                s_appIcon.addPixmap(logo.scaled(s, s, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            }
+        } else {
+            s_appIcon = QIcon(":/icons/app_icon.ico");
+        }
     }
-    return QIcon(":/icons/app_icon.ico");
+    return s_appIcon;
 }
 
 QIcon FluentIcon::trayIcon(int size) {
-    int actualSize = size * 2;
-    QPixmap pix(actualSize, actualSize);
-    pix.fill(Qt::transparent);
-
-    QPainter p(&pix);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setRenderHint(QPainter::SmoothPixmapTransform);
-
-    // Keep the default icon design style, rendered in clean neutral gray (#98989f)
-    QFile svgFile(":/icons/app_icon.svg");
-    if (svgFile.open(QIODevice::ReadOnly)) {
-        QByteArray svgData = svgFile.readAll();
-        svgData.replace("#1677ff", "#98989f");
-        QSvgRenderer renderer(svgData);
-        renderer.render(&p, QRect(0, 0, actualSize, actualSize));
-    } else {
-        return FluentIcon::make(FluentIconType::Reuse, QColor("#98989f"), size);
-    }
-    p.end();
-
-    return QIcon(pix);
+    return appIcon(size);
 }

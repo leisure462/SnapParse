@@ -8,7 +8,6 @@ static QString getHeaderButtonStyle() {
     if (dark) {
         return QString(R"(
             QPushButton {
-                font-family: 'Microsoft YaHei UI';
                 border: none;
                 background: transparent;
                 padding: 4px 10px;
@@ -31,7 +30,6 @@ static QString getHeaderButtonStyle() {
     } else {
         return QString(R"(
             QPushButton {
-                font-family: 'Microsoft YaHei UI';
                 border: none;
                 background: transparent;
                 padding: 4px 10px;
@@ -61,7 +59,7 @@ PreferenceHeader::PreferenceHeader(QWidget* parent) : QWidget(parent) {
 
     QHBoxLayout* topLayout = new QHBoxLayout();
     m_titleLabel = new QLabel("采集", this);
-    m_titleLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-weight: 600; font-size: 18px;");
+    m_titleLabel->setStyleSheet("font-weight: 600; font-size: 18px;");
     topLayout->addWidget(m_titleLabel);
     topLayout->addStretch();
 

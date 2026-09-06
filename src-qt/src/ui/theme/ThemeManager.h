@@ -11,6 +11,8 @@ public:
 
     void applyTheme(const QString& theme = "auto");
     void setAccentColor(const QString& hexColor);
+    void setFontFamily(const QString& family);
+    QString fontFamily() const { return m_fontFamily; }
     bool isDarkMode() const { return m_isDark; }
 
     QColor backgroundColor() const;
@@ -39,4 +41,5 @@ private:
     QString generateStyleSheet();
 
     bool m_isDark = false;
+    QString m_fontFamily;
 };

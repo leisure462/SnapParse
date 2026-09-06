@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QSettings>
 #include <QPalette>
+#include <QFont>
 
 ThemeManager* ThemeManager::instance() {
     static ThemeManager s_instance;
@@ -11,6 +12,7 @@ ThemeManager* ThemeManager::instance() {
 }
 
 ThemeManager::ThemeManager(QObject* parent) : QObject(parent) {
+    m_fontFamily = AppConfig::instance()->appearance.fontFamily;
 }
 
 bool ThemeManager::detectSystemDarkMode() const {
@@ -23,6 +25,21 @@ void ThemeManager::applyTheme(const QString& themeSetting) {
     if (theme.isEmpty()) {
         theme = AppConfig::instance()->appearance.theme;
     }
+
+    if (m_fontFamily.isEmpty()) {
+        m_fontFamily = AppConfig::instance()->appearance.fontFamily;
+    }
+
+    // Set application font
+    QFont appFont = qApp->font();
+    if (m_fontFamily.isEmpty() || m_fontFamily == "default") {
+        appFont.setFamily("Microsoft YaHei UI");
+    } else {
+        appFont.setFamily(m_fontFamily);
+    }
+    appFont.setStyleHint(QFont::SansSerif);
+    appFont.setStyleStrategy(QFont::PreferAntialias);
+    qApp->setFont(appFont);
 
     if (theme == "dark") {
         m_isDark = true;
@@ -60,6 +77,16 @@ void ThemeManager::setAccentColor(const QString& hexColor) {
         AppConfig::instance()->save();
         applyTheme(AppConfig::instance()->appearance.theme);
     }
+}
+
+void ThemeManager::setFontFamily(const QString& family) {
+    if (m_fontFamily == family) {
+        return;
+    }
+    m_fontFamily = family;
+    AppConfig::instance()->appearance.fontFamily = family;
+    AppConfig::instance()->save();
+    applyTheme(AppConfig::instance()->appearance.theme);
 }
 
 QColor ThemeManager::backgroundColor() const {
@@ -136,12 +163,18 @@ QString ThemeManager::generateStyleSheet() {
     QString menuBorder = m_isDark ? "rgba(255, 255, 255, 0.14)" : "rgba(0, 0, 0, 0.12)";
     QString menuHover = m_isDark ? "rgba(255, 255, 255, 0.10)" : "rgba(0, 0, 0, 0.06)";
     QString menuSep = m_isDark ? "rgba(255, 255, 255, 0.10)" : "rgba(0, 0, 0, 0.08)";
-    QString tooltipBg = m_isDark ? "#2c2c32" : "#ffffff";
     QString primary = primaryColor().name();
+
+    QString arrowDown = m_isDark ? ":/icons/chevron_down_dark.png" : ":/icons/chevron_down_light.png";
+    QString arrowUp = m_isDark ? ":/icons/chevron_up_dark.png" : ":/icons/chevron_up_light.png";
+
+    QString fontFam = (m_fontFamily.isEmpty() || m_fontFamily == "default")
+                      ? QString("\"Microsoft YaHei UI\", sans-serif")
+                      : QString("\"%1\", \"Microsoft YaHei UI\", sans-serif").arg(m_fontFamily);
 
     return QString(R"(
         QWidget {
-            font-family: "Microsoft YaHei UI";
+            font-family: )" + fontFam + R"(;
             color: %1;
             font-size: 13px;
         }
@@ -252,18 +285,20 @@ QString ThemeManager::generateStyleSheet() {
             background-color: %6;
         }
         QSpinBox::up-arrow {
-            width: 7px;
-            height: 7px;
+            image: url()" + arrowUp + R"();
+            width: 8px;
+            height: 8px;
         }
         QSpinBox::down-arrow {
-            width: 7px;
-            height: 7px;
+            image: url()" + arrowDown + R"();
+            width: 8px;
+            height: 8px;
         }
         QComboBox {
             background-color: %4;
             border: 1px solid %5;
             border-radius: 6px;
-            padding: 4px 24px 4px 10px;
+            padding: 4px 26px 4px 10px;
             color: %1;
             min-width: 100px;
         }
@@ -276,7 +311,7 @@ QString ThemeManager::generateStyleSheet() {
         QComboBox::drop-down {
             subcontrol-origin: border;
             subcontrol-position: top right;
-            width: 22px;
+            width: 24px;
             border-left: 1px solid %5;
             border-top-right-radius: 5px;
             border-bottom-right-radius: 5px;
@@ -284,6 +319,11 @@ QString ThemeManager::generateStyleSheet() {
         }
         QComboBox::drop-down:hover {
             background-color: %6;
+        }
+        QComboBox::down-arrow {
+            image: url()" + arrowDown + R"();
+            width: 10px;
+            height: 10px;
         }
         QComboBox QAbstractItemView {
             background-color: %8;

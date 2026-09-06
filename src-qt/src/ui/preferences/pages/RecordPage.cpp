@@ -142,7 +142,7 @@ void RecordPage::setupUi() {
     sourceLayout->setSpacing(10);
 
     QLabel* sourceTitle = new QLabel("应用过滤", sourceContainer);
-    sourceTitle->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 14px; font-weight: 600;");
+    sourceTitle->setStyleSheet("font-size: 14px; font-weight: 600;");
     sourceLayout->addWidget(sourceTitle);
 
     m_appFilter = new FluentAppFilterWidget(sourceContainer);

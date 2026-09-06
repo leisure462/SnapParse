@@ -78,6 +78,7 @@ QJsonObject AppConfig::toJson() const {
     a["theme"] = appearance.theme;
     a["language"] = appearance.language;
     a["accentColor"] = appearance.accentColor;
+    a["fontFamily"] = appearance.fontFamily;
     root["appearance"] = a;
 
     // Shortcuts
@@ -221,6 +222,7 @@ void AppConfig::fromJson(const QJsonObject& root) {
         appearance.theme = a.value("theme").toString(appearance.theme);
         appearance.language = a.value("language").toString(appearance.language);
         appearance.accentColor = a.value("accentColor").toString(appearance.accentColor);
+        appearance.fontFamily = a.value("fontFamily").toString(appearance.fontFamily);
     }
 
     // Shortcuts

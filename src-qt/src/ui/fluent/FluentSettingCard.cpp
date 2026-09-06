@@ -50,11 +50,11 @@ void FluentSettingCard::initUi(const QString& title, const QString& content) {
     auto updateThemeColors = [this]() {
         bool dark = ThemeManager::instance()->isDarkMode();
         if (m_titleLabel) {
-            m_titleLabel->setStyleSheet(QString("font-family: 'Microsoft YaHei UI'; font-size: 13px; font-weight: 500; color: %1;")
+            m_titleLabel->setStyleSheet(QString("font-size: 13px; font-weight: 500; color: %1;")
                 .arg(dark ? "#f5f5f7" : "#1d1d1f"));
         }
         if (m_contentLabel) {
-            m_contentLabel->setStyleSheet(QString("font-family: 'Microsoft YaHei UI'; font-size: 12px; font-weight: 400; color: %1; line-height: 1.3;")
+            m_contentLabel->setStyleSheet(QString("font-size: 12px; font-weight: 400; color: %1; line-height: 1.3;")
                 .arg(dark ? "#98989f" : "#86868b"));
         }
         if (m_hasIcon && m_iconLabel) {

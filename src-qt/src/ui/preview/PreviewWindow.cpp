@@ -33,11 +33,11 @@ PreviewWindow::PreviewWindow(QWidget* parent) : QWidget(parent) {
     textLayout->setSpacing(2);
 
     m_titleLabel = new QLabel(this);
-    m_titleLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-weight: bold; font-size: 13.5px; color: #ffffff;");
+    m_titleLabel->setStyleSheet("font-weight: bold; font-size: 13.5px; color: #ffffff;");
     textLayout->addWidget(m_titleLabel);
 
     m_metaLabel = new QLabel(this);
-    m_metaLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; color: #86868b; font-size: 11px;");
+    m_metaLabel->setStyleSheet("color: #86868b; font-size: 11px;");
     textLayout->addWidget(m_metaLabel);
 
     headerLayout->addLayout(textLayout, 1);
@@ -48,7 +48,6 @@ PreviewWindow::PreviewWindow(QWidget* parent) : QWidget(parent) {
     m_badgeLabel->setStyleSheet(R"(
         QLabel {
             padding: 0 8px;
-            font-family: 'Microsoft YaHei UI';
             font-size: 11px;
             font-weight: bold;
             color: #ffffff;
@@ -82,7 +81,6 @@ void PreviewWindow::updateStyles() {
         m_badgeLabel->setStyleSheet(QString(R"(
             QLabel {
                 padding: 0 8px;
-                font-family: 'Microsoft YaHei UI';
                 font-size: 11px;
                 font-weight: bold;
                 color: #ffffff;
@@ -93,8 +91,8 @@ void PreviewWindow::updateStyles() {
     }
 
     if (dark) {
-        if (m_titleLabel) m_titleLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-weight: bold; font-size: 13.5px; color: #f5f5f7;");
-        if (m_metaLabel) m_metaLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; color: #a1a1a6; font-size: 11px;");
+        if (m_titleLabel) m_titleLabel->setStyleSheet("font-weight: bold; font-size: 13.5px; color: #f5f5f7;");
+        if (m_metaLabel) m_metaLabel->setStyleSheet("color: #a1a1a6; font-size: 11px;");
         if (m_textBrowser) {
             m_textBrowser->setStyleSheet(R"(
                 QTextBrowser {
@@ -102,15 +100,15 @@ void PreviewWindow::updateStyles() {
                     border-radius: 7px;
                     background: rgba(25, 25, 28, 0.85);
                     padding: 8px;
-                    font-family: 'Consolas', 'Microsoft YaHei UI';
+                    font-family: 'Consolas', monospace;
                     font-size: 12.5px;
                     color: #f5f5f7;
                 }
             )");
         }
     } else {
-        if (m_titleLabel) m_titleLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-weight: bold; font-size: 13.5px; color: #1d1d1f;");
-        if (m_metaLabel) m_metaLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; color: #86868b; font-size: 11px;");
+        if (m_titleLabel) m_titleLabel->setStyleSheet("font-weight: bold; font-size: 13.5px; color: #1d1d1f;");
+        if (m_metaLabel) m_metaLabel->setStyleSheet("color: #86868b; font-size: 11px;");
         if (m_textBrowser) {
             m_textBrowser->setStyleSheet(R"(
                 QTextBrowser {
@@ -118,7 +116,7 @@ void PreviewWindow::updateStyles() {
                     border-radius: 7px;
                     background: rgba(255, 255, 255, 0.88);
                     padding: 8px;
-                    font-family: 'Consolas', 'Microsoft YaHei UI';
+                    font-family: 'Consolas', monospace;
                     font-size: 12.5px;
                     color: #1d1d1f;
                 }
