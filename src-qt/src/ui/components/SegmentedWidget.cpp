@@ -12,7 +12,7 @@ static QString getSegmentedButtonStyle() {
                 background: transparent;
                 color: #8c8c8c;
                 border-radius: 4px;
-                padding: 3px 10px;
+                padding: 3px 8px;
                 font-size: 12px;
             }
             QPushButton:hover {
@@ -31,7 +31,7 @@ static QString getSegmentedButtonStyle() {
                 background: transparent;
                 color: #555558;
                 border-radius: 4px;
-                padding: 3px 10px;
+                padding: 3px 8px;
                 font-size: 12px;
             }
             QPushButton:hover {

@@ -74,20 +74,28 @@ void GlobalHookManager::start() {
 
 void GlobalHookManager::stop() {
     if (s_mouseHook) {
-        UnhookWindowsHookEx(s_mouseHook);
+        HHOOK hook = s_mouseHook;
         s_mouseHook = nullptr;
+        UnhookWindowsHookEx(hook);
+        Logger::info("GlobalHookManager: mouse hook unhooked");
     }
     if (s_keyboardHook) {
-        UnhookWindowsHookEx(s_keyboardHook);
+        HHOOK hook = s_keyboardHook;
         s_keyboardHook = nullptr;
+        UnhookWindowsHookEx(hook);
+        Logger::info("GlobalHookManager: keyboard hook unhooked");
     }
+    s_clipboardHwnd = nullptr;
 }
 
 LRESULT CALLBACK GlobalHookManager::MouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    if (!s_mouseHook) {
+        return CallNextHookEx(nullptr, nCode, wParam, lParam);
+    }
     if (s_isPinned) {
         return CallNextHookEx(s_mouseHook, nCode, wParam, lParam);
     }
-    if (nCode >= 0 && s_clipboardHwnd && IsWindowVisible(s_clipboardHwnd)) {
+    if (nCode >= 0 && s_clipboardHwnd && IsWindow(s_clipboardHwnd) && IsWindowVisible(s_clipboardHwnd)) {
         // If shown within last 400ms, ignore clicks to avoid double-click dismissal race condition
         qint64 now = QDateTime::currentMSecsSinceEpoch();
         if (now - s_lastShowTime > 400) {
@@ -113,6 +121,9 @@ LRESULT CALLBACK GlobalHookManager::MouseProc(int nCode, WPARAM wParam, LPARAM l
 }
 
 LRESULT CALLBACK GlobalHookManager::KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    if (!s_keyboardHook) {
+        return CallNextHookEx(nullptr, nCode, wParam, lParam);
+    }
     if (nCode >= 0) {
         KBDLLHOOKSTRUCT* kbd = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
         if (kbd && AppConfig::instance()->shortcuts.winV) {

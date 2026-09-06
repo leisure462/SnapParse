@@ -130,13 +130,13 @@ void HeaderBar::updateStyles() {
         actBtnStyle = QString(R"(
             QPushButton {
                 border: 1px solid rgba(255, 255, 255, 0.08);
-                background: rgba(255, 255, 255, 0.06);
+                background: rgba(255, 255, 255, 0.10);
                 border-radius: 7px;
                 padding: 2px;
             }
             QPushButton:hover {
-                background: rgba(255, 255, 255, 0.14);
-                border-color: rgba(255, 255, 255, 0.18);
+                background: rgba(255, 255, 255, 0.16);
+                border-color: rgba(255, 255, 255, 0.20);
             }
             QPushButton:checked {
                 background: %1;
@@ -147,7 +147,7 @@ void HeaderBar::updateStyles() {
         actBtnStyle = QString(R"(
             QPushButton {
                 border: 1px solid rgba(0, 0, 0, 0.07);
-                background: rgba(255, 255, 255, 0.70);
+                background: rgba(255, 255, 255, 0.90);
                 border-radius: 7px;
                 padding: 2px;
             }
@@ -170,15 +170,15 @@ void HeaderBar::updateStyles() {
         catBtnStyle = QString(R"(
             QPushButton {
                 border: 1px solid rgba(255, 255, 255, 0.06);
-                background: rgba(255, 255, 255, 0.05);
+                background: rgba(255, 255, 255, 0.08);
                 color: #a1a1a6;
                 border-radius: 7px;
                 font-size: 13px;
                 padding: 2px;
             }
             QPushButton:hover {
-                background: rgba(255, 255, 255, 0.12);
-                border-color: rgba(255, 255, 255, 0.14);
+                background: rgba(255, 255, 255, 0.15);
+                border-color: rgba(255, 255, 255, 0.18);
                 color: #e5e5ea;
             }
             QPushButton:checked {
@@ -191,7 +191,7 @@ void HeaderBar::updateStyles() {
         catBtnStyle = QString(R"(
             QPushButton {
                 border: 1px solid rgba(0, 0, 0, 0.05);
-                background: rgba(255, 255, 255, 0.60);
+                background: rgba(255, 255, 255, 0.88);
                 color: #555555;
                 border-radius: 7px;
                 font-size: 13px;

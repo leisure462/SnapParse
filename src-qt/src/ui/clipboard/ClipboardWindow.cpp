@@ -71,6 +71,18 @@ ClipboardWindow::ClipboardWindow(QWidget* parent) : QWidget(parent) {
 
     connect(EventBus::instance(), &EventBus::clipboardUpdated, this, &ClipboardWindow::reloadData);
     connect(ThemeManager::instance(), &ThemeManager::themeApplied, this, [this]() {
+        qreal targetOp = ThemeManager::instance()->targetWindowOpacity();
+        setWindowOpacity(targetOp);
+
+        HWND hwnd = reinterpret_cast<HWND>(winId());
+        bool dark = ThemeManager::instance()->isDarkMode();
+        int op = ThemeManager::instance()->clipboardOpacity();
+        if (op < 100) {
+            WindowBackdropHelper::enableBackdrop(hwnd, WindowBackdropHelper::None, dark);
+        } else {
+            WindowBackdropHelper::enableAcrylic(hwnd, dark);
+        }
+
         update();
         if (m_listView && m_listView->viewport()) {
             m_listView->viewport()->update();
@@ -104,16 +116,22 @@ void ClipboardWindow::showAndFocus() {
     raise();
     activateWindow();
 
+    qreal targetOp = ThemeManager::instance()->targetWindowOpacity();
     QPropertyAnimation* anim = new QPropertyAnimation(this, "windowOpacity", this);
     anim->setDuration(120);
     anim->setStartValue(0.0);
-    anim->setEndValue(1.0);
+    anim->setEndValue(targetOp);
     anim->setEasingCurve(QEasingCurve::OutCubic);
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 
     HWND hwnd = reinterpret_cast<HWND>(winId());
     bool dark = ThemeManager::instance()->isDarkMode();
-    WindowBackdropHelper::enableAcrylic(hwnd, dark);
+    int op = ThemeManager::instance()->clipboardOpacity();
+    if (op < 100) {
+        WindowBackdropHelper::enableBackdrop(hwnd, WindowBackdropHelper::None, dark);
+    } else {
+        WindowBackdropHelper::enableAcrylic(hwnd, dark);
+    }
 
     SetForegroundWindow(hwnd);
     GlobalHookManager::instance()->setClipboardWindowHandle(hwnd);
@@ -146,7 +164,8 @@ void ClipboardWindow::hideWindow() {
     anim->setEasingCurve(QEasingCurve::InQuad);
     connect(anim, &QPropertyAnimation::finished, this, [this]() {
         hide();
-        setWindowOpacity(1.0);
+        qreal targetOp = ThemeManager::instance()->targetWindowOpacity();
+        setWindowOpacity(targetOp);
     });
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 }

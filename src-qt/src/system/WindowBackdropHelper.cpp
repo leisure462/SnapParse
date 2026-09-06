@@ -47,8 +47,22 @@ static bool applyWin10Acrylic(HWND hwnd, bool isDark) {
         (pfnSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
     if (!SetWindowCompositionAttribute) return false;
 
-    DWORD gradientColor = isDark ? 0x99202020 : 0x99F0F0F0;
+    DWORD gradientColor = isDark ? 0xEE202020 : 0xEEF0F0F0;
     ACCENT_POLICY policy = { ACCENT_ENABLE_ACRYLICBLURBEHIND, 0, gradientColor, 0 };
+    WINCOMPATTRDATA data = { 19, &policy, sizeof(policy) };
+
+    return SetWindowCompositionAttribute(hwnd, &data) != FALSE;
+}
+
+static bool applyWin10Disabled(HWND hwnd) {
+    HMODULE hUser = GetModuleHandleW(L"user32.dll");
+    if (!hUser) return false;
+
+    pfnSetWindowCompositionAttribute SetWindowCompositionAttribute =
+        (pfnSetWindowCompositionAttribute)GetProcAddress(hUser, "SetWindowCompositionAttribute");
+    if (!SetWindowCompositionAttribute) return false;
+
+    ACCENT_POLICY policy = { ACCENT_DISABLED, 0, 0, 0 };
     WINCOMPATTRDATA data = { 19, &policy, sizeof(policy) };
 
     return SetWindowCompositionAttribute(hwnd, &data) != FALSE;
@@ -69,7 +83,7 @@ bool WindowBackdropHelper::enableBackdrop(HWND hwnd, BackdropType type, bool isD
     DWORD corner = 2; // DWMWCP_ROUND
     DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
 
-    // 4. Set Windows 11 System Backdrop (Acrylic / Mica)
+    // 4. Set Windows 11 System Backdrop (Acrylic / Mica / None)
     DWORD backdrop = static_cast<DWORD>(type);
     HRESULT hr = DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, &backdrop, sizeof(backdrop));
     if (SUCCEEDED(hr)) {
@@ -79,6 +93,8 @@ bool WindowBackdropHelper::enableBackdrop(HWND hwnd, BackdropType type, bool isD
     // 5. Fallback for Windows 10 (Build 1809+)
     if (type == Acrylic) {
         return applyWin10Acrylic(hwnd, isDarkMode);
+    } else if (type == None) {
+        return applyWin10Disabled(hwnd);
     }
 
     return false;

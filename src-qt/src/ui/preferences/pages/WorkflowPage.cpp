@@ -128,6 +128,26 @@ void WorkflowPage::setupUi() {
     m_rows["appearance.fontFamily"] = cardFont;
     m_appGroup->addSettingCard(cardFont);
 
+    auto* cardOpacity = new FluentOptionsSettingCard(FluentIconType::Filter, "剪贴板透明度", "自定义剪贴板主界面的透明度档位（75% 至 100%）。", this);
+    cardOpacity->setOptions({
+        {"75", "75%"},
+        {"80", "80%"},
+        {"85", "85%"},
+        {"90", "90%"},
+        {"95", "95%"},
+        {"100", "100%"}
+    });
+    int curOp = cfg->appearance.opacity;
+    if (curOp < 75 || curOp > 100) curOp = 100;
+    cardOpacity->setCurrentValue(QString::number(curOp));
+    connect(cardOpacity, &FluentOptionsSettingCard::valueChanged, this, [](const QString& val) {
+        int op = val.toInt();
+        if (op < 75 || op > 100) op = 100;
+        ThemeManager::instance()->setClipboardOpacity(op);
+    });
+    m_rows["appearance.opacity"] = cardOpacity;
+    m_appGroup->addSettingCard(cardOpacity);
+
     auto* cardLang = new FluentOptionsSettingCard(FluentIconType::Globe, "界面语言", "切换软件界面显示语言。", this);
     cardLang->setOptions({
         {"zh-CN", "简体中文"},

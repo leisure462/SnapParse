@@ -11,6 +11,7 @@ public:
 
     void init();
     void setVisible(bool visible);
+    void quitApp();
 
 private slots:
     void handleActivated(QSystemTrayIcon::ActivationReason reason);

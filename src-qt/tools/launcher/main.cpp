@@ -9,7 +9,7 @@
 #define IDR_PAYLOAD_ZIP 101
 
 // Version identifier: changing this will trigger re-extraction on update
-#define APP_VERSION_TAG L"v3.0.0"
+#define APP_VERSION_TAG L"v3.0.1"
 
 static std::wstring GetLocalAppDataPath() {
     wchar_t path[MAX_PATH];

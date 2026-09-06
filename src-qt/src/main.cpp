@@ -50,12 +50,11 @@ LONG WINAPI CustomCrashHandler(EXCEPTION_POINTERS* pExceptionPointers) {
 }
 
 int main(int argc, char *argv[]) {
-    OleInitialize(NULL);
     SetUnhandledExceptionFilter(CustomCrashHandler);
 
     QApplication app(argc, argv);
     app.setApplicationName("SnapParse");
-    app.setApplicationVersion("3.0.0");
+    app.setApplicationVersion("3.0.1");
     app.setOrganizationName("SnapParseHub");
     app.setWindowIcon(FluentIcon::appIcon(64, true));
     app.setQuitOnLastWindowClosed(false); // Keep running in background/tray
@@ -80,7 +79,6 @@ int main(int argc, char *argv[]) {
             Logger::info("Another instance is running, forwarding command and exiting");
             socket.write("show");
             socket.waitForBytesWritten(200);
-            OleUninitialize();
             return 0;
         }
         // Stale server socket, remove and re-listen
@@ -179,9 +177,28 @@ int main(int argc, char *argv[]) {
         clipboardWin->showAndFocus();
     }
 
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [&]() {
+        Logger::info("SnapParse Qt aboutToQuit triggered, performing teardown...");
+        if (SystemTrayManager::instance()) {
+            SystemTrayManager::instance()->quitApp();
+        }
+    });
+
     Logger::info("SnapParse Qt initialized successfully");
 
     int exitCode = app.exec();
-    OleUninitialize();
+
+    // Ensure all hooks and resources are cleanly terminated
+    GlobalHookManager::instance()->stop();
+    HotkeyManager::instance()->unregisterHotkeys();
+    ClipboardMonitor::instance()->stop();
+    HistoryCleanService::instance()->stop();
+    DatabaseManager::instance()->close();
+
+    delete clipboardWin;
+    delete prefWin;
+    delete previewWin;
+
+    Logger::info("SnapParse Qt exited cleanly with code: " + QString::number(exitCode));
     return exitCode;
 }

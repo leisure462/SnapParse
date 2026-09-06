@@ -98,7 +98,7 @@ void PreviewWindow::updateStyles() {
                 QTextBrowser {
                     border: 1px solid rgba(255, 255, 255, 0.08);
                     border-radius: 7px;
-                    background: rgba(25, 25, 28, 0.85);
+                    background: rgba(25, 25, 28, 0.95);
                     padding: 8px;
                     font-family: 'Consolas', monospace;
                     font-size: 12.5px;
@@ -114,7 +114,7 @@ void PreviewWindow::updateStyles() {
                 QTextBrowser {
                     border: 1px solid rgba(0, 0, 0, 0.08);
                     border-radius: 7px;
-                    background: rgba(255, 255, 255, 0.88);
+                    background: rgba(255, 255, 255, 0.96);
                     padding: 8px;
                     font-family: 'Consolas', monospace;
                     font-size: 12.5px;
@@ -123,6 +123,18 @@ void PreviewWindow::updateStyles() {
             )");
         }
     }
+
+    setWindowOpacity(ThemeManager::instance()->targetWindowOpacity());
+    if (winId()) {
+        HWND hwnd = reinterpret_cast<HWND>(winId());
+        int op = ThemeManager::instance()->clipboardOpacity();
+        if (op < 100) {
+            WindowBackdropHelper::enableBackdrop(hwnd, WindowBackdropHelper::None, dark);
+        } else {
+            WindowBackdropHelper::enableAcrylic(hwnd, dark);
+        }
+    }
+    update();
 }
 
 void PreviewWindow::showPreview(const ClipboardItem& item, const QRect& anchorRect, const QRect& parentWindowRect, bool isToggle) {
@@ -261,10 +273,11 @@ void PreviewWindow::showPreview(const ClipboardItem& item, const QRect& anchorRe
     if (!isVisible()) {
         setWindowOpacity(0.0);
         show();
+        qreal targetOp = ThemeManager::instance()->targetWindowOpacity();
         QPropertyAnimation* anim = new QPropertyAnimation(this, "windowOpacity", this);
         anim->setDuration(120);
         anim->setStartValue(0.0);
-        anim->setEndValue(1.0);
+        anim->setEndValue(targetOp);
         anim->setEasingCurve(QEasingCurve::OutCubic);
         anim->start(QAbstractAnimation::DeleteWhenStopped);
     }
@@ -272,7 +285,12 @@ void PreviewWindow::showPreview(const ClipboardItem& item, const QRect& anchorRe
 
     HWND hwnd = reinterpret_cast<HWND>(winId());
     bool dark = ThemeManager::instance()->isDarkMode();
-    WindowBackdropHelper::enableAcrylic(hwnd, dark);
+    int op = ThemeManager::instance()->clipboardOpacity();
+    if (op < 100) {
+        WindowBackdropHelper::enableBackdrop(hwnd, WindowBackdropHelper::None, dark);
+    } else {
+        WindowBackdropHelper::enableAcrylic(hwnd, dark);
+    }
 }
 
 void PreviewWindow::keyPressEvent(QKeyEvent* event) {

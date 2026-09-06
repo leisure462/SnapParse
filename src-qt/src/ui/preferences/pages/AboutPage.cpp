@@ -20,7 +20,7 @@ void AboutPage::setupUi() {
 
     m_abtGroup = new FluentSettingCardGroup("关于 SnapParse", container);
 
-    auto* cardVer = new FluentPushSettingCard(FluentIconType::About, "检查更新", "SnapParse Qt", "当前版本 v3.0.0 (Qt 6.8.2 C++20 x64)", this);
+    auto* cardVer = new FluentPushSettingCard(FluentIconType::About, "检查更新", "SnapParse Qt", "当前版本 v3.0.1 (Qt 6.8.2 C++20 x64)", this);
     connect(cardVer, &FluentPushSettingCard::clicked, this, []() {
         QDesktopServices::openUrl(QUrl("https://github.com/leisure462/SnapParse/releases"));
     });

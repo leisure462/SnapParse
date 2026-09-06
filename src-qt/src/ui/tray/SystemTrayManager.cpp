@@ -5,6 +5,10 @@
 #include "Logger.h"
 #include "FluentIcon.h"
 #include "ThemeManager.h"
+#include "GlobalHookManager.h"
+#include "HotkeyManager.h"
+#include "DatabaseManager.h"
+#include "HistoryCleanService.h"
 #include <QApplication>
 #include <windows.h>
 
@@ -35,13 +39,13 @@ void SystemTrayManager::init() {
         // Menu - parent to this so it's auto-deleted with SystemTrayManager
         m_trayMenu = new QMenu();
         m_openClipAction = m_trayMenu->addAction("打开剪贴板");
-        m_openPrefAction = m_trayMenu->addAction("偏好设置...");
+        m_openPrefAction = m_trayMenu->addAction("偏好设置");
         m_trayMenu->addSeparator();
 
         m_listenAction = m_trayMenu->addAction("暂停监听");
         m_trayMenu->addSeparator();
 
-        m_quitAction = m_trayMenu->addAction("退出 SnapParse");
+        m_quitAction = m_trayMenu->addAction("退出");
 
         connect(m_openClipAction, &QAction::triggered, this, []() {
             EventBus::instance()->toggleClipboardWindow();
@@ -50,7 +54,7 @@ void SystemTrayManager::init() {
             EventBus::instance()->showPreferencesWindow();
         });
         connect(m_listenAction, &QAction::triggered, this, &SystemTrayManager::handleToggleListening);
-        connect(m_quitAction, &QAction::triggered, qApp, &QApplication::quit);
+        connect(m_quitAction, &QAction::triggered, this, &SystemTrayManager::quitApp);
 
         updateMenuIcons();
         connect(ThemeManager::instance(), &ThemeManager::themeApplied, this, &SystemTrayManager::updateMenuIcons);
@@ -109,4 +113,39 @@ void SystemTrayManager::handleToggleListening() {
         ClipboardMonitor::instance()->stop();
         m_listenAction->setText("恢复监听");
     }
+}
+
+void SystemTrayManager::quitApp() {
+    Logger::info("SystemTrayManager: user requested application exit, performing instant teardown...");
+
+    // 1. Immediately hide tray menu and tray icon so Windows taskbar removes it instantly
+    if (m_trayMenu) {
+        m_trayMenu->hide();
+    }
+    if (m_trayIcon) {
+        m_trayIcon->hide();
+    }
+
+    // 2. CRITICAL: Instantly unhook all Windows low-level hooks!
+    // This immediately stops Windows from dispatching global mouse/keyboard events to our thread.
+    // Without this, Windows waits for LowLevelHooksTimeout on every mouse move while the thread is exiting,
+    // which freezes the computer and causes the mouse cursor to spin.
+    GlobalHookManager::instance()->stop();
+
+    // 3. Immediately unregister hotkeys
+    HotkeyManager::instance()->unregisterHotkeys();
+
+    // 4. Stop clipboard monitoring and timers
+    ClipboardMonitor::instance()->stop();
+    HistoryCleanService::instance()->stop();
+
+    // 5. Hide all open windows immediately
+    EventBus::instance()->hideClipboardWindow();
+    EventBus::instance()->hidePreviewWindow();
+
+    // 6. Close database properly
+    DatabaseManager::instance()->close();
+
+    // 7. Request fast, clean exit
+    qApp->quit();
 }

@@ -6,6 +6,14 @@
 #include <QPalette>
 #include <QFont>
 
+namespace {
+int interpolateAlpha(int opacity, int a75, int a100 = 255) {
+    if (opacity <= 75) return a75;
+    if (opacity >= 100) return a100;
+    return a75 + (a100 - a75) * (opacity - 75) / 25;
+}
+}
+
 ThemeManager* ThemeManager::instance() {
     static ThemeManager s_instance;
     return &s_instance;
@@ -13,6 +21,8 @@ ThemeManager* ThemeManager::instance() {
 
 ThemeManager::ThemeManager(QObject* parent) : QObject(parent) {
     m_fontFamily = AppConfig::instance()->appearance.fontFamily;
+    m_clipboardOpacity = AppConfig::instance()->appearance.opacity;
+    if (m_clipboardOpacity < 75 || m_clipboardOpacity > 100) m_clipboardOpacity = 100;
 }
 
 bool ThemeManager::detectSystemDarkMode() const {
@@ -89,6 +99,22 @@ void ThemeManager::setFontFamily(const QString& family) {
     applyTheme(AppConfig::instance()->appearance.theme);
 }
 
+void ThemeManager::setClipboardOpacity(int opacity) {
+    opacity = qBound(75, opacity, 100);
+    if (m_clipboardOpacity == opacity) {
+        return;
+    }
+    m_clipboardOpacity = opacity;
+    AppConfig::instance()->appearance.opacity = opacity;
+    AppConfig::instance()->save();
+    emit themeApplied();
+}
+
+qreal ThemeManager::targetWindowOpacity() const {
+    int op = qBound(75, m_clipboardOpacity, 100);
+    return op / 100.0;
+}
+
 QColor ThemeManager::backgroundColor() const {
     return m_isDark ? QColor("#141416") : QColor("#f4f5f7");
 }
@@ -123,24 +149,45 @@ QColor ThemeManager::hoverColor() const {
 
 // Frosted Glass Material Colors
 QColor ThemeManager::windowGlassColor() const {
-    // Translucent tint on top of DWM acrylic/mica blur
-    return m_isDark ? QColor(20, 20, 24, 180) : QColor(248, 249, 251, 170);
+    int a = m_isDark 
+        ? interpolateAlpha(m_clipboardOpacity, 180, 255)
+        : interpolateAlpha(m_clipboardOpacity, 190, 255);
+    return m_isDark ? QColor(22, 22, 26, a) : QColor(246, 247, 250, a);
 }
 
 QColor ThemeManager::cardGlassColor() const {
-    return m_isDark ? QColor(36, 36, 42, 190) : QColor(255, 255, 255, 210);
+    int a = m_isDark
+        ? interpolateAlpha(m_clipboardOpacity, 200, 255)
+        : interpolateAlpha(m_clipboardOpacity, 215, 255);
+    return m_isDark ? QColor(36, 36, 42, a) : QColor(255, 255, 255, a);
 }
 
 QColor ThemeManager::cardGlassHoverColor() const {
-    return m_isDark ? QColor(48, 48, 56, 220) : QColor(255, 255, 255, 245);
+    int a = m_isDark
+        ? interpolateAlpha(m_clipboardOpacity, 225, 255)
+        : interpolateAlpha(m_clipboardOpacity, 245, 255);
+    return m_isDark ? QColor(52, 52, 60, a) : QColor(255, 255, 255, a);
 }
 
 QColor ThemeManager::cardGlassSelectedColor() const {
     QColor p = primaryColor();
+    int a = m_isDark
+        ? interpolateAlpha(m_clipboardOpacity, 215, 255)
+        : interpolateAlpha(m_clipboardOpacity, 230, 255);
     if (m_isDark) {
-        return QColor(p.red(), p.green(), p.blue(), 26);
+        return QColor(
+            (36 * 70 + p.red() * 30) / 100,
+            (36 * 70 + p.green() * 30) / 100,
+            (42 * 70 + p.blue() * 30) / 100,
+            a
+        );
     } else {
-        return QColor(p.red(), p.green(), p.blue(), 18);
+        return QColor(
+            (255 * 88 + p.red() * 12) / 100,
+            (255 * 88 + p.green() * 12) / 100,
+            (255 * 88 + p.blue() * 12) / 100,
+            a
+        );
     }
 }
 
@@ -360,11 +407,11 @@ QString ThemeManager::generateStyleSheet() {
             color: %1;
             border: 1px solid %9;
             border-radius: 8px;
-            padding: 5px;
+            padding: 4px;
         }
         QMenu::item {
             background-color: transparent;
-            padding: 6px 22px 6px 12px;
+            padding: 5px 14px 5px 10px;
             border-radius: 5px;
             color: %1;
             font-size: 13px;

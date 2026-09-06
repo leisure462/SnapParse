@@ -13,6 +13,9 @@ public:
     void setAccentColor(const QString& hexColor);
     void setFontFamily(const QString& family);
     QString fontFamily() const { return m_fontFamily; }
+    void setClipboardOpacity(int opacity);
+    int clipboardOpacity() const { return m_clipboardOpacity; }
+    qreal targetWindowOpacity() const;
     bool isDarkMode() const { return m_isDark; }
 
     QColor backgroundColor() const;
@@ -42,4 +45,5 @@ private:
 
     bool m_isDark = false;
     QString m_fontFamily;
+    int m_clipboardOpacity = 100;
 };

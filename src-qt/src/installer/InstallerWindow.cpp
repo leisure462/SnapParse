@@ -105,7 +105,7 @@ void InstallerWindow::setupUi() {
     titleLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 18px; font-weight: bold; color: #ffffff;");
     titleLayout->addWidget(titleLabel);
 
-    QLabel* subtitleLabel = new QLabel("v3.0.0 极简智能剪贴板管理工具", this);
+    QLabel* subtitleLabel = new QLabel("v3.0.1 极简智能剪贴板管理工具", this);
     subtitleLabel->setStyleSheet("font-family: 'Microsoft YaHei UI'; font-size: 12.5px; color: #86868b;");
     titleLayout->addWidget(subtitleLabel);
 
@@ -380,7 +380,7 @@ void InstallerWindow::registerUninstaller(const QString& targetDir) {
     // Register into Windows Control Panel & Settings "Installed Apps"
     QSettings unReg("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\SnapParse", QSettings::NativeFormat);
     unReg.setValue("DisplayName", "SnapParse");
-    unReg.setValue("DisplayVersion", "3.0.0");
+    unReg.setValue("DisplayVersion", "3.0.1");
     unReg.setValue("Publisher", "EcoPasteHub");
     unReg.setValue("DisplayIcon", QString("\"%1\",0").arg(nativeExe));
     unReg.setValue("InstallLocation", QString("\"%1\"").arg(nativeDir));
