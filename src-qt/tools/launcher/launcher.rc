@@ -1,0 +1,41 @@
+#include <windows.h>
+
+// Resource IDs
+#define IDI_APP_ICON 1
+#define IDR_PAYLOAD_ZIP 101
+
+// Application Icon
+IDI_APP_ICON ICON "app_icon.ico"
+
+// Embedded Payload
+IDR_PAYLOAD_ZIP RCDATA "payload.zip"
+
+// Version Information
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     3,0,0,0
+PRODUCTVERSION  3,0,0,0
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       0
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0" // Simplified Chinese, Unicode
+        BEGIN
+            VALUE "CompanyName",      "SnapParseHub\0"
+            VALUE "FileDescription",  "SnapParse - 极速剪贴板管理工具\0"
+            VALUE "FileVersion",      "3.0.0.0\0"
+            VALUE "InternalName",     "SnapParse.exe\0"
+            VALUE "LegalCopyright",   "Copyright (C) 2026 SnapParseHub. All rights reserved.\0"
+            VALUE "OriginalFilename", "SnapParse.exe\0"
+            VALUE "ProductName",      "SnapParse\0"
+            VALUE "ProductVersion",   "3.0.0.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0804, 1200
+    END
+END

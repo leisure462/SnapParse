@@ -1,12 +1,47 @@
-node_modules/
+# Build directories and outputs
+build/
+src-qt/build/
+release/
+src-qt/release/
 dist/
-.DS_Store
-*.log
+src-qt/dist/
+bin/
+out/
+CMakeFiles/
+CMakeCache.txt
+*.obj
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
 
-src-tauri/target/
-src-tauri/gen/
-src-tauri/updater.key
-src-tauri/updater.key.pub
+# Single EXE Packaging Intermediates
+src-qt/tools/launcher/payload.zip
+src-qt/tools/launcher/launcher.res
+src-qt/tools/launcher/app_icon.ico
 
+# Qt AutoGen
+*_autogen/
+.rcc/
+.moc/
+.ui/
+
+# IDE / Editor
+.vs/
 .vscode/
 .idea/
+*.user
+*.suo
+*.user.*
+*.sln
+
+# Trellis internal logs/workspace
+.trellis/workspace/
+.trellis/tasks/
+
+# OS & Logs
+*.log
+.DS_Store
+Thumbs.db

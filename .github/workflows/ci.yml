@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build & Test on Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC Toolchain
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Qt 6.8
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.*"
+          host: "windows"
+          target: "desktop"
+          arch: "win64_msvc2022_64"
+          modules: "qtsvg"
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          cmake -B src-qt/build -S src-qt -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Compile SnapParse
+        shell: pwsh
+        run: |
+          cmake --build src-qt/build --config Release
+
+      - name: Deploy Qt Runtime Dependencies
+        shell: pwsh
+        run: |
+          windeployqt --release --no-translations src-qt/build/SnapParse.exe
+
+      - name: Verify Single-File Executable Packaging
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File src-qt/build_single_exe.ps1
+          if (-not (Test-Path "SnapParse.exe")) {
+            throw "SnapParse.exe was not generated!"
+          }
+          Write-Host "CI Build & Packaging verification passed successfully!" -ForegroundColor Green

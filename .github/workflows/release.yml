@@ -6,86 +6,117 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: "Release tag (example: v1.0.1)"
+      tag_name:
+        description: "Release tag (e.g. v3.0.0)"
         required: true
-        default: "v1.0.1"
+        default: "v3.0.0"
 
 permissions:
   contents: write
 
 jobs:
   build-and-release:
+    name: Build and Publish Release
     runs-on: windows-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout Source Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Resolve tag
-        id: tag
+      - name: Resolve Version Tag
+        id: version
         shell: pwsh
         run: |
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "value=${{ inputs.release_tag }}"
+            $tag = "${{ inputs.tag_name }}"
           } else {
-            Add-Content -Path $env:GITHUB_OUTPUT -Value "value=${{ github.ref_name }}"
+            $tag = "${{ github.ref_name }}"
           }
+          $ver = $tag.TrimStart("v")
+          Write-Host "Resolved Version: $ver (Tag: $tag)"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$tag"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "val=$ver"
 
-      - name: Validate version matches tag
-        shell: pwsh
-        run: |
-          $pkgVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $releaseTag = "${{ steps.tag.outputs.value }}"
-          $tagVersion = $releaseTag.TrimStart("v")
-          if ($pkgVersion -ne $tagVersion) {
-            throw "Version mismatch: package.json=$pkgVersion but tag=$releaseTag"
-          }
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup MSVC Toolchain
+        uses: ilammy/msvc-dev-cmd@v1
         with:
-          node-version: "20"
-          cache: "npm"
+          arch: x64
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Qt 6.8
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8.*"
+          host: "windows"
+          target: "desktop"
+          arch: "win64_msvc2022_64"
+          modules: "qtsvg"
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Tauri bundles
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm run tauri build
-
-      - name: Generate updater manifest (latest.json)
-        env:
-          UPDATER_REPOSITORY: ${{ github.repository }}
-          UPDATER_TAG: ${{ steps.tag.outputs.value }}
-        run: npm run updater:manifest
-
-      - name: List bundle outputs
+      - name: Configure CMake
         shell: pwsh
         run: |
-          Get-ChildItem -Recurse src-tauri/target/release/bundle | Select-Object FullName
+          cmake -B src-qt/build -S src-qt -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Compile SnapParse
+        shell: pwsh
+        run: |
+          cmake --build src-qt/build --config Release
+
+      - name: Deploy Qt Runtime Dependencies
+        shell: pwsh
+        run: |
+          windeployqt --release --no-translations src-qt/build/SnapParse.exe
+
+      - name: Build Standalone Single-File Executable
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File src-qt/build_single_exe.ps1
+
+      - name: Prepare Release Artifacts
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version.outputs.val }}"
+          $tag = "${{ steps.version.outputs.tag }}"
+          
+          # 1. Standalone Single-File Portable Executable
+          Copy-Item -Path "SnapParse.exe" -Destination "SnapParse-$tag-windows-x64-standalone.exe" -Force
+          
+          # 2. Complete Distribution Zip (Full runtime folder)
+          $stagingDir = "dist_zip_temp"
+          New-Item -ItemType Directory -Path $stagingDir | Out-Null
+          
+          # Copy binary and deployed DLLs/plugins (excluding build cache files)
+          Copy-Item "src-qt/build/SnapParse.exe" $stagingDir
+          Copy-Item "src-qt/build/*.dll" $stagingDir
+          
+          $subdirs = @("platforms", "sqldrivers", "imageformats", "iconengines", "styles", "tls", "networkinformation", "generic")
+          foreach ($sub in $subdirs) {
+              $src = "src-qt/build/$sub"
+              if (Test-Path $src) {
+                  Copy-Item -Recurse $src "$stagingDir/$sub"
+              }
+          }
+          
+          $zipName = "SnapParse-$tag-windows-x64-portable.zip"
+          Compress-Archive -Path "$stagingDir/*" -DestinationPath $zipName -Force
+          Remove-Item -Recurse -Force $stagingDir
+          
+          Write-Host "Artifacts prepared:"
+          Get-Item "SnapParse.exe", "SnapParse-$tag-windows-x64-standalone.exe", $zipName | Select-Object Name, Length
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.value }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "SnapParse ${{ steps.version.outputs.tag }} (Native Qt6 C++ Edition)"
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
+          draft: false
+          prerelease: false
           files: |
-            src-tauri/target/release/bundle/latest.json
-            src-tauri/target/release/bundle/msi/SnapParse_*.msi
-            src-tauri/target/release/bundle/msi/SnapParse_*.msi.sig
-            src-tauri/target/release/bundle/msi/SnapParse_*.msi.zip
-            src-tauri/target/release/bundle/msi/SnapParse_*.msi.zip.sig
-            src-tauri/target/release/bundle/nsis/SnapParse_*-setup.exe
-            src-tauri/target/release/bundle/nsis/SnapParse_*-setup.exe.sig
-            src-tauri/target/release/bundle/nsis/SnapParse_*-setup.nsis.zip
-            src-tauri/target/release/bundle/nsis/SnapParse_*-setup.nsis.zip.sig
+            SnapParse.exe
+            SnapParse-*-windows-x64-standalone.exe
+            SnapParse-*-windows-x64-portable.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
